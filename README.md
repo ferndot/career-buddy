@@ -112,6 +112,10 @@ Formats: `markdown`, `html`, `txt`, `docx`, `pdf`. `check` renders the file, rea
 will serve import, and reports ATS problems (reading order, coverage, name position, heading order, tables, text boxes,
 header text, images, missing text layer). `/api/resume/markdown` and `/api/resume/html` still work.
 
+### Generator: job posting from a link
+
+In the Generator step, paste a job posting link and press *Fetch posting*; the text fills the job posting box. `POST /api/job/fetch` takes `{"url": "..."}` and returns `{"text": "..."}`. Only public `http`/`https` links work: the server refuses addresses on private, loopback or link-local networks (the link and every redirect, at most 3), links with a user name in them, pages over 1 MB, and anything that is not HTML or plain text, with a 10 second limit. Errors: 400 bad or private link, 413 too large, 415 wrong type, 422 no readable text, 502 site error, 504 timeout. Pages that build their content with JavaScript give no text; paste those by hand.
+
 ## Architecture
 
 Ports and adapters, with CQRS split between writes and reads. Layers depend inward only.

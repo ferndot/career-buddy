@@ -43,7 +43,18 @@ def llm(request: pytest.FixtureRequest):
 
 
 @pytest.fixture
-def live_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, renderers: list, llm):
+def job_site(request: pytest.FixtureRequest):
+    """An httpx MockTransport handler that plays the web for 'fetch job posting from a link'. Parametrize indirectly; none by default."""
+    return getattr(request, "param", None)
+
+
+def fake_dns(host: str) -> list[str]:
+    """Every name resolves to a public address; an IP literal resolves to itself, like getaddrinfo."""
+    return [host.strip("[]")] if host[0].isdigit() or ":" in host else ["93.184.216.34"]
+
+
+@pytest.fixture
+def live_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, renderers: list, llm, job_site):
     """The real app on a free local port, with its own empty data directory."""
     import httpx
     import uvicorn
@@ -51,11 +62,14 @@ def live_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, renderers: list
     from career_graph.web.app import create_app
 
     monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
+    from career_graph.adapters.sources.job_link import JobLinkFetcher
+
     transport = httpx.MockTransport(llm) if llm else None
+    job_fetcher = JobLinkFetcher(httpx.MockTransport(job_site), fake_dns) if job_site else None
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(create_app(tmp_path, llm_transport=transport, renderers=renderers), host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(create_app(tmp_path, llm_transport=transport, renderers=renderers, job_fetcher=job_fetcher), host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     while not server.started:

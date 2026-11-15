@@ -93,3 +93,24 @@ def test_adding_a_position_and_an_education_from_the_editor_shows_in_the_preview
     expect(preview.locator("li", has_text="Shipped the engine")).to_have_count(1)
     expect(preview).to_contain_text("BSc Mathematics, University of London")
     assert page.errors == []
+
+
+def posting_site(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<h1>Analyst</h1><ul><li>Python</li></ul>")
+
+
+@pytest.mark.parametrize("job_site", [posting_site], indirect=True)
+def test_fetching_a_job_posting_from_a_link_fills_the_textarea_and_refreshes_the_preview(page: Page) -> None:
+    open_create(page)
+    expect(page.locator("#match")).to_be_hidden()
+    page.fill("#job-url", "https://jobs.example/posting/1")
+    page.click("#job-fetch")
+    expect(page.locator("#job-text")).to_have_value("Analyst\nPython")
+    expect(page.locator("#match")).to_be_visible()  # the refresh the textarea triggers ran
+
+    page.fill("#job-url", "http://127.0.0.1/admin")
+    page.click("#job-fetch")
+    expect(page.locator("#create-status")).to_contain_text("private or internal")
+    expect(page.locator("#create-status")).to_have_attribute("role", "alert")
+    expect(page.locator("#job-text")).to_have_value("Analyst\nPython")  # a failed fetch leaves the text alone
+    assert page.errors == []

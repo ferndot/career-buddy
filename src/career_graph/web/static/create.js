@@ -109,6 +109,23 @@
     }
   }
 
+  // Fetch a posting from a link. The server checks the link and returns its text; it then goes through the textarea like pasted text.
+  async function fetchPosting() {
+    const button = $("job-fetch");
+    button.disabled = true;
+    say("create-status", "Fetching the posting...", "busy");
+    try {
+      const { text } = await (await call("/api/job/fetch", json("POST", { url: $("job-url").value }))).json();
+      $("job-text").value = text;
+      $("job-text").dispatchEvent(new Event("input"));
+      say("create-status", "");
+    } catch (err) {
+      say("create-status", err.message, "error");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   async function download(format) {
     say("create-status", `Preparing ${format.toUpperCase()}...`, "busy");
     try {
@@ -153,6 +170,7 @@
       $("template").onchange = pickTemplate;
       $("job-text").oninput = schedule;
       $("suggest").onclick = suggest;
+      $("job-fetch").onclick = fetchPosting;
       document.querySelectorAll(".bar button[data-format]").forEach((b) => { b.onclick = () => download(b.dataset.format); });
       pickKind();
     } else {

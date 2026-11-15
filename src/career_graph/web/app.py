@@ -20,6 +20,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field
 
 from career_graph.adapters.inference.connections import InvalidConnection, ReadOnlyConnection, UnknownConnection
+from career_graph.adapters.sources.job_link import JobLinkError, JobLinkFetcher
 from career_graph.application.documents import TailorOptions
 from career_graph.application.ports import (
     DocumentRenderer,
@@ -50,6 +51,10 @@ class TextImport(BaseModel):
 
 class JobText(BaseModel):
     job_text: str
+
+
+class JobLink(BaseModel):
+    url: str
 
 
 class FactPatch(BaseModel):
@@ -122,9 +127,11 @@ def create_app(
     data_dir: Path | None = None,
     llm_transport: httpx.AsyncBaseTransport | None = None,
     renderers: Sequence[DocumentRenderer] = (),
+    job_fetcher: JobLinkFetcher | None = None,
 ) -> FastAPI:
     data_dir = data_dir or Path(os.environ.get("CAREER_GRAPH_DATA", "data"))
     state: dict[str, App] = {}
+    job_fetcher = job_fetcher or JobLinkFetcher()
 
     async def rebuild() -> None:
         state["app"] = await build_app(data_dir, llm_transport, renderers)
@@ -198,6 +205,13 @@ def create_app(
             raise HTTPException(415, "Unsupported file type: use PDF, DOCX, TXT or MD") from error
         except UnreadableDocument as error:
             raise HTTPException(422, str(error)) from error
+
+    @api.post("/api/job/fetch")
+    async def fetch_job(body: JobLink) -> dict[str, str]:
+        try:
+            return {"text": await job_fetcher.fetch(body.url.strip())}
+        except JobLinkError as error:
+            raise HTTPException(error.status, str(error)) from error
 
     @api.get("/api/sources")
     async def sources() -> list[dict[str, object]]:
