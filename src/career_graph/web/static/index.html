@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>career-graph</title>
+<link rel="stylesheet" href="/static/vendor/grapesjs/grapes.min.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <h1>career-graph</h1>
+  <nav id="steps" aria-label="Steps">
+    <button data-step="import">1. Import</button>
+    <button data-step="edit">2. Edit</button>
+    <button data-step="create">3. Create</button>
+  </nav>
+</header>
+<main>
+  <section id="step-import">
+    <h2>Import your career data</h2>
+    <input type="file" id="import-file" class="sr" accept=".pdf,.docx,.zip,.csv,.txt,.md">
+    <label id="drop" for="import-file">
+      <strong>Drop a file here</strong> or click to choose one
+      <span class="muted">PDF, DOCX, TXT, MD, or a LinkedIn export (ZIP or CSV)</span>
+    </label>
+    <details id="paste">
+      <summary>Paste text instead</summary>
+      <textarea id="paste-text" rows="8" placeholder="Jane Doe&#10;&#10;Experience&#10;Senior Engineer at Acme, 2019 - 2023&#10;- Cut build times by 60%"></textarea>
+      <button id="paste-btn">Import text</button>
+    </details>
+    <p class="status" id="import-status" role="status"></p>
+  </section>
+
+  <section id="step-edit" hidden>
+    <div id="dups"></div>
+    <p class="muted" id="edit-hint">Double-click a line to edit it. Changes save when you leave the field. Select a bullet to hide it.</p>
+    <p class="status" id="edit-status" role="status"></p>
+    <div id="gjs"></div>
+    <div id="add-forms" hidden>
+      <details id="add-position">
+        <summary>Add a position</summary>
+        <label>Job title <input type="text" id="pos-title"></label>
+        <label>Organization <input type="text" id="pos-org"></label>
+        <label>Dates <input type="text" id="pos-dates" placeholder="Mar 2019 - Present"></label>
+        <label>Bullets (one per line) <textarea id="pos-bullets" rows="4"></textarea></label>
+        <button id="pos-save">Add position</button>
+      </details>
+      <details id="add-education">
+        <summary>Add education</summary>
+        <label>Degree <input type="text" id="edu-degree"></label>
+        <label>School <input type="text" id="edu-school"></label>
+        <button id="edu-save">Add education</button>
+      </details>
+    </div>
+    <p class="muted" id="edit-empty" hidden>Nothing imported yet. Go back to Import.</p>
+  </section>
+
+  <section id="step-create" hidden>
+    <div class="create">
+      <aside>
+        <label>Type <select id="kind"></select></label>
+        <label>Template <select id="template"></select></label>
+        <div id="inputs"></div>
+        <label>Job posting (optional) <textarea id="job-text" rows="6" placeholder="Paste the job posting to tailor the document"></textarea></label>
+        <h3>Suggestions</h3>
+        <button id="suggest" class="ghost">Suggest rewordings</button>
+        <div id="suggestions" role="status"></div>
+        <h3>Bullets</h3>
+        <div id="bullets"></div>
+        <h3>Matched</h3><div id="matched" class="chips"></div>
+        <h3>Missing from your profile</h3><div id="missing" class="chips"></div>
+        <h3>Wording changes</h3><ul id="markers"></ul>
+      </aside>
+      <div>
+        <div class="bar">
+          <button id="dl-docx" data-format="docx">DOCX</button>
+          <button id="dl-pdf" data-format="pdf">PDF</button>
+          <button id="dl-txt" data-format="txt">TXT</button>
+          <details id="more"><summary>More</summary>
+            <button id="dl-markdown" data-format="markdown" class="ghost">MD</button>
+            <button id="dl-html" data-format="html" class="ghost">HTML</button>
+          </details>
+          <span id="ats-badge" class="badge" hidden></span><small id="ats-format" class="muted"></small>
+        </div>
+        <p class="status" id="create-status" role="status"></p>
+        <article id="preview" class="doc"></article>
+      </div>
+    </div>
+  </section>
+  <div id="toast" role="status" hidden></div>
+</main>
+<script src="/static/vendor/grapesjs/grapes.min.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/import.js"></script>
+<script src="/static/gjs.js"></script>
+<script src="/static/edit.js"></script>
+<script src="/static/create.js"></script>
+</body>
+</html>

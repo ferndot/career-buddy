@@ -1,0 +1,40 @@
+[project]
+name = "career-graph"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Fern", email = "contact@ferns.land" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.44.3",
+    "fastapi>=0.163.0",
+    "httpx>=0.28.1",
+    "pdfminer-six>=20260107",
+    "playwright>=1.65.2",
+    "python-docx>=1.2.0",
+    "python-multipart>=0.0.33",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+career-graph = "career_graph:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.15",
+    "moto[s3]>=5.2.5",
+    "mutmut>=3.8.1",
+    "pytest>=9.2.0",
+]
+
+[tool.mutmut]
+source_paths = ["src/career_graph/domain/"]
+pytest_add_cli_args_test_selection = ["tests/"]
+pytest_add_cli_args = ["-p", "no:cacheprovider"]
+also_copy = ["src/career_graph/adapters", "src/career_graph/application", "src/career_graph/web", "src/career_graph/__init__.py", "src/career_graph/composition.py"]

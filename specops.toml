@@ -1,0 +1,40 @@
+[project]
+name = "CareerGraph"
+repo = ""
+docs_dir = "docs/project"
+site_output = "dist/site"
+
+[architecture]
+file_length_limit = 500
+buffer_target = 10
+buffer_warning_threshold = 6
+
+components = [
+  { id = "core", name = "Core Engine", path = "src" }
+]
+
+[vertical_slices]
+slices = [
+  { type = "spike", name = "Architectural Spike", prefix = "SPIKE:", requires_adr = true },
+  { type = "domain", name = "Domain Model & State Handlers" },
+  { type = "api", name = "Public API Contracts" },
+  { type = "ui", name = "User Interface & Component Stories" },
+  { type = "test", name = "Blackbox Frontdoor Test Suite" }
+]
+
+[quality]
+testing_style = "blackbox-frontdoor"
+require_bdd = true
+preflight = [
+  "uv run pytest"
+]
+
+[execution]
+agent_command = "agy --dangerously-skip-permissions -p {prompt}"
+agent_max_attempts = 3
+git_branch_prefix = "feat/"
+backlog_isolation = true
+
+[profiles]
+installed = ["core", "ddd", "bdd"]
+version = "0.1.0"
