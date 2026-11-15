@@ -20,7 +20,7 @@ from career_graph.application.ports import (
 )
 from career_graph.application.projector import Projector
 from career_graph.domain.dedup import merge_candidates
-from career_graph.domain.events import DuplicateDismissed, FactRevised, FactsImported, FactsMerged
+from career_graph.domain.events import DuplicateDismissed, FactRevised, FactsImported, FactsMerged, SourceRemoved
 from career_graph.domain.manual import manual_fact
 from career_graph.domain.model import Fact, FactBatch, FactKind, InvalidFact
 from career_graph.domain.letter import write_letter
@@ -100,7 +100,7 @@ class EditService:
             raise FactNotFound(fact_id)
         return fact
 
-    async def _record(self, event: FactRevised | FactsImported | FactsMerged | DuplicateDismissed) -> None:
+    async def _record(self, event: FactRevised | FactsImported | FactsMerged | DuplicateDismissed | SourceRemoved) -> None:
         self._log.append(event)
         await self._projector.project(event)
 
@@ -124,6 +124,11 @@ class EditService:
             raise InvalidFact("A fact is not a duplicate of itself")
         await self._find(a_id), await self._find(b_id)
         await self._record(DuplicateDismissed(a_id, b_id, _now()))
+
+    async def remove_source(self, source: str) -> None:
+        if source not in self._projector.sources():
+            raise FactNotFound(source)
+        await self._record(SourceRemoved(source, _now()))
 
     async def add_fact(self, kind: FactKind, title: str, parent_id: str | None, attributes: dict[str, str]) -> str:
         parent = await self._find(parent_id) if parent_id else None
@@ -152,6 +157,20 @@ class CareerQueries:
 
     async def profile(self) -> Profile:
         return assemble_profile(await self._graph.snapshot())
+
+    async def sources(self) -> list[dict[str, object]]:
+        batch = await self._graph.snapshot()
+        counts: dict[str, int] = {}
+        for f in batch.facts:
+            counts[f.source] = counts.get(f.source, 0) + 1
+        return [{"source": s, "facts": counts.get(s, 0)} for s in sorted(self._graph.sources())]
+
+    async def graph(self) -> dict[str, list[dict[str, object]]]:
+        batch = await self._graph.snapshot()
+        return {
+            "nodes": [{"id": f.id, "kind": f.kind.value, "title": f.title, "source": f.source} for f in batch.facts],
+            "edges": [{"source": l.source_id, "target": l.target_id, "kind": l.kind.value} for l in batch.links],
+        }
 
     async def facts(self, kind: FactKind | None = None) -> list[dict[str, object]]:
         batch = await self._graph.snapshot()

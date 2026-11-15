@@ -70,7 +70,7 @@ def test_adding_a_position_and_an_education_from_the_editor_shows_in_the_preview
     page.fill("#pos-dates", "2016 - 2018")
     page.fill("#pos-bullets", "Saved the day\nShipped the engine")
     page.click("#pos-save")
-    expect(page.locator("#edit-status")).to_have_text("Saved")
+    expect(page.locator("#edit-status")).to_have_text("All changes saved")
     expect(page.frame_locator("iframe.gjs-frame").locator('[data-field="title"]', has_text="Consultant")).to_be_visible()
 
     page.click("#add-education summary")

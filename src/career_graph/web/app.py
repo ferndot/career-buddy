@@ -177,6 +177,19 @@ def create_app(
         except UnreadableDocument as error:
             raise HTTPException(422, str(error)) from error
 
+    @api.get("/api/sources")
+    async def sources() -> list[dict[str, object]]:
+        return await app().queries.sources()
+
+    @api.delete("/api/sources/{source}", status_code=204)
+    async def remove_source(source: str) -> Response:
+        await app().edits.remove_source(source)
+        return Response(status_code=204)
+
+    @api.get("/api/graph")
+    async def graph() -> dict[str, list[dict[str, object]]]:
+        return await app().queries.graph()
+
     @api.get("/api/facts")
     async def facts(kind: str | None = None) -> list[dict[str, object]]:
         return await app().queries.facts(kind)

@@ -1,0 +1,1 @@
+cytoscape 3.30.4 (MIT), from cdn.jsdelivr.net/npm/cytoscape@3.30.4

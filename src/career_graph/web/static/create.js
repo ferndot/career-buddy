@@ -1,13 +1,21 @@
 // Step 3: pick a template, optionally paste a job posting, preview, choose bullets, download. The ATS check is a warning.
 (() => {
-  const { $, esc, call, json, hooks } = cg;
+  const { $, esc, call, json, say, hooks } = cg;
   const KINDS = { resume: "Resume", letter: "Letter", other: "Other" };
+  // What each ATS issue means for the reader, in sentences. Codes never reach the screen.
   const WHY = {
-    coverage: "some lines were not read back", order: "lines are out of reading order",
-    name: "the name is not in the first lines", headings: "headings are missing or out of order",
-    table: "it contains a table", text_box: "it contains a text box", header_footer: "text sits in the header or footer",
-    images: "it contains images", text_layer: "a page has no text layer", glyphs: "some glyphs are unmapped",
+    coverage: "Some lines did not come through when the file was read back.",
+    order: "Some lines came out jumbled.",
+    name: "Your name was not at the very top.",
+    headings: "Some section headings were missing or in a different sequence.",
+    table: "It contains a table, which many systems skip.",
+    text_box: "It contains a text box, which many systems skip.",
+    header_footer: "Text sits in the page header or footer, which many systems skip.",
+    images: "It contains images, which software cannot read.",
+    text_layer: "A page has no selectable text.",
+    glyphs: "Some characters did not come through as readable text.",
   };
+  const FLAGS = { strip: "Removed", swap: "Changed" };
   let templates = [];
   let selection = null; // null: the template's own top bullets; otherwise a Set of bullet fact ids
   let overrides = {}; // bullet fact id -> an accepted suggestion
@@ -28,8 +36,10 @@
     const el = $("ats-badge");
     el.hidden = false;
     el.className = codes.length ? "badge warn" : "badge";
-    el.textContent = codes.length ? `ATS warning: ${codes.map((c) => WHY[c] ?? c).join("; ")}` : "Passes ATS check";
-    $("ats-format").textContent = format.toUpperCase();
+    el.textContent = codes.length ? "ATS warning" : "Passes ATS check";
+    $("ats-detail").hidden = !codes.length;
+    $("ats-detail").innerHTML = codes.map((c) => `<li>${esc(WHY[c] ?? "Something in the file may not be read correctly.")}</li>`).join("");
+    $("ats-format").textContent = `Checked as ${format.toUpperCase()}, the way software employers use reads it`;
   }
 
   function paper(doc) {
@@ -58,18 +68,20 @@
   async function refresh() {
     try {
       const out = await (await call("/api/documents/preview", json("POST", request()))).json();
-      $("create-status").textContent = "";
+      say("create-status", "");
       $("preview").innerHTML = paper(out.document);
       chips("matched", out.tailoring.matched);
       chips("missing", out.tailoring.missing);
-      $("markers").innerHTML = out.markers.map((m) =>
-        `<li>${m.weak ? "weak signal" : esc(m.kind)}: ${esc(m.found)}${m.replacement ? ` to ${esc(m.replacement)}` : ""}</li>`).join("");
+      $("match").hidden = !$("job-text").value.trim();
+      $("markers").innerHTML = out.markers.map((m) => m.kind === "flag"
+        ? `<li>Check the wording: "${esc(m.found)}" is often read as a sign of machine-written text.</li>`
+        : `<li>${FLAGS[m.kind] ?? "Changed"}: "${esc(m.found)}"${m.replacement ? ` to "${esc(m.replacement)}"` : ""}</li>`).join("");
       badge(out.ats.issues.map((i) => i.code), out.ats.format);
       setDownloads(true);
       const shown = new Set(out.document.sections.flatMap((s) => s.entries.flatMap((e) => e.bullets.map((b) => b.source_fact_id))));
       await showBullets(shown);
     } catch (err) {
-      $("create-status").textContent = err.message;
+      say("create-status", err.message, "error");
       $("preview").innerHTML = "";
       $("ats-badge").hidden = true;
       setDownloads(false);
@@ -98,7 +110,7 @@
   }
 
   async function download(format) {
-    $("create-status").textContent = `Preparing ${format.toUpperCase()}...`;
+    say("create-status", `Preparing ${format.toUpperCase()}...`, "busy");
     try {
       const res = await call("/api/documents/render", json("POST", { ...request(), format }));
       badge((res.headers.get("X-ATS-Issues") ?? "").split(",").filter(Boolean), format);
@@ -106,9 +118,9 @@
       const link = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: name });
       link.click();
       URL.revokeObjectURL(link.href);
-      $("create-status").textContent = "";
+      say("create-status", "");
     } catch (err) {
-      $("create-status").textContent = err.message;
+      say("create-status", err.message, "error");
     }
   }
 
@@ -130,6 +142,10 @@
   }
 
   hooks.create = async () => {
+    const empty = !(await call("/api/profile").then((r) => r.json())).id;
+    $("create-empty").hidden = !empty;
+    $("create-body").hidden = empty;
+    if (empty) return;
     if (!templates.length) {
       templates = await (await call("/api/templates")).json();
       $("kind").innerHTML = [...new Set(templates.map((t) => t.kind))].map((k) => `<option value="${k}">${KINDS[k]}</option>`).join("");

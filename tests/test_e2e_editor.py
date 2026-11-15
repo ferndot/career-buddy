@@ -117,5 +117,5 @@ def test_a_failing_ats_check_warns_beside_the_download_button_but_still_download
         page.click("#dl-txt")
     assert download.value.suggested_filename == "Ada-Lovelace-Resume.txt"
     expect(page.locator("#ats-badge")).to_contain_text("ATS warning")
-    expect(page.locator("#ats-badge")).to_contain_text("not read back")
+    expect(page.locator("#ats-detail")).to_contain_text("did not come through")
     assert page.errors == []

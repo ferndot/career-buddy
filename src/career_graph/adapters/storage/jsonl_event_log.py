@@ -7,7 +7,7 @@ import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-from career_graph.domain.events import DuplicateDismissed, Event, FactRevised, FactsImported, FactsMerged
+from career_graph.domain.events import DuplicateDismissed, Event, FactRevised, FactsImported, FactsMerged, SourceRemoved
 from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 log = logging.getLogger(__name__)
@@ -32,6 +32,8 @@ def _encode(event: Event) -> dict[str, object]:
                     "at": event.at, "undo": event.undo}
         case DuplicateDismissed():
             return {"type": "DuplicateDismissed", "a_id": event.a_id, "b_id": event.b_id, "at": event.at}
+        case SourceRemoved():
+            return {"type": "SourceRemoved", "source": event.source, "at": event.at}
 
 
 def _decode(record: dict[str, object]) -> Event | None:
@@ -48,6 +50,8 @@ def _decode(record: dict[str, object]) -> Event | None:
             return FactsMerged(record["alias_id"], record["canonical_id"], record.get("undo", False), record.get("at", ""))
         case "DuplicateDismissed":
             return DuplicateDismissed(record["a_id"], record["b_id"], record.get("at", ""))
+        case "SourceRemoved":
+            return SourceRemoved(record["source"], record.get("at", ""))
     log.warning("Skipping unknown event type %r", record["type"])
     return None
 

@@ -1,6 +1,6 @@
 // Step 2: the profile as cards of editable blocks (shown by gjs.js). Autosave on blur, hide with Undo, merge duplicates.
 (() => {
-  const { $, esc, call, json, toast, hooks } = cg;
+  const { $, esc, call, json, say, toast, hooks } = cg;
   const ATTRIBUTE_FIELDS = new Set(["headline", "location", "summary", "school", "dates"]); // everything else is a fact title
   const facts = new Map(); // id -> attributes, as last read from the server
   let mounted = false;
@@ -51,11 +51,12 @@
 
   // Called by the editor when a field is left. Resolves to the new fact id for a freshly added item.
   async function onEdit({ id, field: name, text, parent, kind }) {
+    say("edit-status", "Saving...", "busy");
     try {
       if (!id) {
         const created = await (await call("/api/facts", json("POST", { kind, title: text, parent_id: parent }))).json();
         facts.set(created.id, {});
-        $("edit-status").textContent = "Saved";
+        say("edit-status", "All changes saved", "done");
         return created.id;
       }
       if (!ATTRIBUTE_FIELDS.has(name)) await patch(id, { title: text });
@@ -65,9 +66,9 @@
         if (!text) delete attrs[name === "dates" ? "period" : name];
         await patch(id, { attributes: attrs });
       }
-      $("edit-status").textContent = "Saved";
+      say("edit-status", "All changes saved", "done");
     } catch (err) {
-      $("edit-status").textContent = `Not saved: ${err.message}`;
+      say("edit-status", `Couldn't save that change, so the earlier text is back. ${err.message}`, "error");
       load(); // put the stored text back
     }
   }
@@ -77,7 +78,7 @@
     try {
       await patch(id, { attributes: { ...facts.get(id), hidden: "true" } });
     } catch (err) {
-      $("edit-status").textContent = `Not hidden: ${err.message}`;
+      say("edit-status", `Couldn't hide that line. ${err.message}`, "error");
       return false;
     }
     toast("Hidden.", "Undo", async () => {
@@ -116,17 +117,17 @@
   // "Add a position" and "Add education": new facts under the person. Bullets go in one per line, in order.
   const val = (id) => $(id).value.trim();
   async function add(make) {
-    $("edit-status").textContent = "Adding...";
+    say("edit-status", "Saving...", "busy");
     try {
       const create = async (kind, title, parent, attributes = {}) =>
         (await (await call("/api/facts", json("POST", { kind, title, parent_id: parent, attributes }))).json()).id;
       await make(create, person);
       document.querySelectorAll("#add-forms input, #add-forms textarea").forEach((el) => { el.value = ""; });
       document.querySelectorAll("#add-forms details").forEach((d) => { d.open = false; });
-      $("edit-status").textContent = "Saved";
+      say("edit-status", "All changes saved", "done");
       await load();
     } catch (err) {
-      $("edit-status").textContent = `Not saved: ${err.message}`;
+      say("edit-status", `Couldn't save that. ${err.message}`, "error");
     }
   }
   $("pos-save").onclick = () => add(async (create, parent) => {
@@ -141,7 +142,7 @@
     all.forEach((f) => facts.set(f.id, f.attributes));
     const empty = !profile.id;
     $("edit-empty").hidden = !empty;
-    $("gjs").hidden = $("add-forms").hidden = empty;
+    $("edit-body").hidden = empty;
     person = profile.id;
     if (empty) return;
     if (!mounted) { cg.gjs.mount($("gjs"), onEdit, onHide); mounted = true; }

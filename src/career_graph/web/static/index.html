@@ -11,18 +11,25 @@
 <header>
   <h1>career-graph</h1>
   <nav id="steps" aria-label="Steps">
-    <button data-step="import">1. Import</button>
-    <button data-step="edit">2. Edit</button>
-    <button data-step="create">3. Create</button>
+    <button data-step="import">Sources</button>
+    <button data-step="edit">Career explorer</button>
+    <button data-step="create">Generator</button>
   </nav>
 </header>
 <main>
   <section id="step-import">
-    <h2>Import your career data</h2>
+    <h2>Sources</h2>
+    <p class="lead">Add the documents your career comes from, or remove one to hide the facts only it states.</p>
+    <div id="import-existing" class="welcome" hidden>
+      <span>Welcome back, <strong id="existing-name"></strong>. Your profile is ready.</span>
+      <button id="existing-go" class="primary" data-go="edit">Open my career explorer</button>
+    </div>
+    <ul id="source-list" class="sources"></ul>
+    <p class="muted" id="sources-empty" hidden>No sources yet. Import a file or paste text below.</p>
     <input type="file" id="import-file" class="sr" accept=".pdf,.docx,.zip,.csv,.txt,.md">
-    <label id="drop" for="import-file">
+    <label id="drop" class="primary" for="import-file">
       <strong>Drop a file here</strong> or click to choose one
-      <span class="muted">PDF, DOCX, TXT, MD, or a LinkedIn export (ZIP or CSV)</span>
+      <span>PDF, DOCX, TXT, MD, or a LinkedIn export (ZIP or CSV)</span>
     </label>
     <details id="paste">
       <summary>Paste text instead</summary>
@@ -33,31 +40,44 @@
   </section>
 
   <section id="step-edit" hidden>
-    <div id="dups"></div>
-    <p class="muted" id="edit-hint">Double-click a line to edit it. Changes save when you leave the field. Select a bullet to hide it.</p>
-    <p class="status" id="edit-status" role="status"></p>
-    <div id="gjs"></div>
-    <div id="add-forms" hidden>
-      <details id="add-position">
-        <summary>Add a position</summary>
-        <label>Job title <input type="text" id="pos-title"></label>
-        <label>Organization <input type="text" id="pos-org"></label>
-        <label>Dates <input type="text" id="pos-dates" placeholder="Mar 2019 - Present"></label>
-        <label>Bullets (one per line) <textarea id="pos-bullets" rows="4"></textarea></label>
-        <button id="pos-save">Add position</button>
-      </details>
-      <details id="add-education">
-        <summary>Add education</summary>
-        <label>Degree <input type="text" id="edu-degree"></label>
-        <label>School <input type="text" id="edu-school"></label>
-        <button id="edu-save">Add education</button>
-      </details>
+    <p class="lead">Explore your career as a graph, then edit the facts below it.</p>
+    <div id="edit-empty" hidden>
+      <p class="muted">Nothing to explore yet. Once you import a document, your career shows up here.</p>
+      <button class="primary" data-go="import">Go to Import</button>
     </div>
-    <p class="muted" id="edit-empty" hidden>Nothing imported yet. Go back to Import.</p>
+    <div id="edit-body">
+      <div id="graph" role="img" aria-label="Career graph"></div>
+      <div id="dups"></div>
+      <p class="muted" id="edit-hint">Double-click a line to edit it. Changes save when you leave the field. Select a bullet to hide it.</p>
+      <p class="status" id="edit-status" role="status"></p>
+      <div id="gjs"></div>
+      <div id="add-forms">
+        <details id="add-position">
+          <summary>Add a position</summary>
+          <label>Job title <input type="text" id="pos-title"></label>
+          <label>Organization <input type="text" id="pos-org"></label>
+          <label>Dates <input type="text" id="pos-dates" placeholder="Mar 2019 - Present"></label>
+          <label>Bullets (one per line) <textarea id="pos-bullets" rows="4"></textarea></label>
+          <button id="pos-save">Add position</button>
+        </details>
+        <details id="add-education">
+          <summary>Add education</summary>
+          <label>Degree <input type="text" id="edu-degree"></label>
+          <label>School <input type="text" id="edu-school"></label>
+          <button id="edu-save">Add education</button>
+        </details>
+      </div>
+      <button id="to-create" class="primary" data-go="create">Continue to Generator</button>
+    </div>
   </section>
 
   <section id="step-create" hidden>
-    <div class="create">
+    <p class="lead">Pick a template, then download a resume or letter built from your facts.</p>
+    <div id="create-empty" hidden>
+      <p class="muted">Nothing to build from yet. Once you import a document, you can create from it here.</p>
+      <button class="primary" data-go="import">Go to Import</button>
+    </div>
+    <div class="create" id="create-body">
       <aside>
         <label>Type <select id="kind"></select></label>
         <label>Template <select id="template"></select></label>
@@ -68,21 +88,24 @@
         <div id="suggestions" role="status"></div>
         <h3>Bullets</h3>
         <div id="bullets"></div>
-        <h3>Matched</h3><div id="matched" class="chips"></div>
-        <h3>Missing from your profile</h3><div id="missing" class="chips"></div>
+        <div id="match" hidden>
+          <h3>Matched</h3><div id="matched" class="chips"></div>
+          <h3>Missing from your profile</h3><div id="missing" class="chips"></div>
+        </div>
         <h3>Wording changes</h3><ul id="markers"></ul>
       </aside>
       <div>
         <div class="bar">
-          <button id="dl-docx" data-format="docx">DOCX</button>
-          <button id="dl-pdf" data-format="pdf">PDF</button>
-          <button id="dl-txt" data-format="txt">TXT</button>
+          <button id="dl-docx" class="primary" data-format="docx">DOCX</button>
+          <button id="dl-pdf" class="ghost" data-format="pdf">PDF</button>
+          <button id="dl-txt" class="ghost" data-format="txt">TXT</button>
           <details id="more"><summary>More</summary>
             <button id="dl-markdown" data-format="markdown" class="ghost">MD</button>
             <button id="dl-html" data-format="html" class="ghost">HTML</button>
           </details>
           <span id="ats-badge" class="badge" hidden></span><small id="ats-format" class="muted"></small>
         </div>
+        <ul id="ats-detail" class="warn-list" hidden></ul>
         <p class="status" id="create-status" role="status"></p>
         <article id="preview" class="doc"></article>
       </div>
@@ -91,10 +114,12 @@
   <div id="toast" role="status" hidden></div>
 </main>
 <script src="/static/vendor/grapesjs/grapes.min.js"></script>
+<script src="/static/vendor/cytoscape/cytoscape.min.js"></script>
 <script src="/static/common.js"></script>
 <script src="/static/import.js"></script>
 <script src="/static/gjs.js"></script>
 <script src="/static/edit.js"></script>
+<script src="/static/explorer.js"></script>
 <script src="/static/create.js"></script>
 </body>
 </html>

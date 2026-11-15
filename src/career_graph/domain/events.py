@@ -42,4 +42,12 @@ class DuplicateDismissed:
     at: str = ""
 
 
-Event = FactsImported | FactRevised | FactsMerged | DuplicateDismissed
+@dataclass(frozen=True)
+class SourceRemoved:
+    """The user removed a source. Its facts are hidden, except any fact another source also states."""
+
+    source: str
+    at: str = ""
+
+
+Event = FactsImported | FactRevised | FactsMerged | DuplicateDismissed | SourceRemoved
