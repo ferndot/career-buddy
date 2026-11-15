@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import httpx
 
-from career_graph.application.ports import LLMUnavailable
+from career_graph.adapters.inference.errors import CAUGHT, unavailable
 
 PROMPT = """Reword one resume bullet in plain words. Keep every fact. Do not add or change numbers, names, tools,
 skills, job titles, employers, dates or degrees. Reply with the reworded bullet only.{terms}"""
@@ -31,5 +31,5 @@ class OpenAICompatibleRewriter:
             )
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"].strip()
-        except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-            raise LLMUnavailable(str(error)) from error
+        except CAUGHT as error:
+            raise unavailable(error) from error

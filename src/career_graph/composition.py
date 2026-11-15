@@ -11,8 +11,7 @@ import httpx
 
 from career_graph.adapters.graph.memory_graph import MemoryFactGraph
 from career_graph.adapters.inference.heuristic import HeuristicExtractor
-from career_graph.adapters.inference.openai_compatible import OpenAICompatibleExtractor
-from career_graph.adapters.inference.openai_rewriter import OpenAICompatibleRewriter
+from career_graph.adapters.inference.connections import LLMConnections
 from career_graph.adapters.outputs.render_docx import DocxRenderer
 from career_graph.adapters.outputs.render_html import HtmlRenderer
 from career_graph.adapters.outputs.render_markdown import MarkdownRenderer
@@ -37,6 +36,7 @@ class App:
     edits: EditService
     queries: CareerQueries
     documents: DocumentService
+    llm: LLMConnections
 
 
 def object_store(data_dir: Path) -> ObjectStore:
@@ -51,26 +51,14 @@ def object_store(data_dir: Path) -> ObjectStore:
 
 
 async def build_app(
-    data_dir: Path, llm_client: httpx.AsyncClient | None = None, extra_renderers: Sequence[DocumentRenderer] = ()
+    data_dir: Path, llm_transport: httpx.AsyncBaseTransport | None = None, extra_renderers: Sequence[DocumentRenderer] = ()
 ) -> App:
     log = JsonlEventLog(data_dir / "events.jsonl")
     projector = Projector(MemoryFactGraph())
 
-    # Inference adapter: a model if one is configured, otherwise the offline heuristic.
-    base_url = os.environ.get("CAREER_GRAPH_LLM_BASE_URL")
-    extractor = (
-        OpenAICompatibleExtractor(base_url, os.environ.get("CAREER_GRAPH_LLM_MODEL", "default"),
-                                  os.environ.get("CAREER_GRAPH_LLM_API_KEY", "none"))
-        if base_url
-        else HeuristicExtractor()
-    )
-
-    # Rewording is optional: it needs a model. `llm_client` lets tests supply one over a MockTransport.
-    model = os.environ.get("CAREER_GRAPH_LLM_MODEL", "default")
-    if llm_client is None and base_url:
-        key = os.environ.get("CAREER_GRAPH_LLM_API_KEY", "none")
-        llm_client = httpx.AsyncClient(base_url=base_url, headers={"Authorization": f"Bearer {key}"}, timeout=120)
-    rewriter = OpenAICompatibleRewriter(llm_client, model) if llm_client else None
+    # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
+    llm = LLMConnections(data_dir, llm_transport)
+    extractor, rewriter = llm.inference() or (HeuristicExtractor(), None)
 
     readers = {
         "markdown": PlainTextReader(),
@@ -89,4 +77,4 @@ async def build_app(
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
     return App(imports, EditService(log, projector), CareerQueries(projector),
-               DocumentService(projector, renderers, readers, rewriter))
+               DocumentService(projector, renderers, readers, rewriter), llm)

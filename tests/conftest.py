@@ -9,9 +9,12 @@ from pathlib import Path
 import pytest
 
 from career_graph.adapters.outputs.render_pdf import INSTALL_HINT
+from llm_support import connect_mock
 
 # moto's in-process S3 only answers AWS hostnames unless told about others, and it reads this once, on import.
 os.environ.setdefault("MOTO_S3_CUSTOM_ENDPOINTS", "http://minio.test:9000")
+# Tests never touch the real OS keychain: API keys go to a file in each test's own data folder.
+os.environ["CAREER_GRAPH_KEY_STORE"] = "file"
 
 
 @pytest.fixture(scope="session")
@@ -48,16 +51,19 @@ def live_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, renderers: list
     from career_graph.web.app import create_app
 
     monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
-    client = httpx.AsyncClient(transport=httpx.MockTransport(llm), base_url="http://llm.test/v1") if llm else None
+    transport = httpx.MockTransport(llm) if llm else None
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(create_app(tmp_path, llm_client=client, renderers=renderers), host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(create_app(tmp_path, llm_transport=transport, renderers=renderers), host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     while not server.started:
         time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}"
+    url = f"http://127.0.0.1:{port}"
+    if llm:  # a mocked LLM is made the active connection, the way a user would
+        connect_mock(httpx.Client(base_url=url))
+    yield url
     server.should_exit = True
     thread.join(10)
 

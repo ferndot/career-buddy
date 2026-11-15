@@ -7,7 +7,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     HOST=0.0.0.0 \
     PORT=8000 \
-    CAREER_GRAPH_DATA=/data
+    CAREER_GRAPH_DATA=/data \
+    CAREER_GRAPH_KEY_STORE=file
 
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md LICENSE ./

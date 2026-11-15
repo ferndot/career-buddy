@@ -17,8 +17,15 @@ ANSWERS = {
 }
 
 
+EXTRACTED = {"name": "Ada Lovelace", "positions": [{"title": "Analyst", "organization": "Analytical Society", "period": "2010 - 2015",
+                                                    "achievements": list(ANSWERS)}]}
+
+
 def mock_llm(request: httpx.Request) -> httpx.Response:
-    source = json.loads(request.content)["messages"][-1]["content"]
+    messages = json.loads(request.content)["messages"]
+    if messages[0]["content"].startswith("Extract a career history"):  # an active connection also reads imports
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(EXTRACTED)}}]})
+    source = messages[-1]["content"]
     return httpx.Response(200, json={"choices": [{"message": {"content": ANSWERS.get(source, source)}}]})
 
 

@@ -16,8 +16,8 @@ docker compose up --build
 Open http://127.0.0.1:8080. Your data lives in `./data` on the host, so it survives rebuilds. Port 8080 is
 used because 8000 is often taken; change it in `docker-compose.yml`.
 
-To use a model, set `CAREER_GRAPH_LLM_BASE_URL`, `CAREER_GRAPH_LLM_MODEL` and, if needed,
-`CAREER_GRAPH_LLM_API_KEY` in your shell or a `.env` file next to `docker-compose.yml`.
+To use a model, add a connection in Settings (see [LLM connections](#llm-connections)). In the container, `localhost` is
+the container itself, so reach Ollama or LM Studio on your computer at `http://host.docker.internal:11434/v1` (Ollama) or `:1234` (LM Studio).
 
 ### Without Docker
 
@@ -40,11 +40,32 @@ skipped with the same message.
 
 Open http://127.0.0.1:8000 (or the port set by `PORT`). Data is stored in `./data/events.jsonl` (override with `CAREER_GRAPH_DATA`).
 
-To use a model for inference instead of the offline heuristic, point it at any OpenAI-compatible server:
+## LLM connections
 
-```bash
-CAREER_GRAPH_LLM_BASE_URL=http://localhost:8080/v1 CAREER_GRAPH_LLM_MODEL=qwen3-30b uv run career-graph
-```
+Without a model, the offline heuristic reads your resume. To use a model, open **Settings > LLM connections**, add one,
+press **Test** (it asks the server for its model list: no resume text is sent and it costs nothing), then **Set active**.
+Only one connection is active at a time, or none.
+
+| Provider | Address | Key |
+|---|---|---|
+| Anthropic | `https://api.anthropic.com/v1` (fixed, native Messages API) | required |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` (fixed) | required |
+| Ollama | `http://localhost:11434/v1` | none |
+| LM Studio | `http://localhost:1234/v1` | none |
+| llama.cpp | `http://localhost:9931/v1` (its Docker image uses 8080) | optional |
+| Custom URL | any OpenAI-compatible server | optional |
+
+- **Where keys go:** the OS keychain (via `keyring`). With no keychain, or with `CAREER_GRAPH_KEY_STORE=file` (the Docker
+  image sets it), keys go to `secrets.json` in the data folder, mode 0600 but plain text. Settings (without keys) are in
+  `llm-settings.json`. The page and API only ever show a masked key such as `sk-...a1f2`, and keys are never logged.
+- **Changing an address removes its saved key**, so a key cannot be sent to a new host. Cloud addresses cannot be edited.
+- **Private addresses** (such as `192.168.x.x`) show a warning and must be confirmed. Link-local and metadata addresses are refused.
+- **Environment variables still work.** `CAREER_GRAPH_LLM_BASE_URL`, `CAREER_GRAPH_LLM_MODEL` and `CAREER_GRAPH_LLM_API_KEY`
+  show up as a read-only "From environment variables" connection, active until you choose another or turn it off.
+- **Local use only:** requests with another `Host` header are refused. Add names in `CAREER_GRAPH_ALLOWED_HOSTS` (comma separated) if you put it behind a proxy.
+- **Live tests** (`tests/test_llm_live.py`) only list models, and run when `CAREER_GRAPH_LIVE_ANTHROPIC_KEY` or `CAREER_GRAPH_LIVE_GEMINI_KEY` is set.
+
+API: `GET /api/llm/providers`, `GET|POST /api/llm/connections`, `PATCH|DELETE /api/llm/connections/{id}`, `PUT /api/llm/active`, `POST /api/llm/test`.
 
 ## Storage for uploaded originals
 
@@ -101,8 +122,9 @@ src/career_graph/
   application/     ports (protocols) and services: ImportService, CareerQueries, DocumentService
   adapters/
     sources/       LinkedInExportParser             (structured export -> facts)
-    inference/     HeuristicExtractor, OpenAICompatibleExtractor  (text -> facts)
+    inference/     HeuristicExtractor, OpenAICompatibleExtractor, AnthropicExtractor  (text -> facts), LLMConnections
     storage/       JsonlEventLog                    (append-only event log, the source of truth)
+                   KeyStore                         (API keys: OS keychain, or a private file)
                    LocalObjectStore, S3ObjectStore  (original uploads; boto3 against MinIO or any S3)
     graph/         MemoryFactGraph                  (plain in-memory projection)
     outputs/       Markdown, HTML, TXT, DOCX (python-docx), PDF (Playwright) renderers
@@ -138,4 +160,4 @@ follows [SpecOps](https://github.com/sanmak/specops)-style specs under `docs/pro
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE). Dependencies are permissive: FastAPI (MIT), uvicorn (BSD),
-httpx (BSD), python-multipart (Apache-2.0), Playwright (Apache-2.0), pdfminer.six (MIT), python-docx (MIT), boto3 (Apache-2.0). The S3 server (SeaweedFS in the `storage` profile, or your own MinIO) is not a dependency; it runs apart and is reached over the S3 API.
+httpx (BSD), keyring (MIT), python-multipart (Apache-2.0), Playwright (Apache-2.0), pdfminer.six (MIT), python-docx (MIT), boto3 (Apache-2.0). The S3 server (SeaweedFS in the `storage` profile, or your own MinIO) is not a dependency; it runs apart and is reached over the S3 API.

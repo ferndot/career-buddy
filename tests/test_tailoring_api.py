@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from career_graph.web.app import create_app
+from llm_support import connect_mock
 from test_api import linkedin_zip
 
 JOB = "Requirements:\n- Kubernetes migrations\n- Terraform"
@@ -29,9 +30,10 @@ def no_env_llm(monkeypatch) -> None:
 
 
 def open_client(tmp_path: Path, handler=None) -> TestClient:
-    llm = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://llm.test/v1") if handler else None
-    client = TestClient(create_app(tmp_path, llm_client=llm))
+    client = TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(handler) if handler else None))
     client.__enter__()
+    if handler:
+        connect_mock(client)
     client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
     return client
 

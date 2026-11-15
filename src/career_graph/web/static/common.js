@@ -39,7 +39,7 @@
   }
 
   function go(step) {
-    for (const name of ["import", "edit", "create"]) $(`step-${name}`).hidden = name !== step;
+    for (const name of ["import", "edit", "create", "settings"]) $(`step-${name}`).hidden = name !== step;
     document.querySelectorAll("#steps button").forEach((b) => {
       if (b.dataset.step === step) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
     });

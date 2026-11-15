@@ -4,7 +4,9 @@ services:
     ports:
       - "127.0.0.1:8080:8000"   # reachable only from this machine
     volumes:
-      - ./data:/data              # your facts and event log live here, on the host
+      - ./data:/data              # your facts, settings and saved keys live here, on the host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets the app reach Ollama or LM Studio on this computer, also on Linux
     environment:
       # Optional: an OpenAI-compatible server for model-based extraction.
       - CAREER_GRAPH_LLM_BASE_URL=${CAREER_GRAPH_LLM_BASE_URL:-}

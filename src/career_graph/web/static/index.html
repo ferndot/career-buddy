@@ -14,6 +14,7 @@
     <button data-step="import">Sources</button>
     <button data-step="edit">Career explorer</button>
     <button data-step="create">Generator</button>
+    <button data-step="settings">Settings</button>
   </nav>
 </header>
 <main>
@@ -111,6 +112,37 @@
       </div>
     </div>
   </section>
+  <section id="step-settings" hidden>
+    <h2>Settings</h2>
+    <div role="tablist" aria-label="Settings sections">
+      <button role="tab" id="tab-llm" aria-selected="true" aria-controls="panel-llm" class="tab">LLM connections</button>
+    </div>
+    <div role="tabpanel" id="panel-llm" aria-labelledby="tab-llm">
+      <p class="lead">Choose which AI service reads and rewords your resume text, or use none.</p>
+      <p class="muted" id="llm-empty" hidden>No connections yet. Without one, a built-in reader that works offline is used.</p>
+      <ul id="llm-list" class="conns"></ul>
+      <p class="muted" id="llm-keynote" hidden>Your computer has no secure key storage, so keys are saved as plain text in your data folder.</p>
+      <p class="status" id="llm-status" role="status"></p>
+      <button id="llm-add" class="primary">Add a connection</button>
+      <form id="llm-form" hidden autocomplete="off">
+        <h3 id="llm-form-title">Add a connection</h3>
+        <label>Provider <select id="llm-preset"></select></label>
+        <p class="muted" id="llm-hint"></p>
+        <label>Name (optional) <input type="text" id="llm-label"></label>
+        <label>Address <input type="text" id="llm-url" inputmode="url" spellcheck="false"></label>
+        <div id="llm-private" class="notice" role="alert" hidden>
+          <p>This address is on your private network, so your resume text would go to another device. Only continue if you trust it.</p>
+          <label class="check"><input type="checkbox" id="llm-allow"> I trust this address</label>
+        </div>
+        <label>Model <input type="text" id="llm-model" list="llm-models" spellcheck="false"></label>
+        <datalist id="llm-models"></datalist>
+        <label>API key <span class="muted" id="llm-key-note"></span><input type="password" id="llm-key" spellcheck="false"></label>
+        <button type="submit" id="llm-save" class="primary">Save connection</button>
+        <button type="button" id="llm-check" class="ghost">Check connection</button>
+        <button type="button" id="llm-cancel" class="ghost">Cancel</button>
+      </form>
+    </div>
+  </section>
   <div id="toast" role="status" hidden></div>
 </main>
 <script src="/static/vendor/grapesjs/grapes.min.js"></script>
@@ -121,5 +153,6 @@
 <script src="/static/edit.js"></script>
 <script src="/static/explorer.js"></script>
 <script src="/static/create.js"></script>
+<script src="/static/settings.js"></script>
 </body>
 </html>

@@ -25,7 +25,7 @@ def import_resume(page: Page) -> None:
 
 
 def test_each_step_has_a_one_sentence_intro_and_exactly_one_primary_action(page: Page) -> None:
-    expect(page.locator("#steps button")).to_have_text([re.compile("Sources"), re.compile("Career explorer"), re.compile("Generator")])
+    expect(page.locator("#steps button")).to_have_text([re.compile("Sources"), re.compile("Career explorer"), re.compile("Generator"), re.compile("Settings")])
     for step in ("import", "edit", "create"):
         if step == "edit":
             paste_resume(page)

@@ -16,8 +16,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field
 
+from career_graph.adapters.inference.connections import InvalidConnection, ReadOnlyConnection, UnknownConnection
 from career_graph.application.documents import TailorOptions
 from career_graph.application.ports import (
     DocumentRenderer,
@@ -33,6 +35,7 @@ from career_graph.composition import App, build_app
 from career_graph.domain.document import Style
 from career_graph.domain.model import FactKind, InvalidFact
 from career_graph.domain.templates import TEMPLATES
+from career_graph.web.llm_routes import llm_router
 
 STATIC = Path(__file__).parent / "static"
 mimetypes.add_type("text/javascript", ".js")  # Windows can map .js to text/plain through the registry
@@ -107,20 +110,34 @@ class DocumentRequest(PreviewRequest):
         return Style(self.font, self.paper)
 
 
+def connection_error(error: Exception) -> str:
+    if isinstance(error, UnknownConnection):
+        return "That connection no longer exists."
+    if isinstance(error, ReadOnlyConnection):
+        return "This connection comes from environment variables. Change it there."
+    return str(error)
+
+
 def create_app(
     data_dir: Path | None = None,
-    llm_client: httpx.AsyncClient | None = None,
+    llm_transport: httpx.AsyncBaseTransport | None = None,
     renderers: Sequence[DocumentRenderer] = (),
 ) -> FastAPI:
     data_dir = data_dir or Path(os.environ.get("CAREER_GRAPH_DATA", "data"))
     state: dict[str, App] = {}
 
+    async def rebuild() -> None:
+        state["app"] = await build_app(data_dir, llm_transport, renderers)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        state["app"] = await build_app(data_dir, llm_client, renderers)
+        await rebuild()
         yield
 
     api = FastAPI(title="career-graph", lifespan=lifespan)
+    # Only this computer may talk to the API: a web page on another site cannot reach it through DNS rebinding.
+    # shortcut: "[::1]" is not matched (the middleware cannot parse it), so use 127.0.0.1 or localhost.
+    api.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver", *filter(None, os.environ.get("CAREER_GRAPH_ALLOWED_HOSTS", "").split(","))])
 
     def app() -> App:
         return state["app"]
@@ -137,9 +154,14 @@ def create_app(
     def llm_unavailable(_: Request, error: LLMUnavailable) -> JSONResponse:
         return JSONResponse({"detail": str(error)}, status_code=503)
 
+    for error_type, status in ((InvalidConnection, 422), (UnknownConnection, 404), (ReadOnlyConnection, 409)):
+        api.exception_handler(error_type)(lambda _, error, status=status: JSONResponse({"detail": connection_error(error)}, status_code=status))
+
     @api.exception_handler(MissingInputs)
     def missing_inputs(_: Request, error: MissingInputs) -> JSONResponse:
         return JSONResponse({"detail": f"Missing required input: {error}"}, status_code=422)
+
+    api.include_router(llm_router(lambda: app().llm, rebuild))
 
     @api.get("/", include_in_schema=False)
     def index() -> FileResponse:

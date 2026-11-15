@@ -62,4 +62,19 @@ nav button, button.primary, #drop, summary { min-height: 44px; }
 nav button, button.primary { padding-block: .6rem; }
 summary { display: flex; align-items: center; cursor: pointer; }
 @media (max-width: 760px) { main { padding: .75rem; } #gjs { height: 60vh; } }
+.tab { background: transparent; color: var(--fg); border-color: var(--line); border-bottom: 3px solid var(--accent); border-radius: 6px 6px 0 0; min-height: 44px; }
+.conns { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .75rem; }
+.conn { border: 1px solid var(--line); border-radius: 10px; padding: .75rem 1rem; background: var(--card); overflow-wrap: anywhere; }
+.conn.active { border-color: var(--ok); }
+.conn p { margin: .2rem 0; } .conn .result { min-height: 1.3rem; }
+.conn .badge { margin-left: .5rem; }
+.conn-actions { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .5rem; }
+.conn button, #llm-form button, #llm-form input[type=text], #llm-form input[type=password], #llm-form select { min-height: 44px; }
+#llm-form { max-width: 520px; margin-top: 1rem; }
+#llm-form input[type=password] { width: 100%; font: inherit; padding: .4rem; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); }
+.notice { border: 1px solid var(--warn); border-radius: 8px; padding: .5rem .75rem; color: var(--warn); }
+.notice p { margin: 0 0 .25rem; }
+label.check { display: flex; align-items: center; gap: .5rem; min-height: 44px; } label.check input { width: 1.4rem; height: 1.4rem; }
+#llm-status[data-state="error"] { color: var(--warn); }
+@media (max-width: 760px) { nav button { flex: 1 1 40%; } }
 [hidden] { display: none !important; }
