@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-BULLETS = ("-", "*", "•", "–", "●", "▪", "■", "◦")
+# U+FFFD is what pdfminer gives for a bullet glyph it cannot map.
+BULLETS = ("-", "*", "•", "–", "●", "▪", "■", "◦", "�")
 
 
 def split_bullets(text: str) -> tuple[tuple[str, ...], str]:
