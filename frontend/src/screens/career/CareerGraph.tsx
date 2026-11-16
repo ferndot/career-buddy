@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d'
 import type { Edge, Fact } from './api'
 import { graphView, type GraphNode } from './graphLayout'
+import { columnPositions } from './graphPositions'
 import { palette } from '../../theme/tokens'
 
 type Pair = readonly [string, string]
@@ -27,7 +28,10 @@ export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: 
   const mode = resolvedTheme === 'dark' ? 1 : 0
   const view = useMemo(() => graphView(facts, edges), [facts, edges])
   // Memoised on the view: the simulation reheats whenever this object changes identity, and typing elsewhere must not shake the graph.
-  const data = useMemo(() => ({ nodes: view.nodes.map((n) => ({ ...n })), links: view.links.map((l) => ({ ...l })) }), [view])
+  const data = useMemo(() => {
+    const at = columnPositions(view.nodes, view.links)
+    return { nodes: view.nodes.map((n) => ({ ...n, ...at.get(n.id), fx: at.get(n.id)?.x, fy: at.get(n.id)?.y })), links: view.links.map((l) => ({ ...l })) }
+  }, [view])
 
   const ref = useRef<HTMLDivElement>(null)
   const graph = useRef<ForceGraphMethods>(undefined)
@@ -57,7 +61,7 @@ export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: 
           linkColor={() => LINK[mode]}
           linkWidth={1.5}
           enableNodeDrag={false}
-          cooldownTicks={120}
+          cooldownTicks={0}  // positions are fixed by columnPositions; the force layout is off
           onEngineStop={() => graph.current?.zoomToFit(FIT_MS, FIT_PADDING)}
           nodeCanvasObject={(node, ctx, scale) => {
             const n = node as GraphNode & { x: number; y: number }
