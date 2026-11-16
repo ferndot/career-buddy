@@ -1,7 +1,6 @@
 import { Box, Flex } from '@chakra-ui/react'
 import { Outlet } from 'react-router-dom'
 import { CareerBuddyLogo } from '../brand'
-import { ColorModeToggle } from '../theme'
 import { SidebarNav } from './SidebarNav'
 
 export function AppShell() {
@@ -23,9 +22,8 @@ export function AppShell() {
         py={{ base: '3', md: '6' }}
         gap={{ base: '2', md: '6' }}
       >
-        <Flex align="center" justify="space-between" px="2">
+        <Flex align="center" px="2">
           <CareerBuddyLogo />
-          <ColorModeToggle />
         </Flex>
         <SidebarNav />
       </Flex>

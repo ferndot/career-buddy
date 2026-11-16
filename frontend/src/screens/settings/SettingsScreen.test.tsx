@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderApp } from '../../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -19,5 +19,14 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('My Ollama')).toBeInTheDocument()
     expect(screen.getByText('Active')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Add a connection/ })).toBeInTheDocument()
+  })
+
+  it('has an Appearance tab where choosing dark sets the theme', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([]))))
+    renderApp(<SettingsScreen />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Dark' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true'))
+    expect(document.documentElement).toHaveClass('dark')
   })
 })
