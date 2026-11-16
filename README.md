@@ -26,6 +26,12 @@ Requires [uv](https://docs.astral.sh/uv/) (it installs Python 3.13 for you).
 ```bash
 uv sync
 uv run career-graph
+
+Dev mode with hot reload (API restarts on changes under `src/career_graph/`; run `pnpm dev` in `frontend/` for the web UI, which reloads in place):
+
+```bash
+RELOAD=1 uv run career-graph
+```
 ```
 
 PDF output prints a page with Chromium through [Playwright](https://playwright.dev/python/). Install the browser once
