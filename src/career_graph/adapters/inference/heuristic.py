@@ -6,7 +6,7 @@ import re
 
 from career_graph.domain.builder import BatchBuilder
 from career_graph.domain.model import FactBatch
-from career_graph.domain.text import BULLETS, split_bullets
+from career_graph.domain.text import BULLETS, split_bullets, split_skills
 
 _HEADING = re.compile(
     r"^(?:#+\s*)?(?:(?:professional|technical|core)\s+)?(experience|work|employment|skills|education|summary|profile|about)\b",
@@ -19,7 +19,6 @@ _DATES_ONLY = re.compile(_DATES + "$", re.I)
 _COMPANY = re.compile(r"^(?P<org>.+?)\s+(?P<dates>" + _DATES + ")$", re.I)  # "Company  Mon YYYY – Present"
 _TITLE = re.compile(r"^[A-Z0-9][^.,;:]{0,59}$")  # short, capitalised, no sentence punctuation: not a wrapped bullet
 _LABELS = {"languages", "frameworks & libraries", "cloud, data & tools", "concepts", "ai & machine learning"}
-_ITEM_SEPARATORS = re.compile(r"[,;�]")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _PHONE = re.compile(r"\+?\(?\d[\d\s().-]{7,}\d")  # pdfminer sometimes drops the opening parenthesis
 _EXPERIENCE = ("experience", "work", "employment")
@@ -105,7 +104,7 @@ class HeuristicExtractor:
                     positions[-1][3].extend(bullets or ((prose,) if prose else ()))
             elif section == "skills":
                 if not _is_label(line):
-                    skills += [s.strip().lstrip("".join(BULLETS)).strip() for s in _ITEM_SEPARATORS.split(line)]
+                    skills += split_skills(line)
             elif section == "education":
                 if _DATES_ONLY.match(line) and pending:
                     schools.append((pending[0], ", ".join(pending[1:]), _period(line)))

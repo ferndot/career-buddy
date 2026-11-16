@@ -16,3 +16,23 @@ def split_bullets(text: str) -> tuple[tuple[str, ...], str]:
         elif stripped:
             prose.append(stripped)
     return tuple(b for b in bullets if b), " ".join(prose)
+
+
+SKILL_SEPARATORS = frozenset(",;|•·\u2022\ufffd")  # a comma, semicolon, pipe, bullet or middle dot, or a PDF glyph
+
+
+def split_skills(line: str) -> list[str]:
+    """One line of a skills section as separate skills. Separators inside brackets stay put: "Python (3.11, pandas)"."""
+    items: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for ch in line:
+        depth = depth + 1 if ch in "([" else max(0, depth - 1) if ch in ")]" else depth
+        if ch in SKILL_SEPARATORS and depth == 0:
+            items.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    items.append("".join(current))
+    cleaned = [s.strip().lstrip("".join(BULLETS)).strip().rstrip(".").strip() for s in items]
+    return list(dict.fromkeys(s for s in cleaned if s))  # first wording wins; exact repeats go
