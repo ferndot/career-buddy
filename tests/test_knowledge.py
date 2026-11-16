@@ -32,5 +32,5 @@ def test_values_that_differ_only_in_case_or_spacing_count_once() -> None:
 
 
 def test_details_leave_out_the_position_and_employer() -> None:
-    fact = achievement("a", "Cut build times", result="60%", period="2019 - 2021")
+    fact = achievement("a", "Cut build times", result="60%", started="2019", finished="2021")
     assert details(fact) == "Cut build times 60%"

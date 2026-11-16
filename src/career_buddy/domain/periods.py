@@ -22,8 +22,8 @@ class Period:
 
 
 def period_of(attrs: dict[str, str]) -> Period | None:
-    """Read `period`, or `started`/`finished` when the period text is missing. None when no year is given."""
-    text = attrs.get("period") or f"{attrs.get('started', '')} - {attrs.get('finished', '')}"
+    """The years `started`/`finished` span. None when no year is given."""
+    text = f"{attrs.get('started', '')} - {attrs.get('finished', '')}"
     years = [int(y) for y in _YEAR.findall(text)]
     if not years:
         return None

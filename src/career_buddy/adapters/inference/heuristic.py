@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from career_buddy.domain.builder import BatchBuilder
+from career_buddy.domain.dates import dates_from_text
 from career_buddy.domain.model import FactBatch
 from career_buddy.domain.text import BULLETS, split_bullets, split_skills
 
@@ -117,7 +118,7 @@ class HeuristicExtractor:
         for skill in filter(None, skills):
             b.skill(person, skill)
         for school, degree, period in schools:
-            b.education(person, school, degree, period=period)
+            b.education(person, school, degree, **dates_from_text(period))
         for title, org, period, achievements in positions:
-            b.position(person, title, org, achievements=tuple(achievements), period=period)
+            b.position(person, title, org, achievements=tuple(achievements), **dates_from_text(period))
         return b.build()

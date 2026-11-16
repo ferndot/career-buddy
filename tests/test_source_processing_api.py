@@ -22,7 +22,7 @@ def extraction(title: str) -> dict:
     content = {
         "entities": [
             {"name": "Ada Lovelace", "entity_type": "Person"},
-            {"name": title, "entity_type": "Position", "properties": {"period": "2010 - 2015"}},
+            {"name": title, "entity_type": "Position", "properties": {"started": "2010", "finished": "2015"}},
             {"name": "Analytical Society", "entity_type": "Organization"},
             {"name": "Wrote the first algorithm", "entity_type": "Achievement"},
         ],

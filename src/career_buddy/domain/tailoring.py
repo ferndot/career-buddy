@@ -116,9 +116,6 @@ def _when(pos: PositionView) -> tuple[tuple[int, int], tuple[int, int]]:
     """(end, start) of a position. A missing or open end means it is current."""
     attrs = pos.attributes
     start, end = attrs.get("started", ""), attrs.get("finished", "")
-    if not (start or end) and attrs.get("period"):
-        start, *rest = re.split(r"\s+(?:-|–|—|to)\s+", attrs["period"], maxsplit=1)
-        end = rest[0] if rest else start  # a lone year is a single-year stint, not a current job
     return _year_month(end) or _OPEN_END, _year_month(start) or (0, 0)
 
 

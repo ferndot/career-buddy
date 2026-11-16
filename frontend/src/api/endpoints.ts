@@ -55,7 +55,7 @@ export const endpoints = {
     list: () => '/api/saved-documents', // GET
     create: () => '/api/saved-documents', // POST (201)
     remove: (docId: Id) => `/api/saved-documents/${e(String(docId))}`, // DELETE (204)
-    file: (docId: Id, format?: string) => `/api/saved-documents/${e(String(docId))}/file${format ? `?format=${e(format)}` : ''}`, // GET (attachment); ?format=docx|pdf|txt, saved since version 2
+    file: (docId: Id, format: string) => `/api/saved-documents/${e(String(docId))}/file?format=${e(format)}`, // GET (attachment); format docx|pdf|txt
   },
   llm: {
     providers: () => '/api/llm/providers', // GET

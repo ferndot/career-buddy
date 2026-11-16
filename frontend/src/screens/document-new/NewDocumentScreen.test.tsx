@@ -1,10 +1,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
 
 beforeEach(() => localStorage.clear())
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  queryClient.clear()
+})
 
 const URL_ = 'https://jobs.example.com/123'
 const jobInput = () => screen.getByLabelText('Job posting link')
@@ -24,10 +28,10 @@ test('always reopens on the first step, even after leaving from a later one', ()
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Pasted posting' } })
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 2 of 4 · Type and template')
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 2 of 5 · Documents')
   unmount()
   renderApp(<NewDocumentScreen />)
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 1 of 4 · Job posting')
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 1 of 5 · Job posting')
 })
 
 test('fetches the job once the link is entered and enables Next', async () => {
@@ -72,47 +76,6 @@ test('pasted job text works without a link', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Pasted posting' } })
   expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
-})
-
-test('saves the selection through the saved-documents API', async () => {
-  const profile = {
-    name: 'Ada', attributes: {}, skills: ['Python', 'SQL'], skill_ids: ['s1', 's2'],
-    positions: [{ id: 'p1', title: 'Engineer', organization: 'Acme', attributes: {}, achievements: ['Shipped it'], achievement_ids: ['b1'] }],
-    education: [{ id: 'e1', school: 'MIT', degree: 'BS' }],
-  }
-  const template = { id: 'resume-classic', kind: 'resume', label: 'Classic resume', formats: ['docx', 'pdf'], required: ['role', 'company'], optional: [] }
-  const preview = { lines: ['Ada'], tailoring: { matched: [], missing: [] }, ats: { format: 'docx', passes: true, issues: [] } }
-  let saved: Record<string, unknown> | undefined
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-    const u = String(url)
-    if (u.endsWith('/api/saved-documents') && init?.method === 'POST') {
-      saved = JSON.parse(String(init.body))
-      return new Response(JSON.stringify({ id: 'd1', label: 'x', template: 'resume-classic', format: 'docx', filename: 'a', created_at: '2026-11-14T10:00:00Z', ats_issues: [], version: 2 }), { status: 201 })
-    }
-    const body = u.includes('templates') ? [template] : u.includes('profile') ? profile : u.includes('preview') ? preview : []
-    return new Response(JSON.stringify(body))
-  }))
-  renderApp(<NewDocumentScreen />)
-  const next = () => fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
-  fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
-  fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Python engineer' } })
-  next()
-  await screen.findByText('Classic resume')
-  fireEvent.change(screen.getByLabelText(/role/i), { target: { value: 'Engineer' } })
-  fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
-  next()
-  fireEvent.click(await screen.findByLabelText('SQL')) // untick one skill
-  await waitFor(() => expect(screen.getByRole('button', { name: /^Next/ })).toBeEnabled())
-  next()
-  await screen.findByText('Ada')
-  expect(screen.queryByText('Format to save')).not.toBeInTheDocument() // the format is chosen when downloading
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
-  await waitFor(() => expect(saved).toBeDefined())
-  expect(saved).toMatchObject({
-    template: 'resume-classic', label: 'Engineer · Acme',
-    skill_ids: ['s1'], education_ids: ['e1'], selection: ['b1'], overrides: {},
-  })
-  expect(saved).not.toHaveProperty('format')
 })
 
 test('first step shows a decorative mascot that stops moving under reduced motion', () => {

@@ -88,12 +88,10 @@ function monthKey(text: string): number {
   return Number(year) * 12 + Math.max(0, MONTHS.indexOf(text.trim().slice(0, 3).toLowerCase()))
 }
 
-/** Start and end sort keys: from `started`/`finished` (an open end is current), else from period text like "Mar 2019 - Present", "2016–2017" or "2012 to 2016". */
+/** Start and end sort keys from `started`/`finished`: an open end is current, no dates sort oldest. */
 function span(fact: Fact): [number, number] {
   const { started = '', finished = '' } = fact.attributes
-  if (started || finished) return [monthKey(started), started && !finished ? Infinity : monthKey(finished)]
-  const [start = '', end = start] = dates(fact.attributes).split(/\s+to\s+|\s*[–—-]\s*/)
-  return [monthKey(start), monthKey(end)]
+  return [monthKey(started), started && !finished ? Infinity : monthKey(finished)]
 }
 
 export type PositionGroup = { org: string; years: string; items: Fact[] }

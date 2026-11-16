@@ -47,9 +47,9 @@ it('groups positions by employer, groups and their positions newest first', () =
     f('acme', 'Organization', 'Acme'),
     f('beta', 'Organization', 'Beta'),
     f('lead', 'Position', 'Lead', { started: '2019-03', finished: 'present' }),
-    f('junior', 'Position', 'Junior', { period: '2016 to 2018' }),
+    f('junior', 'Position', 'Junior', { started: '2016', finished: '2018' }),
     f('founder', 'Position', 'Founder', { started: '2014', finished: '2018' }),
-    f('intern', 'Position', 'Intern', { period: '2012-2013' }),
+    f('intern', 'Position', 'Intern', { started: '2012', finished: '2013' }),
   ]
   const edges = [
     { source: 'lead', target: 'acme', kind: 'AT' },

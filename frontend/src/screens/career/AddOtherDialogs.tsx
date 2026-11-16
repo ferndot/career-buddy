@@ -10,13 +10,15 @@ type Change = { target: { value: string } }
 
 const NO_SKILL = { category: '', years: '', level: '' }
 
-export function AddSkillDialog({ open, onClose, personId }: { open: boolean; onClose: () => void; personId: string }) {
-  const [name, setName] = useState('')
+type SkillProps = { open: boolean; onClose: () => void; personId: string; initialName?: string; onAdded?: () => void }
+
+export function AddSkillDialog({ open, onClose, personId, initialName = '', onAdded }: SkillProps) {
+  const [name, setName] = useState(initialName)
   const [attrs, setAttrs] = useState(NO_SKILL)
   const set = (k: keyof typeof NO_SKILL) => (v: string) => setAttrs({ ...attrs, [k]: v })
   const add = useAddEntry()
   const done = () => {
-    setName('')
+    setName(initialName)
     setAttrs(NO_SKILL)
     add.reset()
     onClose()
@@ -30,7 +32,7 @@ export function AddSkillDialog({ open, onClose, personId }: { open: boolean; onC
         label: 'Add skill',
         busy: add.isPending,
         disabled: !name.trim(),
-        onSubmit: () => add.mutate({ kind: 'Skill', title: name, parent_id: personId, attributes: attrs }, { onSuccess: done }),
+        onSubmit: () => add.mutate({ kind: 'Skill', title: name, parent_id: personId, attributes: attrs }, { onSuccess: () => { onAdded?.(); done() } }),
       }}
     >
       <Field.Root mb="3">

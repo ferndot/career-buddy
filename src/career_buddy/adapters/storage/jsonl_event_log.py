@@ -63,20 +63,20 @@ def _decode(record: dict[str, object]) -> Event | None:
             links = tuple(Link(l["source_id"], l["target_id"], LinkKind(l["kind"])) for l in record["links"])
             return FactsImported(FactBatch(facts, links), record.get("source_key", ""))
         case "FactRevised":
-            return FactRevised(record["fact_id"], record["title"], record["attributes"], record.get("at", ""))
+            return FactRevised(record["fact_id"], record["title"], record["attributes"], record["at"])
         case "FactsMerged":
-            return FactsMerged(record["alias_id"], record["canonical_id"], record.get("undo", False), record.get("at", ""), record.get("auto", False))
+            return FactsMerged(record["alias_id"], record["canonical_id"], record["undo"], record["at"], record["auto"])
         case "DuplicateDismissed":
-            return DuplicateDismissed(record["a_id"], record["b_id"], record.get("at", ""))
+            return DuplicateDismissed(record["a_id"], record["b_id"], record["at"])
         case "SourceRegistered":
-            return SourceRegistered(record["source"], record["source_key"], record.get("at", ""))
+            return SourceRegistered(record["source"], record["source_key"], record["at"])
         case "SourceRemoved":
-            return SourceRemoved(record["source"], record.get("at", ""))
+            return SourceRemoved(record["source"], record["at"])
         case "FactDeleted":
-            return FactDeleted(record["fact_id"], record.get("at", ""))
+            return FactDeleted(record["fact_id"], record["at"])
         case "LinkAdded" | "LinkRemoved":
             cls = LinkAdded if record["type"] == "LinkAdded" else LinkRemoved
-            return cls(record["source_id"], record["target_id"], record["kind"], record.get("at", ""))
+            return cls(record["source_id"], record["target_id"], record["kind"], record["at"])
     log.warning("Skipping unknown event type %r", record["type"])
     return None
 

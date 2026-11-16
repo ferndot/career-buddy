@@ -13,9 +13,12 @@ entity_types:
   - id: Position
     description: A job held at an organization. Name it as its title followed by ' at ' and the organization, for example 'Senior Engineer at Acme', so the same title at two employers stays two positions. Use the same full name in its relationships.
     properties:
-      - name: period
+      - name: started
         type: string
-        description: Dates as written, for example "2019 - 2021" or "Jan 2020 - Present".
+        description: When it began as YYYY, YYYY-MM or YYYY-MM-DD, as precisely as the text says, for example "2019" or "2020-01".
+      - name: finished
+        type: string
+        description: When it ended in the same form, or "present" if it is still held. Empty if the text gives no end.
   - id: Achievement
     description: A concrete accomplishment at a position, stated as a short neutral fact - what was done and what it achieved - not in the text's own resume phrasing. Duties are not achievements.
     properties:
@@ -43,9 +46,12 @@ entity_types:
   - id: Education
     description: A degree, certificate or course at a school.
     properties:
-      - name: period
+      - name: started
         type: string
-        description: Dates as written.
+        description: When it began as YYYY, YYYY-MM or YYYY-MM-DD, as precisely as the text says.
+      - name: finished
+        type: string
+        description: When it ended in the same form, or "present" if it is still going.
 relationship_types:
   - id: HAS_POSITION
     description: The person held this position.
@@ -86,7 +92,7 @@ extraction_prompt_template: |
 
   Use only facts the text states. Use each organization, position, school and skill name exactly as the text spells it.
   Achievements are concrete accomplishments, not duties. Describe each one as a neutral statement of what was done and
-  its result, in your own words; keep its numbers and project. Put dates as written in the period property.
+  its result, in your own words; keep its numbers and project. Put each position's and education's dates in its started and finished properties.
   Give each skill a category: the one the text states (a "Languages:" or "Cloud:" heading), otherwise one of Languages,
   Frameworks & libraries, Data & databases, Cloud & infrastructure, Tools & platforms, Practices & methods, Other.
   Tools, technologies and methods an achievement names are skills, not part of the achievement: list each as its own Skill

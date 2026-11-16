@@ -14,7 +14,6 @@ from test_api import seed_jane
 
 BODY = {"template": "resume-classic"}
 LETTER = {"template": "cover-letter", "inputs": {"company": "Acme", "role": "Engineer"}}
-LEGACY_ID = "a" * 32
 
 
 def open_client(tmp_path: Path) -> TestClient:
@@ -43,24 +42,12 @@ def render(client: TestClient, fmt: str, **extra):
     return client.post("/api/documents/render", json={**BODY, "format": fmt, **extra})
 
 
-def plant_legacy(tmp_path: Path, fmt: str = "markdown", ext: str = "md", media_type: str = "text/markdown") -> str:
-    """A document saved before html storage: one rendered file and a meta.json with no `version`."""
-    folder = tmp_path / "objects" / "documents" / LEGACY_ID
-    folder.mkdir(parents=True)
-    (folder / f"file.{ext}").write_bytes(b"# Jane Doe\n")
-    (folder / "meta.json").write_text(json.dumps({
-        "id": LEGACY_ID, "label": "Old one", "template": "resume-classic", "format": fmt, "filename": f"Jane-Doe-Resume.{ext}",
-        "media_type": media_type, "created_at": "2020-01-01T00:00:00+00:00", "ats_issues": []}))
-    return LEGACY_ID
-
-
 def test_saving_returns_a_record_and_keeps_the_document_as_html_and_css(client: TestClient) -> None:
     res = save(client, label="For Acme", font="serif")
     assert res.status_code == 201
     record = res.json()
-    assert set(record) == {"id", "label", "template", "format", "filename", "created_at", "ats_issues", "version"}
-    assert record["label"] == "For Acme" and record["filename"] == "Jane-Doe-Resume" and record["version"] == 2
-    assert record["format"] == "" and len(record["id"]) == 32
+    assert set(record) == {"id", "label", "template", "filename", "created_at", "ats_issues"}
+    assert record["label"] == "For Acme" and record["filename"] == "Jane-Doe-Resume" and len(record["id"]) == 32
 
     content = client.get(f"/api/saved-documents/{record['id']}/content").json()
     assert content["overrides"] == {} and "Times New Roman" in content["css"]
@@ -168,23 +155,6 @@ def test_an_unknown_template_is_404_and_nothing_is_stored(client: TestClient) ->
 
 def test_missing_inputs_for_a_letter_are_422(client: TestClient) -> None:
     assert client.post("/api/saved-documents", json={"template": "cover-letter"}).status_code == 422
-
-
-def test_a_legacy_document_is_listed_and_downloads_in_its_own_format(client: TestClient, tmp_path: Path) -> None:
-    doc_id = plant_legacy(tmp_path)  # meta.json has no `version`, `font` or `paper`
-    (old,) = client.get("/api/saved-documents").json()
-    assert old["id"] == doc_id and old["version"] == 1 and old["format"] == "markdown" and old["filename"] == "Jane-Doe-Resume.md"
-    res = client.get(f"/api/saved-documents/{doc_id}/file")
-    assert res.content == b"# Jane Doe\n" and res.headers["content-type"].startswith("text/markdown")
-    assert res.headers["content-disposition"] == 'attachment; filename="Jane-Doe-Resume.md"'
-    assert client.delete(f"/api/saved-documents/{doc_id}").status_code == 204
-
-
-def test_a_legacy_document_has_no_content_and_no_other_format(client: TestClient, tmp_path: Path) -> None:
-    doc_id = plant_legacy(tmp_path, "docx", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    assert client.get(f"/api/saved-documents/{doc_id}/content").status_code == 409
-    assert client.get(f"/api/saved-documents/{doc_id}/file", params={"format": "txt"}).status_code == 409
-    assert client.get(f"/api/saved-documents/{doc_id}/file", params={"format": "docx"}).status_code == 200
 
 
 def skill_ids(client: TestClient) -> dict[str, str]:

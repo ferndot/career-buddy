@@ -11,7 +11,7 @@ PROFILE = Profile(
         PositionView("Senior Engineer", "Acme Corp", {"started": "Mar 2019", "finished": "Jan 2023"},
                      ("Cut build times by 60%",)),
         PositionView("Engineer", "Globex", {"started": "Jun 2023"}, ()),
-        PositionView("Analyst", "Analytical Society", {"period": "2010 - 2015"}, ("Wrote an algorithm",)),
+        PositionView("Analyst", "Analytical Society", {"started": "2010", "finished": "2015"}, ("Wrote an algorithm",)),
     ),
     education=(EducationView("University of Lisbon", "BSc Computer Science"),),
     skills=("Python", "Kubernetes"),

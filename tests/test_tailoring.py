@@ -12,8 +12,8 @@ from career_buddy.domain.templates import build_document, get_template
 CLASSIC, COMPACT = get_template("resume-classic"), get_template("resume-compact")
 
 
-def position(title: str, bullets: list[str], period: str = "2020 - 2021", skills: tuple[str, ...] = (), pid: str = "p") -> PositionView:
-    return PositionView(title, "Org", {"period": period}, tuple(bullets), skills, pid,
+def position(title: str, bullets: list[str], dates: dict[str, str] = {"started": "2020", "finished": "2021"}, skills: tuple[str, ...] = (), pid: str = "p") -> PositionView:
+    return PositionView(title, "Org", dates, tuple(bullets), skills, pid,
                         tuple(f"{pid}-{i}" for i in range(len(bullets))))
 
 
@@ -56,8 +56,8 @@ def test_positions_are_all_kept_in_reverse_chronological_order() -> None:
     profile = Profile(positions=(
         PositionView("Old", "A", {"started": "Jan 2010", "finished": "Dec 2012"}, id="1"),
         PositionView("Now", "B", {"started": "Jun 2023"}, id="2"),
-        PositionView("Mid", "C", {"period": "2015 - 2019"}, id="3"),
-        PositionView("Mid2", "D", {"period": "2015 - 2019"}, id="4"),
+        PositionView("Mid", "C", {"started": "2015", "finished": "2019"}, id="3"),
+        PositionView("Mid2", "D", {"started": "2015", "finished": "2019"}, id="4"),
     ))
     tailored, _ = tailor(profile, "Old Mid Now", COMPACT)
     assert [p.title for p in tailored.positions] == ["Now", "Mid", "Mid2", "Old"]
@@ -111,7 +111,7 @@ sentence = st.lists(words, min_size=1, max_size=5).map(" ".join)
 def profiles(draw) -> Profile:
     n = draw(st.integers(0, 4))
     positions = tuple(
-        position(draw(sentence), draw(st.lists(sentence, max_size=7)), draw(st.sampled_from(["2010 - 2012", "2019 - 2023", ""])),
+        position(draw(sentence), draw(st.lists(sentence, max_size=7)), draw(st.sampled_from([{"started": "2010", "finished": "2012"}, {"started": "2019", "finished": "2023"}, {}])),
                  tuple(draw(st.lists(words, max_size=3))), pid=f"p{i}")
         for i in range(n)
     )

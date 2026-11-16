@@ -1,6 +1,5 @@
-"""Dates of positions and education through HTTP: stored as partial ISO dates, validated, and legacy text still read."""
+"""Dates of positions and education through HTTP: stored as partial ISO dates, and validated."""
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -8,7 +7,6 @@ from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
 
-V1_LOG = Path(__file__).parent / "fixtures" / "events-v1.jsonl"
 TEXT = "Ada Lovelace\n\nExperience\nAnalyst at Analytical Society, Mar 2010 - 2015\n- Wrote the first published algorithm\n"
 
 
@@ -53,11 +51,3 @@ def test_imported_period_text_is_stored_as_dates(client) -> None:
     client.post("/api/import/text", json={"text": TEXT})
     assert attributes(client, "Position", "Analyst") == {"started": "2010-03", "finished": "2015"}
     assert "### Analyst, Analytical Society (Mar 2010 – 2015)" in client.get("/api/resume/markdown").text
-
-
-def test_a_log_written_before_structured_dates_is_read_as_dates(tmp_path: Path) -> None:
-    shutil.copy(V1_LOG, tmp_path / "events.jsonl")  # free text such as "Mar 2019" and "2010 - 2015"
-    with TestClient(create_app(tmp_path)) as client:
-        assert attributes(client, "Position", "Senior Engineer")["started"] == "2019-03"
-        assert attributes(client, "Position", "Senior Engineer")["finished"] == "2023-01"
-        assert "### Senior Engineer, Acme Corp (Mar 2019 – Jan 2023)" in client.get("/api/resume/markdown").text

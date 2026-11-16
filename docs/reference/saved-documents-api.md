@@ -3,7 +3,7 @@
 A saved document is a small folder in the object store (an S3 server with `CAREER_BUDDY_STORAGE=s3`, such as SeaweedFS,
 otherwise `<data dir>/objects`): `documents/<id>/`. The `id` is 32 lowercase hex characters; any other id answers `404`.
 
-A **version 2** document (every document saved now) is kept as restricted HTML, not as a file:
+A document is kept as restricted HTML, not as a file:
 
 | Key | Content |
 |---|---|
@@ -17,22 +17,18 @@ Every text line in `document.html` is a slot: `data-slot` (`s1`, `s2`, ...), `da
 Section titles are fixed headings and have no slot. At download time the HTML is read back into a document; an entry in
 `overrides.json` replaces its slot's text, and the line then counts as the user's own. Nothing writes overrides yet.
 
-A **version 1** document (saved earlier) is one rendered file, `documents/<id>/file.<ext>`. It stays listed and downloads in its own
-format only; it has no content to read.
-
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/saved-documents` | List of records, newest first |
 | `POST /api/saved-documents` | Build and save as HTML. `201` with the record |
-| `GET /api/saved-documents/{id}/content` | `{html, css, overrides}`. `404` unknown; `409` version 1 |
+| `GET /api/saved-documents/{id}/content` | `{html, css, overrides}`. `404` unknown |
 | `GET /api/saved-documents/{id}/file?format=docx\|pdf\|txt` | The file, with `Content-Disposition: attachment`. Default `docx`. `404` unknown; `422` other format; `503` PDF without Chromium |
 | `DELETE /api/saved-documents/{id}` | Remove every file. `204`; `404` unknown |
 
-A record is `{id, label, template, format, filename, created_at, ats_issues, version}`. `created_at` is ISO 8601 in UTC.
+A record is `{id, label, template, filename, created_at, ats_issues}`. `created_at` is ISO 8601 in UTC.
 `ats_issues` lists the codes of the ATS checks that failed for the docx at save time (see [Documents API](documents-api.md)).
-For version 2, `format` is `""` and `filename` has no extension (the download adds one). For version 1, `format` and `filename`
-are those of the stored file. The download also sends `X-ATS-Issues` (the failed checks for that format) when there are any.
-`?format=` on a version 1 document answers `409` unless it names the format it was saved in.
+`filename` has no extension (the download adds one). The download also sends `X-ATS-Issues` (the failed checks for that format)
+when there are any.
 
 `POST` takes the body of `POST /api/documents/render` without `format`
 (`template`, `job_text`, `inputs`, `selection`, `skill_ids`, `education_ids`, `overrides`, `font`, `paper`)

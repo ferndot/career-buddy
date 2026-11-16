@@ -39,11 +39,11 @@ def same_job(first: dict[str, str], second: dict[str, str]) -> list[tuple[str, s
         ({"started": "2010", "finished": "2012"}, {"started": "2012", "finished": "2014"}, True),
         ({"started": "2012", "finished": "2014"}, {"started": "2010", "finished": "2012"}, True),
         ({"started": "2010", "finished": "2012"}, {"started": "2011", "finished": "2013"}, True),
-        ({"period": "2010"}, {"period": "2015"}, False),
-        ({"period": "2010"}, {"period": "2010"}, True),
-        ({"period": "2010 - Present"}, {"period": "2015"}, True),
-        ({"period": "2010 - 2012"}, {"period": "- 2008"}, False),
-        ({"period": "2010 - 2012"}, {}, True),
+        ({"started": "2010", "finished": "2010"}, {"started": "2015", "finished": "2015"}, False),
+        ({"started": "2010", "finished": "2010"}, {"started": "2010", "finished": "2010"}, True),
+        ({"started": "2010", "finished": "present"}, {"started": "2015", "finished": "2015"}, True),
+        ({"started": "2010", "finished": "2012"}, {"finished": "2008"}, False),
+        ({"started": "2010", "finished": "2012"}, {}, True),
     ],
 )
 def test_positions_are_duplicates_only_when_their_years_overlap(first, second, duplicate) -> None:

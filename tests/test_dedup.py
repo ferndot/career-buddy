@@ -48,16 +48,16 @@ def positions_batch(a_org: str, b_org: str, a_dates: dict, b_dates: dict, b_titl
 
 
 def test_positions_pair_when_title_org_and_dates_agree() -> None:
-    batch = positions_batch("o1", "o2", {"started": "Mar 2019", "finished": "Jan 2023"}, {"period": "2020 - 2021"},
+    batch = positions_batch("o1", "o2", {"started": "Mar 2019", "finished": "Jan 2023"}, {"started": "2020", "finished": "2021"},
                             "Senior  ENGINEER")
     assert frozenset(("p1", "p2")) in pairs(batch)
 
 
 @pytest.mark.parametrize(
     ("b_org", "b_dates", "b_title"),
-    [("o3", {"period": "2020 - 2021"}, "Senior Engineer"),  # other employer
-     ("o2", {"period": "2024 - 2025"}, "Senior Engineer"),  # no date overlap
-     ("o2", {"period": "2020 - 2021"}, "Junior Engineer")],  # other title
+    [("o3", {"started": "2020", "finished": "2021"}, "Senior Engineer"),  # other employer
+     ("o2", {"started": "2024", "finished": "2025"}, "Senior Engineer"),  # no date overlap
+     ("o2", {"started": "2020", "finished": "2021"}, "Junior Engineer")],  # other title
 )
 def test_positions_do_not_pair_otherwise(b_org, b_dates, b_title) -> None:
     batch = positions_batch("o1", b_org, {"started": "Mar 2019", "finished": "Jan 2023"}, b_dates, b_title)
@@ -65,7 +65,7 @@ def test_positions_do_not_pair_otherwise(b_org, b_dates, b_title) -> None:
 
 
 def test_positions_under_one_merged_org_pair_and_open_ended_dates_overlap() -> None:
-    batch = positions_batch("o1", "o1", {"started": "Mar 2019"}, {"period": "2024 - Present"}, "Senior Engineer")
+    batch = positions_batch("o1", "o1", {"started": "Mar 2019"}, {"started": "2024", "finished": "present"}, "Senior Engineer")
     assert frozenset(("p1", "p2")) in pairs(batch)
 
 
@@ -90,5 +90,5 @@ def test_candidates_are_symmetric_and_never_self_pairs(facts, rnd: random.Random
 
 
 def test_a_position_with_only_an_end_year_does_not_run_to_the_present() -> None:
-    batch = positions_batch("o1", "o1", {"finished": "2015"}, {"period": "2024 - Present"}, "Senior Engineer")
+    batch = positions_batch("o1", "o1", {"finished": "2015"}, {"started": "2024", "finished": "present"}, "Senior Engineer")
     assert frozenset(("p1", "p2")) not in pairs(batch)

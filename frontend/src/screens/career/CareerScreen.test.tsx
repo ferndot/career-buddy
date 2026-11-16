@@ -247,22 +247,50 @@ it('edits the dates of a position in one field per bound, at whatever precision 
   await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ started: '2019', finished: '2021-04-09' }))
 })
 
-it('flags a date that is not one, keeps text that is not a date, and sends Present for an open end', async () => {
-  const r = { ...routes, '/api/facts': facts.map((x) => (x.id === 'pos' ? { ...x, attributes: { period: 'Spring 2019' } } : x)) }
-  const fetchMock = okFetch(r)
+it('picks a day, a month or a year from the calendar, keeping the precision picked, and Escape closes it', async () => {
+  const fetchMock = okFetch()
   vi.stubGlobal('fetch', fetchMock)
   renderApp(<CareerScreen />)
   fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
-  expect(screen.getByLabelText('Dates as written')).toHaveValue('Spring 2019')
+  const start = screen.getByLabelText('Start')
+  const open = () => fireEvent.click(screen.getByRole('button', { name: 'Start: pick from calendar' }))
+  expect(screen.getByRole('button', { name: 'End: pick from calendar' })).toBeDisabled() // the end is Present
+  open() // opens on the typed month, March 2019
+  fireEvent.click(await screen.findByRole('button', { name: '14 March 2019' }))
+  expect(start).toHaveValue('2019-03-14')
+  await waitFor(() => expect(screen.queryByRole('button', { name: '14 March 2019' })).not.toBeInTheDocument())
+  open()
+  fireEvent.click(await screen.findByRole('button', { name: /^March 2019, choose month/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'June 2019' }))
+  expect(start).toHaveValue('2019-06')
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'June 2019' })).not.toBeInTheDocument())
+  open()
+  fireEvent.click(await screen.findByRole('button', { name: /^June 2019, choose month/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^2019, choose year/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Year 2020' }))
+  expect(start).toHaveValue('2020')
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Year 2020' })).not.toBeInTheDocument())
+  open()
+  await screen.findByRole('button', { name: /^January 2020, choose month/ })
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('button', { name: /choose month/ })).not.toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ started: '2020', finished: 'present' }))
+})
+
+it('flags a date that is not one, and sends Present for an open end', async () => {
+  const fetchMock = okFetch()
+  vi.stubGlobal('fetch', fetchMock)
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
   fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-13' } })
   expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'true')
   fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-02-30' } })
   expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'true')
   fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-02' } })
   expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'false')
-  fireEvent.click(screen.getByLabelText('End: present'))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ period: 'Spring 2019', started: '2019-02', finished: 'present' }))
+  await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ started: '2019-02', finished: 'present' }))
 })
 
 it('adds a position with start and end dates', async () => {

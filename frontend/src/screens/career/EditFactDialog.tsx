@@ -21,7 +21,7 @@ const CHOICES: Record<string, { options: readonly string[]; empty: string }> = {
   category: { options: SKILL_CATEGORIES, empty: 'Uncategorized' },
   level: { options: SKILL_LEVELS, empty: 'Not stated' },
 }
-const LABEL: Record<string, string> = { period: 'Dates as written', started: 'Start', finished: 'End', organization: 'Organization', school: 'School' }
+const LABEL: Record<string, string> = { started: 'Start', finished: 'End', organization: 'Organization', school: 'School' }
 const label = (k: string) => LABEL[k] ?? k.charAt(0).toUpperCase() + k.slice(1)
 
 /** Edits any item's title and its visible attributes, or merges it into another item of the same kind. Other attributes are sent back unchanged, since a revise replaces them all. */

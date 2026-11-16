@@ -1,7 +1,7 @@
 """Saved documents, kept in the object store under `documents/<id>/`.
 
-Version 2 keeps the document as restricted HTML plus CSS (`document.html`, `document.css`, `overrides.json`) and converts it
-to the requested format at download time. Version 1 kept one rendered file (`file.<ext>`); those stay as they are.
+A document is kept as restricted HTML plus CSS (`document.html`, `document.css`, `overrides.json`) and converted to the
+requested format at download time.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import PurePosixPath
 
 from career_buddy.application.documents import DocumentService, Rendered, TailorOptions
 from career_buddy.application.ports import ObjectNotFound, ObjectStore
@@ -35,23 +34,16 @@ class SavedDocumentNotFound(Exception):
     """No saved document has this id, or the id is not a valid one."""
 
 
-class LegacyDocument(Exception):
-    """A version 1 document has a rendered file only: no content to read, no other format to convert to."""
-
-
 @dataclass(frozen=True)
 class SavedMeta:
     id: str
     label: str
     template: str
-    filename: str  # version 1: the file's name; version 2: the name without extension
+    filename: str  # without extension
     created_at: str  # ISO 8601, UTC
     ats_issues: list[str]  # codes of the failed ATS checks at save time
-    format: str = ""  # version 1 only: the format the file was rendered in
-    media_type: str = ""  # version 1 only
-    version: int = 1
-    font: str = "sans"
-    paper: str = "letter"
+    font: str
+    paper: str
 
 
 def _prefix(doc_id: str) -> str:
@@ -75,7 +67,7 @@ class SavedDocuments:
         issues = (await self._documents.export(doc, DEFAULT_FORMAT, style, stem)).issues
         doc_id = uuid.uuid4().hex
         meta = SavedMeta(doc_id, label.strip() or stem, template, stem, datetime.now(UTC).isoformat(),
-                         [issue.code for issue in issues], version=2, font=style.font, paper=style.paper)
+                         [issue.code for issue in issues], style.font, style.paper)
         prefix = _prefix(doc_id)
         self._store.put(f"{prefix}document.html", self._html.write(doc).encode(), "text/html")
         self._store.put(f"{prefix}document.css", self._html.css(style).encode(), "text/css")
@@ -106,21 +98,13 @@ class SavedDocuments:
             return {}
 
     def content(self, doc_id: str) -> tuple[SavedMeta, str, str, dict[str, str]]:
-        """The stored html and css and the slot overrides. LegacyDocument for a version 1 document."""
+        """The stored html and css and the slot overrides."""
         meta = self._meta(doc_id)
-        if meta.version < 2:
-            raise LegacyDocument(doc_id)
         return meta, self._read(doc_id, "document.html").decode(), self._read(doc_id, "document.css").decode(), self._overrides(doc_id)
 
     async def download(self, doc_id: str, fmt: str | None = None) -> Rendered:
-        """The file: converted from the stored html in `fmt` (default docx); a version 1 document in its own format only."""
-        meta = self._meta(doc_id)
-        if meta.version < 2:
-            if fmt and fmt != meta.format:
-                raise LegacyDocument(doc_id)
-            data = self._read(doc_id, f"file{PurePosixPath(meta.filename).suffix}")
-            return Rendered(data, meta.media_type, meta.filename)
-        _, html, _, overrides = self.content(doc_id)
+        """The file: converted from the stored html in `fmt` (default docx)."""
+        meta, html, _, overrides = self.content(doc_id)
         doc = self._html.read(html, overrides)
         return await self._documents.export(doc, fmt or DEFAULT_FORMAT, Style(meta.font, meta.paper), meta.filename)  # type: ignore[arg-type]
 

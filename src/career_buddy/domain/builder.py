@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from career_buddy.domain.dates import with_dates
 from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind, fact_id
 
 
@@ -14,7 +13,7 @@ class BatchBuilder:
 
     def _add(self, kind: FactKind, title: str, scope: str = "", **attrs: str) -> str:
         fid = fact_id(kind, title, scope)
-        clean = with_dates({key: value.strip() for key, value in attrs.items() if value and value.strip()})
+        clean = {key: value.strip() for key, value in attrs.items() if value and value.strip()}
         self._facts.setdefault(fid, Fact(fid, kind, title.strip(), clean, self._source))
         return fid
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import replace
 
 from career_buddy.application.ports import FactGraph
-from career_buddy.domain.dates import with_dates
 from career_buddy.domain.events import (
     DuplicateDismissed,
     Event,
@@ -123,7 +122,7 @@ class Projector:
             visible[f.id] = replace(
                 f,
                 title=revision.title if revision else f.title,
-                attributes=with_dates(revision.attributes if revision else f.attributes),  # legacy `period` text is read as dates
+                attributes=revision.attributes if revision else f.attributes,
                 source=source,
             )
         links = dict.fromkeys(

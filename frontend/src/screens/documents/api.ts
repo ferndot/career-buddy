@@ -28,8 +28,12 @@ export type Profile = {
 }
 export type Fit = { positions: string[]; matched_skills: string[] }
 export type Issue = { code: string; message: string }
+export type DocLine = { text: string; source_fact_id: string | null; origin: string }
+export type DocEntry = { heading: DocLine | null; paragraph: DocLine | null; bullets: DocLine[] }
+export type PreviewDoc = { name: DocLine; intro: DocLine[]; sections: { title: string; entries: DocEntry[] }[]; label: string }
 export type Preview = {
   lines: string[]
+  document: PreviewDoc
   tailoring: { matched: string[]; missing: string[] }
   ats: { format: string; passes: boolean; issues: Issue[] }
 }
@@ -41,6 +45,7 @@ export type TailorBody = {
   skill_ids?: string[]
   education_ids?: string[]
   inputs: Record<string, string>
+  overrides?: Record<string, string> // the user's own wording: bullet fact id, or "summary" or "headline" -> text
 }
 
 export const getTemplates = () => apiFetch<Template[]>(endpoints.templates.list())
@@ -56,11 +61,9 @@ export type SavedDocument = {
   id: string
   label: string
   template: string
-  format: string
   filename: string
   created_at: string
   ats_issues: string[]
-  version: number // 1: a file in its own format; 2: html, downloaded in any of DOWNLOAD_FORMATS
 }
 export type SaveBody = Omit<TailorBody, 'selection' | 'skill_ids' | 'education_ids'> & {
   selection: string[] | null
@@ -115,8 +118,6 @@ export const DOWNLOAD_FORMATS = [
   { format: 'txt', label: 'Text' },
 ] as const
 
-/** A version 1 document downloads as it was saved; a version 2 one needs a format. */
-export async function downloadSaved(doc: SavedDocument, format?: string): Promise<void> {
-  const name = format ? `${doc.filename}.${format}` : doc.filename
-  return saveResponse(await fetch(apiUrl(endpoints.savedDocuments.file(doc.id, format))), name)
+export async function downloadSaved(doc: SavedDocument, format: string): Promise<void> {
+  return saveResponse(await fetch(apiUrl(endpoints.savedDocuments.file(doc.id, format))), `${doc.filename}.${format}`)
 }

@@ -1,6 +1,6 @@
 import { Text } from '@chakra-ui/react'
 
-export const STEP_LABELS = ['Job posting', 'Type and template', 'Details', 'Review and download']
+export const STEP_LABELS = ['Job posting', 'Documents', 'Facts', 'Template', 'Download']
 
 export function StepIndicator({ current }: { current: number }) {
   return (

@@ -90,26 +90,20 @@ def test_a_later_start_wins_when_the_ends_tie() -> None:
         "Late", "Early"]
 
 
-def test_a_period_is_split_into_start_and_end() -> None:
-    assert order(pos("Short", period="2018 - 2019"), pos("Long", period="2018 - 2021")) == ["Long", "Short"]
-    assert order(pos("Short", period="2018 to 2019"), pos("Long", period="2018 to 2021")) == ["Long", "Short"]
-    assert order(pos("Short", period="2018 – 2019"), pos("Long", period="2018 — 2021")) == ["Long", "Short"]
+def test_a_longer_stint_from_the_same_start_comes_first() -> None:
+    assert order(pos("Short", started="2018", finished="2019"), pos("Long", started="2018", finished="2021")) == ["Long", "Short"]
 
 
 def test_a_lone_year_is_a_single_year_stint() -> None:
-    assert order(pos("Lone", period="2010"), pos("Range", period="2015 - 2016")) == ["Range", "Lone"]
+    assert order(pos("Lone", started="2010", finished="2010"), pos("Range", started="2015", finished="2016")) == ["Range", "Lone"]
 
 
 def test_an_undated_position_counts_as_current() -> None:
     assert order(pos("Old", finished="2019"), pos("Undated")) == ["Undated", "Old"]
 
 
-def test_started_without_an_end_is_current_and_ignores_the_period() -> None:
-    assert order(pos("Done", finished="2019"), pos("Open", started="2015", period="1990 - 1991")) == ["Open", "Done"]
-
-
-def test_a_period_is_used_only_when_there_are_no_started_or_finished_dates() -> None:
-    assert order(pos("A", finished="2015", period="2030 - 2031"), pos("B", finished="2017")) == ["B", "A"]
+def test_started_without_an_end_is_current() -> None:
+    assert order(pos("Done", finished="2019"), pos("Open", started="2015")) == ["Open", "Done"]
 
 
 def test_bullet_limits_and_ids() -> None:

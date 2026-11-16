@@ -28,7 +28,7 @@ from redstring import (
 )
 
 from career_buddy.adapters.inference.errors import unavailable
-from career_buddy.domain.dates import with_dates
+from career_buddy.domain.dates import BOUNDS, read_bounds
 from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind, fact_id
 from career_buddy.domain.text import split_skills
 
@@ -222,6 +222,5 @@ def _scope(kind: FactKind, entity_id: object, org_of: dict, school_of: dict, pos
 
 def _attributes(entity: Entity) -> dict[str, str]:
     attrs = {k: _text(v) for k, v in entity.properties.items() if _text(v) and k != "tools"}  # tools become skills
-    if entity.temporal and entity.temporal.original_text:
-        attrs.setdefault("period", _text(entity.temporal.original_text))
-    return with_dates(attrs)
+    dates = {key: attrs.pop(key) for key in BOUNDS if key in attrs}
+    return {**attrs, **read_bounds(dates, _text(entity.temporal.original_text) if entity.temporal else "")}

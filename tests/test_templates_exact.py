@@ -27,7 +27,7 @@ def test_a_position_heading_shows_its_period_or_none() -> None:
         PositionView("A", "Org", {"started": "2020", "finished": "2021"}),
         PositionView("B", "Org", {"started": "2020"}),
         PositionView("C", "Org", {"finished": "2019"}),
-        PositionView("D", "", {"period": "2018"}),
+        PositionView("D", "", {"started": "2018", "finished": "2018"}),
         PositionView("E", ""),
     )
     headings = [e.heading.text for e in doc.sections[0].entries]

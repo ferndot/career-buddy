@@ -10,11 +10,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from career_buddy.application.ports import RendererUnavailable
-from career_buddy.application.saved_documents import LegacyDocument, SavedDocuments, SavedMeta
+from career_buddy.application.saved_documents import SavedDocuments, SavedMeta
 from career_buddy.web.requests import SaveRequest
 
-LISTED = ("id", "label", "template", "format", "filename", "created_at", "ats_issues", "version")
-LEGACY = "This document was saved as a file before editing existed: it has no content to read, and downloads only in its own format"
+LISTED = ("id", "label", "template", "filename", "created_at", "ats_issues")
 
 
 def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
@@ -37,18 +36,13 @@ def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
 
     @router.get("/{doc_id}/content")
     def content(doc_id: str) -> dict[str, object]:
-        try:
-            _, html, css, overrides = saved().content(doc_id)
-        except LegacyDocument as error:
-            raise HTTPException(409, LEGACY) from error
+        _, html, css, overrides = saved().content(doc_id)
         return {"html": html, "css": css, "overrides": overrides}
 
     @router.get("/{doc_id}/file")
     async def download(doc_id: str, format: Literal["docx", "pdf", "txt"] | None = None) -> Response:
         try:
             out = await saved().download(doc_id, format)
-        except LegacyDocument as error:
-            raise HTTPException(409, LEGACY) from error
         except RendererUnavailable as error:
             raise HTTPException(503, str(error)) from error
         headers = {"Content-Disposition": f'attachment; filename="{out.filename}"'}
