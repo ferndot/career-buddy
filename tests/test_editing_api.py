@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from career_graph.domain.model import FactKind, fact_id
 from career_graph.web.app import create_app
 from test_api import linkedin_zip
 
@@ -121,41 +122,27 @@ def test_manual_add_validation(client, body, status) -> None:
     assert client.post("/api/facts", json=body).status_code == status
 
 
-def test_acme_corp_and_acme_are_proposed_merged_and_the_merge_is_undone(client, tmp_path: Path) -> None:
-    assert client.get("/api/duplicates").json() == []
+def test_acme_and_acme_corp_are_merged_on_import_and_the_merge_can_be_undone(client, tmp_path: Path) -> None:
+    alias = fact_id(FactKind.ORGANIZATION, "Acme")
     import_resume_file(client)
-    assert "### Platform Lead, Acme (2020 - 2021)" in resume(client)
-
-    ids = orgs(client)
-    [dup] = client.get("/api/duplicates").json()
-    assert dup["kind"] == "Organization" and {dup["a"]["title"], dup["b"]["title"]} == {"Acme Corp", "Acme"}
-    assert dup["score"] >= 0.9
-
-    merge = {"alias_id": ids["Acme"], "canonical_id": ids["Acme Corp"]}
-    assert client.post("/api/merges", json=merge).status_code == 200
-    md = resume(client)
-    assert "### Platform Lead, Acme Corp (2020 - 2021)" in md and "### Senior Engineer, Acme Corp" in md
-    assert ", Acme (" not in md
+    assert "### Platform Lead, Acme Corp (2020 - 2021)" in resume(client)  # merged as it was imported
     assert "Acme" not in orgs(client) and client.get("/api/duplicates").json() == []
 
     import_resume_file(client)  # a re-import does not resurrect the alias
-    assert ", Acme (" not in resume(client)
     with TestClient(create_app(tmp_path)) as restarted:
         assert ", Acme (" not in resume(restarted)
 
-    assert client.post("/api/merges", json={**merge, "undo": True}).status_code == 200
+    merge = {"alias_id": alias, "canonical_id": orgs(client)["Acme Corp"], "undo": True}
+    assert client.post("/api/merges", json=merge).status_code == 200
     md = resume(client)
     assert "### Platform Lead, Acme (2020 - 2021)" in md and "### Senior Engineer, Acme Corp" in md
-    assert len(client.get("/api/duplicates").json()) == 1
+    assert len(client.get("/api/duplicates").json()) == 1  # undone, so it is proposed again
 
 
-def test_duplicate_positions_are_proposed_and_stay_so_after_the_employers_merge(client) -> None:
+def test_duplicate_positions_are_merged_on_import_with_their_employer(client) -> None:
     client.post("/api/import/text", json={"text": "Jane Doe\n\nExperience\nSenior Engineer at Acme, 2020 - 2021\n"})
-    kinds = lambda: sorted(d["kind"] for d in client.get("/api/duplicates").json())
-    assert kinds() == ["Organization", "Position"]  # similar employers count as matching
-    ids = orgs(client)
-    client.post("/api/merges", json={"alias_id": ids["Acme"], "canonical_id": ids["Acme Corp"]})
-    assert kinds() == ["Position"]
+    assert "Acme" not in orgs(client)
+    assert client.get("/api/duplicates").json() == []
 
 
 def test_merge_validation(client) -> None:
@@ -163,11 +150,11 @@ def test_merge_validation(client) -> None:
     ids = orgs(client)
     person = client.get("/api/profile").json()["id"]
     post = lambda **body: client.post("/api/merges", json=body).status_code
-    assert post(alias_id="nope", canonical_id=ids["Acme"]) == 404
-    assert post(alias_id=ids["Acme"], canonical_id="nope") == 404
-    assert post(alias_id=ids["Acme"], canonical_id=ids["Acme"]) == 422
-    assert post(alias_id=ids["Acme"], canonical_id=person) == 422
-    assert post(alias_id=ids["Acme"], canonical_id=ids["Globex"], undo=True) == 404  # nothing to undo
+    assert post(alias_id="nope", canonical_id=ids["Acme Corp"]) == 404
+    assert post(alias_id=ids["Acme Corp"], canonical_id="nope") == 404
+    assert post(alias_id=ids["Acme Corp"], canonical_id=ids["Acme Corp"]) == 422
+    assert post(alias_id=ids["Acme Corp"], canonical_id=person) == 422
+    assert post(alias_id=ids["Globex"], canonical_id=ids["Acme Corp"], undo=True) == 404  # nothing to undo
 
 
 def bullets(client: TestClient) -> list[str]:
@@ -205,25 +192,25 @@ def test_setting_the_order_keeps_the_other_attributes_and_validates(client) -> N
     assert client.patch(f"/api/facts/{bullet}/order", json={"order": "first"}).status_code == 422
 
 
-def test_a_dismissed_pair_is_no_longer_proposed_and_stays_so_after_re_import_and_restart(client, tmp_path: Path) -> None:
-    import_resume_file(client)
+def test_a_dismissed_skill_pair_is_no_longer_proposed_and_stays_so_after_re_import_and_restart(client, tmp_path: Path) -> None:
+    client.post("/api/import/text", json={"text": "Jane Doe\n\nSkills\nPostgres\n"})
+    client.post("/api/import/text", json={"text": "Jane Doe\n\nSkills\nPostgreSQL\n"})
     [dup] = client.get("/api/duplicates").json()
     pair = {"a_id": dup["b"]["id"], "b_id": dup["a"]["id"]}  # either order names the same pair
     assert client.post("/api/duplicates/dismiss", json=pair).status_code == 200
     assert client.get("/api/duplicates").json() == []
-    import_resume_file(client)
+    client.post("/api/import/text", json={"text": "Jane Doe\n\nSkills\nPostgreSQL\n"})
     assert client.get("/api/duplicates").json() == []
     with TestClient(create_app(tmp_path)) as restarted:
         assert restarted.get("/api/duplicates").json() == []
-        assert "### Platform Lead, Acme (2020 - 2021)" in resume(restarted)  # dismissing merges nothing
 
 
 def test_dismiss_validation(client) -> None:
     import_resume_file(client)
     ids = orgs(client)
     post = lambda a, b: client.post("/api/duplicates/dismiss", json={"a_id": a, "b_id": b}).status_code
-    assert post("nope", ids["Acme"]) == 404
-    assert post(ids["Acme"], ids["Acme"]) == 422
+    assert post("nope", ids["Acme Corp"]) == 404
+    assert post(ids["Acme Corp"], ids["Acme Corp"]) == 422
 
 
 def test_similar_skill_names_are_proposed_and_a_dismissed_pair_is_not_proposed_again(client) -> None:

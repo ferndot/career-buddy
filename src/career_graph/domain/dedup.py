@@ -7,8 +7,10 @@ from collections import defaultdict
 from difflib import SequenceMatcher
 from itertools import combinations
 
+from career_graph.domain.knowledge import details
 from career_graph.domain.model import Fact, FactBatch, FactKind, LinkKind, is_hidden, normalize
 from career_graph.domain.periods import period_of
+from career_graph.domain.tailoring import STOPWORDS, stem, tokens
 
 THRESHOLD = 0.90
 _LEGAL = {"inc", "corp", "corporation", "co", "ltd", "llc", "plc", "gmbh", "sa", "ag"}
@@ -53,4 +55,39 @@ def merge_candidates(batch: FactBatch) -> list[tuple[str, str, float]]:
         score = 1.0 if oa == ob else org_score.get(tuple(sorted((oa, ob))), 0.0)
         if score:
             found.append((a.id, b.id, score))
+    found += _achievement_candidates(batch, of_kind[FactKind.ACHIEVEMENT])
     return sorted(found, key=lambda c: (-c[2], c[0], c[1]))
+
+
+ACHIEVEMENT_THRESHOLD = 0.5  # shared content words over all content words; paraphrases of one result score about 0.6
+_NUMBER = re.compile(r"(?<!\w)\d+(?:[.,]\d+)*")  # a standalone number: "p95" names a metric, it is not 95
+
+
+def _achievement_candidates(batch: FactBatch, achievements: list[Fact]) -> list[tuple[str, str, float]]:
+    """Achievements under the same position (after position merges) whose wording mostly shares content words.
+
+    Two achievements that state different numbers are different results, so they never pair."""
+    parent = {l.target_id: l.source_id for l in batch.links if l.kind == LinkKind.ACHIEVED}
+    under: dict[str, list[Fact]] = defaultdict(list)
+    for fact in achievements:
+        if (position := parent.get(fact.id)):
+            under[position].append(fact)
+    found: list[tuple[str, str, float]] = []
+    for group in under.values():
+        for a, b in combinations(group, 2):
+            if (score := _achievement_similarity(a, b)) >= ACHIEVEMENT_THRESHOLD:
+                found.append((a.id, b.id, score))
+    return found
+
+
+def _achievement_similarity(a: Fact, b: Fact) -> float:
+    text_a, text_b = details(a), details(b)
+    numbers_a, numbers_b = set(_NUMBER.findall(text_a)), set(_NUMBER.findall(text_b))
+    if numbers_a and numbers_b and numbers_a != numbers_b:
+        return 0.0
+    words_a, words_b = _content_words(text_a), _content_words(text_b)
+    return len(words_a & words_b) / len(words_a | words_b) if words_a | words_b else 0.0
+
+
+def _content_words(text: str) -> set[str]:
+    return {stem(t.lower()) for t in tokens(text) if t.lower() not in STOPWORDS}

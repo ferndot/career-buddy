@@ -17,7 +17,17 @@ entity_types:
         type: string
         description: Dates as written, for example "2019 - 2021" or "Jan 2020 - Present".
   - id: Achievement
-    description: A concrete accomplishment at a position. Duties are not achievements.
+    description: A concrete accomplishment at a position, stated as a short neutral fact - what was done and what it achieved - not in the text's own resume phrasing. Duties are not achievements.
+    properties:
+      - name: result
+        type: string
+        description: The outcome as the text states it, with numbers exactly as written. Empty if none is stated.
+      - name: tools
+        type: string
+        description: Technologies, tools or methods used for it, as the text names them. Empty if none.
+      - name: project
+        type: string
+        description: The project or product it was part of, if the text names one.
   - id: Skill
     description: A professional skill or tool, named as the text names it.
   - id: Education
@@ -64,5 +74,6 @@ extraction_prompt_template: |
   Extract the following types of relationships:
   {relationship_descriptions}
 
-  Use only facts the text states. Use each name exactly as the text spells it.
-  Achievements are concrete accomplishments, not duties. Put dates as written in the period property.
+  Use only facts the text states. Use each organization, position, school and skill name exactly as the text spells it.
+  Achievements are concrete accomplishments, not duties. Describe each one as a neutral statement of what was done and
+  its result, in your own words; keep its numbers, tools and project. Put dates as written in the period property.

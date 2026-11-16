@@ -6,9 +6,12 @@ import asyncio
 import re
 from dataclasses import dataclass, field, replace
 
-from career_graph.application.ports import DocumentRenderer, FactView, LLMUnavailable, MissingInputs, Rewriter, TextReader
+from career_graph.application.ports import (
+    DocumentRenderer, FactView, LLMUnavailable, MergedView, MissingInputs, Rewriter, TextReader,
+)
 from career_graph.domain.ats import Issue, check
 from career_graph.domain.document import Document, Origin, Style
+from career_graph.domain.knowledge import knowledge
 from career_graph.domain.markers import Change, clean, clean_document
 from career_graph.domain.profile import Profile, assemble_profile
 from career_graph.domain.rewording import verify_rewording
@@ -64,6 +67,11 @@ class Suggestions:
     rejected: list[Rejection]
 
 
+class _NoMerges:
+    async def absorbed(self) -> dict:
+        return {}
+
+
 class DocumentService:
     def __init__(
         self,
@@ -71,11 +79,13 @@ class DocumentService:
         renderers: dict[str, DocumentRenderer],
         readers: dict[str, TextReader],
         rewriter: Rewriter | None = None,
+        merged: MergedView | None = None,
     ) -> None:
         self._graph = graph
         self._renderers = renderers
         self._readers = readers
         self._rewriter = rewriter
+        self._merged = merged or _NoMerges()
 
     async def _build(self, template_id: str, options: TailorOptions) -> tuple[Document, Preview, Profile]:
         spec = get_template(template_id)  # KeyError: unknown template
@@ -119,27 +129,35 @@ class DocumentService:
         return list((await self.render(template_id, fmt, style, options)).issues)
 
     async def suggest(self, template_id: str, options: TailorOptions) -> Suggestions:
-        """LLM rewordings of the bullets the document would show. Only those that pass the verifier come back."""
+        """LLM wording for the bullets the document would show, written from each achievement's knowledge.
+        Only those that pass the verifier come back."""
         if self._rewriter is None:
             raise LLMUnavailable("No LLM is configured")
         spec = get_template(template_id)
-        profile = assemble_profile(await self._graph.snapshot())
+        batch = await self._graph.snapshot()
+        profile = assemble_profile(batch)
         tailored, report = tailor(profile, options.job_text, spec, options.selection, options.skills, options.education)
         skills = [*profile.skills, *(s for p in profile.positions for s in p.skills)]
         protected = [*(t for p in profile.positions for t in (p.title, p.organization)),
                      *(t for e in profile.education for t in (e.degree, e.school))]
+        facts = {f.id: f for f in batch.facts}
+        absorbed = await self._merged.absorbed()
         rows = [(aid, text) for p in tailored.positions for text, aid in zip(p.achievements, p.achievement_ids)
                 if aid not in options.overrides]
 
-        async def reword(source: str) -> tuple[str, list[str]]:
-            text, _ = clean(await self._rewriter.rewrite(source, report.matched), Origin.SUGGESTION)
+        def source_of(aid: str, shown: str) -> str:
+            return knowledge(facts[aid], absorbed.get(aid, ())) if aid in facts else shown
+
+        async def reword(aid: str, shown: str) -> tuple[str, list[str]]:
+            source = source_of(aid, shown)
+            text, _ = clean(await self._rewriter.rewrite(source, report.matched, options.job_text), Origin.SUGGESTION)
             return text, verify_rewording(source, text, skills, protected, report.missing)
 
-        results = await asyncio.gather(*(reword(text) for _, text in rows))
+        results = await asyncio.gather(*(reword(aid, text) for aid, text in rows))
         out = Suggestions([], [])
-        for (aid, source), (text, reasons) in zip(rows, results):
+        for (aid, shown), (text, reasons) in zip(rows, results):
             if reasons:
                 out.rejected.append(Rejection(aid, reasons))
-            elif text != source:
-                out.suggestions.append(Suggestion(aid, source, text))
+            elif text != shown:
+                out.suggestions.append(Suggestion(aid, shown, text))
         return out

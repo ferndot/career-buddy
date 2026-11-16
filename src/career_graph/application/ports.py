@@ -9,7 +9,7 @@ from typing import Literal, Protocol
 from career_graph.domain.ats import Extracted
 from career_graph.domain.document import Document, Style
 from career_graph.domain.events import Event
-from career_graph.domain.model import FactBatch
+from career_graph.domain.model import Fact, FactBatch
 
 
 class FactExtractor(Protocol):
@@ -34,6 +34,12 @@ class FactView(Protocol):
     """What readers see: the facts after revisions and merges."""
 
     async def snapshot(self) -> FactBatch: ...
+
+
+class MergedView(Protocol):
+    """Alias facts that were merged into a canonical one, keyed by the canonical id."""
+
+    async def absorbed(self) -> dict[str, list[Fact]]: ...
 
 
 class FactGraph(FactView, Protocol):
@@ -85,9 +91,9 @@ class LLMUnavailable(Exception):
 
 
 class Rewriter(Protocol):
-    """Optional LLM polish for one bullet. Its output is never trusted: it goes through `verify_rewording`."""
+    """Optional LLM wording for one achievement, from its knowledge text. Its output is never trusted: it goes through `verify_rewording`."""
 
-    async def rewrite(self, text: str, terms: Sequence[str]) -> str: ...
+    async def rewrite(self, text: str, terms: Sequence[str], job_text: str = "") -> str: ...
 
 
 class ObjectNotFound(Exception):

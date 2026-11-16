@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from career_graph.application.ports import FactGraph
 from career_graph.domain.events import DuplicateDismissed, Event, FactRevised, FactsImported, FactsMerged, SourceRemoved
-from career_graph.domain.model import FactBatch, Link
+from career_graph.domain.model import Fact, FactBatch, Link
 
 
 class Projector:
@@ -53,6 +53,15 @@ class Projector:
             fact_id = target
             seen.add(fact_id)
         return fact_id
+
+    async def absorbed(self) -> dict[str, list[Fact]]:
+        """Canonical fact id -> the alias facts merged into it. Their own wording and details are not in the snapshot."""
+        out: dict[str, list[Fact]] = {}
+        for f in (await self._graph.snapshot()).facts:
+            if f.id not in self.merges or not (self._stated_by.get(f.id, {f.source}) - self.removed):
+                continue
+            out.setdefault(self._resolve(f.id), []).append(f)
+        return out
 
     async def snapshot(self) -> FactBatch:
         raw = await self._graph.snapshot()

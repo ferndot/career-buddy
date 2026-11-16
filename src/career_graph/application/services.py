@@ -75,7 +75,21 @@ class ImportService:
             event = SourceRemoved(source, _now())
             self._log.append(event)
             await self._projector.project(event)
-        return await self._record(batch, source_key)
+        count = await self._record(batch, source_key)
+        await self._merge_duplicates()
+        return count
+
+    async def _merge_duplicates(self) -> None:
+        """Merge the duplicates the matcher finds, each as a logged merge the user can undo. Dismissed pairs stay apart."""
+        batch = await self._projector.snapshot()
+        titles = {f.id: f.title for f in batch.facts}
+        for a, b, _ in merge_candidates(batch):
+            if a in self._projector.merges or b in self._projector.merges or frozenset((a, b)) in self._projector.dismissed:
+                continue
+            keep, drop = sorted((a, b), key=lambda i: (-len(titles[i]), i))  # the fuller name, e.g. "Acme Corp" over "Acme"
+            event = FactsMerged(drop, keep, False, _now())
+            self._log.append(event)
+            await self._projector.project(event)
 
     async def import_text(self, text: str, source: str, source_key: str = "") -> int | None:
         """Facts added, or None when the work was queued."""

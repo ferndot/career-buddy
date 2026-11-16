@@ -205,3 +205,33 @@ def test_an_accepted_suggestion_is_an_override_and_the_stored_bullet_stays(tmp_p
         again = client.post("/api/documents/suggest", json={"template": "resume-classic", "job_text": JOB,
                                                             "overrides": {accepted["fact_id"]: accepted["after"]}})
         assert accepted["fact_id"] not in {s["fact_id"] for s in again.json()["suggestions"]}  # offered once
+
+
+def test_wording_is_written_from_what_the_achievement_states_not_only_its_bullet(tmp_path: Path) -> None:
+    seen: list[str] = []
+    prompts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(source_of(request))
+        prompts.append(json.loads(request.content)["messages"][0]["content"])
+        return reply(source_of(request))
+
+    with open_client(tmp_path, handler) as client:
+        senior = position(client, "Senior Engineer")
+        client.post("/api/facts", json={"kind": "Achievement", "title": "Moved CI pipeline onto Bazel",
+                                        "parent_id": senior["id"], "attributes": {"result": "60%", "tools": "Bazel"}})
+        suggest(client)
+    assert any("Result: 60%" in s and "Tools: Bazel" in s for s in seen)
+    assert any("Kubernetes migrations" in p for p in prompts)  # the job posting reaches the wording prompt
+
+
+def test_cover_letter_bullets_get_llm_wording_like_the_resume(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return reply("Moved 40 services to Kubernetes" if source_of(request) == KUBE else source_of(request))
+
+    with open_client(tmp_path, handler) as client:
+        senior = position(client, "Senior Engineer")
+        kube_id = dict(zip(senior["achievements"], senior["achievement_ids"]))[KUBE]
+        res = client.post("/api/documents/suggest", json={"template": "cover-letter", "job_text": JOB})
+    assert res.status_code == 200, res.text
+    assert res.json()["suggestions"] == [{"fact_id": kube_id, "before": KUBE, "after": "Moved 40 services to Kubernetes"}]
