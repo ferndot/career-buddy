@@ -49,7 +49,7 @@ export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: 
 
   return (
     <Box ref={ref} as="section" aria-label={`Career graph: ${view.nodes.length} facts and ${view.links.length} links`}
-      h="480px" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflow="hidden">
+      h={{ base: "70vh", md: "calc(100vh - 220px)" }} minH="480px" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflow="hidden">
       {size.width > 0 && (
         <ForceGraph2D
           ref={graph}
