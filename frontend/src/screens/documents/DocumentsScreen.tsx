@@ -45,7 +45,7 @@ export function DocumentsScreen() {
     <>
       <PageHeader
         title="Documents"
-        subtitle="Documents you have generated. Download any of them, or make a new one."
+        subtitle="Resumes and cover letters you have generated."
         actions={generateButton}
       />
       {saved.isPending ? (

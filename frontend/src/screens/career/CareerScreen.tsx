@@ -20,7 +20,7 @@ export function CareerScreen() {
   const header = (
     <PageHeader
       title="Career"
-      subtitle="Browse your facts and follow the links between them. Tick the bullets you want to keep; untick to hide them."
+      subtitle="Browse your facts and their links. Untick a bullet to hide it from documents."
     />
   )
 

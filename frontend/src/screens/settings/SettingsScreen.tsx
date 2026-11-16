@@ -25,7 +25,7 @@ export function SettingsScreen() {
     <>
       <PageHeader
         title="Settings"
-        subtitle="Connect a language model for better rewording. Without one, a built-in reader works offline."
+        subtitle="Connect a language model to reword resumes. Works offline without one."
       />
       <Tabs.Root defaultValue="connections" variant="line">
         <Tabs.List mb="5">
