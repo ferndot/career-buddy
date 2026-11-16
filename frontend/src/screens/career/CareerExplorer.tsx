@@ -1,7 +1,9 @@
-import { Box, Button, Checkbox, Flex, Heading, Input, Text } from '@chakra-ui/react'
+import { Box, Button, Checkbox, Flex, Heading, Input, Tabs, Text } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import type { Edge, Fact } from './api'
 import { useReviseFact } from './api'
+import { AddEducationDialog, AddPositionDialog } from './AddEntryDialogs'
+import { AddAchievementDialog, AddSkillDialog } from './AddOtherDialogs'
 import { EntryCard } from './EntryCard'
 import { isHidden } from './model'
 import { type Explorer, type Kind, KIND_LABEL, KINDS, explore, subtitle } from './explore'
@@ -15,6 +17,7 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
   const [kind, setKind] = useState<Kind>('Position')
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<string | null>(null)
+  const [adding, setAdding] = useState<Kind | null>(null)
 
   const items = ex.list(kind).filter((f) => f.title.toLowerCase().includes(query.trim().toLowerCase()))
   const current = (picked && ex.byId.get(picked)) || items[0]
@@ -25,19 +28,24 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
   }
 
   return (
+    <>
     <Flex gap="4" align="flex-start" wrap="wrap">
       <Box flex="1 1 300px" minW="0">
-        <Flex gap="1" wrap="wrap" mb="3" role="tablist" aria-label="Kinds">
-          {KINDS.map((k) => (
-            <Button key={k} size="xs" role="tab" aria-selected={k === kind} variant={k === kind ? 'solid' : 'outline'}
-              bg={k === kind ? 'app.primary' : undefined} color={k === kind ? 'app.onPrimary' : 'app.text2'}
-              onClick={() => { setKind(k); setPicked(null); setQuery('') }}>
-              {KIND_LABEL[k]} ({ex.list(k).length})
-            </Button>
-          ))}
+        <Tabs.Root value={kind} variant="line" mb="3" lazyMount
+          onValueChange={(d) => { setKind(d.value as Kind); setPicked(null); setQuery('') }}>
+          <Tabs.List aria-label="Kinds" flexWrap="wrap" h="auto">
+            {KINDS.map((k) => (
+              <Tabs.Trigger key={k} value={k}>
+                {KIND_LABEL[k]} ({ex.list(k).length})
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
+        <Flex gap="2" mb="2">
+          <Input size="sm" placeholder={`Search ${KIND_LABEL[kind].toLowerCase()}`} aria-label="Search" value={query}
+            onChange={(e) => setQuery(e.target.value)} bg="app.surface" borderColor="app.borderStrong" />
+          <Button size="sm" variant="outline" flexShrink={0} onClick={() => setAdding(kind)}>{ADD_LABEL[kind]}</Button>
         </Flex>
-        <Input size="sm" mb="2" placeholder={`Search ${KIND_LABEL[kind].toLowerCase()}`} aria-label="Search" value={query}
-          onChange={(e) => setQuery(e.target.value)} bg="app.surface" borderColor="app.borderStrong" />
         <Box maxH="60vh" overflowY="auto" pr="1">
           {items.map((f) => (
             <Button key={f.id} variant={current?.id === f.id ? 'subtle' : 'ghost'} justifyContent="flex-start" w="100%"
@@ -55,7 +63,21 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
         {current ? <Detail fact={current} ex={ex} career={career} onOpen={open} /> : <Text color="app.muted">Pick an item.</Text>}
       </Box>
     </Flex>
+    <AddPositionDialog open={adding === 'Position' || adding === 'Organization'} onClose={() => setAdding(null)} personId={career.personId} />
+    <AddEducationDialog open={adding === 'Education'} onClose={() => setAdding(null)} personId={career.personId} />
+    <AddSkillDialog open={adding === 'Skill'} onClose={() => setAdding(null)} personId={career.personId} />
+    <AddAchievementDialog open={adding === 'Achievement'} onClose={() => setAdding(null)} positions={ex.list('Position')} />
+    </>
   )
+}
+
+/** Organizations have no entry of their own: an employer is named on a position, so that tab adds a position. */
+const ADD_LABEL: Record<Kind, string> = {
+  Position: 'Add position',
+  Organization: 'Add position',
+  Education: 'Add education',
+  Achievement: 'Add achievement',
+  Skill: 'Add skill',
 }
 
 function Detail({ fact, ex, career, onOpen }: { fact: Fact; ex: Explorer; career: Career; onOpen: (f: Fact) => void }) {

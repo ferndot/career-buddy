@@ -38,8 +38,7 @@ it('opens on the explorer with bullet checkboxes, the duplicates banner and add 
   expect(screen.getByRole('checkbox', { name: 'Cut build times by 60%' })).toBeChecked()
   expect(screen.getByRole('checkbox', { name: 'Ran design reviews' })).not.toBeChecked()
   expect(await screen.findByText('1 possible duplicate')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Add position' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Add education' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Add position' })).toBeInTheDocument() // on the Positions tab
 })
 
 it('switches to the map view', async () => {

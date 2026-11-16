@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
@@ -24,13 +24,16 @@ afterEach(() => {
   queryClient.clear()
 })
 
-it('switches kinds with tabs and follows a linked item to its detail', () => {
+it('switches kinds with tabs and follows a linked item to its detail', async () => {
   renderApp(<CareerExplorer facts={facts} edges={edges} career={career} />)
   expect(screen.getByRole('tab', { name: 'Organizations (1)' })).toBeInTheDocument()
   expect(screen.getByRole('checkbox', { name: 'Cut build times by 60%' })).toBeChecked() // first position's card
 
-  fireEvent.click(screen.getByRole('tab', { name: 'Achievements (1)' }))
-  expect(screen.getByRole('heading', { name: 'Cut build times by 60%' })).toBeInTheDocument()
+  // A real click focuses the tab first; Chakra tabs select on focus.
+  const achievements = screen.getByRole('tab', { name: 'Achievements (1)' })
+  fireEvent.focus(achievements)
+  fireEvent.click(achievements)
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Cut build times by 60%' })).toBeInTheDocument())
 
   fireEvent.click(screen.getByRole('button', { name: 'Senior Engineer' })) // linked position chip
   expect(screen.getByRole('tab', { name: 'Positions (1)' })).toHaveAttribute('aria-selected', 'true')

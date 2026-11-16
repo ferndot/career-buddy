@@ -52,7 +52,7 @@ export function useAddEntry() {
   const create = useCreateFact()
   return useMutation({
     // The server reads a position's description into its achievements.
-    mutationFn: async (v: { kind: 'Position' | 'Education'; title: string; parent_id: string; attributes: Record<string, string> }) => {
+    mutationFn: async (v: { kind: 'Position' | 'Education' | 'Skill' | 'Achievement'; title: string; parent_id: string; attributes: Record<string, string> }) => {
       await create.mutateAsync(v)
     },
   })

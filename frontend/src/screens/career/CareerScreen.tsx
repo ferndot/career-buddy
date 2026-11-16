@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState, PageHeader } from '../../components'
 import { useFacts, useGraph } from './api'
-import { AddEducationDialog, AddPositionDialog } from './AddEntryDialogs'
 import { CareerGraph } from './CareerGraph'
 import { DuplicatesBanner } from './DuplicatesBanner'
 import { CareerExplorer } from './CareerExplorer'
@@ -13,7 +12,6 @@ export function CareerScreen() {
   const facts = useFacts()
   const graph = useGraph()
   const [view, setView] = useState<'explore' | 'map'>('explore')
-  const [adding, setAdding] = useState<'position' | 'education' | null>(null)
   const career = useMemo(
     () => (facts.data && graph.data ? buildCareer(facts.data, graph.data.edges) : null),
     [facts.data, graph.data],
@@ -45,7 +43,6 @@ export function CareerScreen() {
     )
   }
 
-  const ghost = { variant: 'ghost' as const, color: 'app.link' }
   return (
     <>
       {header}
@@ -58,20 +55,12 @@ export function CareerScreen() {
             {v === 'explore' ? 'Explore' : 'Map'}
           </Button>
         ))}
-        <Button {...ghost} onClick={() => setAdding('position')}>
-          Add position
-        </Button>
-        <Button {...ghost} onClick={() => setAdding('education')}>
-          Add education
-        </Button>
       </Flex>
       {view === 'explore' ? (
         <CareerExplorer facts={facts.data ?? []} edges={graph.data?.edges ?? []} career={career} />
       ) : (
         <CareerGraph facts={facts.data ?? []} edges={graph.data?.edges ?? []} />
       )}
-      <AddPositionDialog open={adding === 'position'} onClose={() => setAdding(null)} personId={career.personId} />
-      <AddEducationDialog open={adding === 'education'} onClose={() => setAdding(null)} personId={career.personId} />
     </>
   )
 }
