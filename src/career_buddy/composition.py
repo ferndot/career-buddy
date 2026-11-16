@@ -20,13 +20,14 @@ from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
 from career_buddy.adapters.outputs.render_pdf import PdfRenderer
 from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.adapters.readers.docx_text import DocxTextReader
-from career_buddy.adapters.readers.html_document import read_document
+from career_buddy.adapters.readers.html_document import read_document, read_slots
 from career_buddy.adapters.readers.markup_text import HtmlTextReader, PlainTextReader
 from career_buddy.adapters.readers.pdf_text import PdfTextReader
 from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
 from career_buddy.adapters.storage.local_object_store import LocalObjectStore
 from career_buddy.adapters.storage.s3_object_store import S3ObjectStore
 from career_buddy.application.documents import DocumentService
+from career_buddy.application.generation import DocumentGeneration
 from career_buddy.application.jobs import SourceJobs
 from career_buddy.application.ports import DocumentRenderer, ObjectStore
 from career_buddy.application.projector import Projector
@@ -41,6 +42,7 @@ class App:
     queries: CareerQueries
     documents: DocumentService
     saved: SavedDocuments
+    generation: DocumentGeneration
     llm: LLMConnections
 
 
@@ -72,7 +74,7 @@ async def build_app(
     # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
     llm = LLMConnections(data_dir, llm_transport)
     model = llm.inference()
-    extractor, rewriter = model or (HeuristicExtractor(), None)
+    extractor, rewriter, writer = (model.extractor, model.rewriter, model.writer) if model else (HeuristicExtractor(), None, None)
 
     readers = {
         "markdown": PlainTextReader(),
@@ -93,5 +95,6 @@ async def build_app(
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
     documents = DocumentService(projector, renderers, readers, rewriter, merged=projector)
+    generation = DocumentGeneration(documents, writer)
     return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
-               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_document)), llm)
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm)

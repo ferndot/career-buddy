@@ -1,7 +1,7 @@
 import { Box, Button, Flex, Heading, Text } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
 import { LuPlus, LuRefreshCw } from 'react-icons/lu'
-import { EmptyState, PageHeader } from '../../components'
+import { EmptyState, LoadingState, PageHeader } from '../../components'
 import { AddSourceDialog } from './AddSourceDialog'
 import { ProcessingCard } from './ProcessingCard'
 import { SourceCard } from './SourceCard'
@@ -68,6 +68,7 @@ export function SourcesScreen() {
               />
             ),
           )}
+          {isPending && <LoadingState text="Loading your sources..." />}
           {sources.length === 0 && !isError && !isPending && (
             <EmptyState title="No sources yet" description="Import a resume or text to get started.">
               {addButton}

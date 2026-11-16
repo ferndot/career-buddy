@@ -2,6 +2,7 @@ import { Box, Heading, Input, Link, Text, Textarea } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { RobotMascot } from '../../brand'
 import { fetchJobText } from '../documents/api'
+import { SpeechBubble } from './SpeechBubble'
 import type { Wizard } from './state'
 
 type Props = { w: Wizard; set: (patch: Partial<Wizard>) => void }
@@ -52,9 +53,11 @@ export function JobStep({ w, set }: Props) {
   return (
     <Box maxW="560px" mx="auto" minH="50vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center" textAlign="center" gap="4">
       <RobotMascot mood={status === 'loading' ? 'thinking' : status === 'ok' ? 'celebrate' : 'happy'} />
-      <Heading as="h1" size="2xl" fontWeight="semibold" color="app.text">
-        Where is the job posting?
-      </Heading>
+      <SpeechBubble>
+        <Heading as="h1" size="2xl" fontWeight="semibold" color="app.text">
+          Where is the job posting?
+        </Heading>
+      </SpeechBubble>
       <Text color="app.muted">Paste the link and we will read it for you.</Text>
       <Input
         type="url"

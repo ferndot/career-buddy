@@ -104,11 +104,11 @@ test('step 4 edits are overrides on the document: reset to generated removes the
   const save = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))!
   expect(save.body).toMatchObject({
     template: 'resume-classic', skill_ids: ['s1', 's2'], education_ids: ['e1'], selection: ['b1'],
-    overrides: { b1: 'Shipped it to 1M users', summary: 'Builds reliable things', headline: 'Engineer' },
+    overrides: { 'bullet:b1': 'Shipped it to 1M users', summary: 'Builds reliable things', headline: 'Engineer' },
   })
   expect(save.body).not.toHaveProperty('format')
   const previews = calls.filter((c) => c.url.includes('preview') && c.body?.template === 'resume-classic')
-  for (const p of previews) expect(p.body?.overrides ?? {}).not.toHaveProperty('b1') // the preview shows generated text
+  for (const p of previews) expect(p.body?.overrides ?? {}).not.toHaveProperty('bullet:b1') // the preview shows generated text
 })
 
 test('step 5 offers Word, PDF and Text; saving happens once and shows the celebration', async () => {

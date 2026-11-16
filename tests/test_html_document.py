@@ -7,7 +7,7 @@ from hypothesis import given, strategies as st
 
 from career_buddy.adapters.outputs.render_html import stored_html
 from career_buddy.adapters.outputs.render_text import TextRenderer
-from career_buddy.adapters.readers.html_document import read_document
+from career_buddy.adapters.readers.html_document import read_document, read_slots
 from career_buddy.domain.document import Document, Entry, Line, Origin, Section, Style
 from samples import sample_document
 
@@ -42,19 +42,25 @@ def test_stored_html_uses_only_the_allowed_tags_and_unique_slots(doc: Document) 
     assert len(slots) == len(set(slots)) == len(everything(doc))
 
 
-def test_every_text_line_is_a_slot_bound_to_its_fact() -> None:
-    doc = Document(Line("Ada", "p1"), (), (Section("Experience", (Entry(Line("Analyst", "j1"), None, (Line("Did a thing", "a1"),)),)),))
+def test_a_line_shown_from_a_fact_is_an_empty_slot_and_fixed_wording_is_its_placeholder() -> None:
+    doc = Document(Line("Ada", "p1", field="title"), (), (
+        Section("Experience", (Entry(Line("Analyst", "j1", field="heading"), None, (Line("Did a thing", "a1", field="title"),)),)),
+        Section("", (Entry(paragraph=Line("Dear Sir,", "p1", Origin.BOILERPLATE, "greeting")),))))
     assert stored_html(doc).splitlines() == [
-        '<h1 data-slot="s1" data-fact-id="p1" data-field="text" data-origin="fact">Ada</h1>',
+        '<h1 data-slot="name" data-fact-id="p1" data-field="title" data-origin="fact"></h1>',
         '<h2 data-origin="boilerplate">Experience</h2>',  # section titles are fixed, not slots
-        '<h3 data-slot="s2" data-fact-id="j1" data-field="title" data-origin="fact">Analyst</h3>',
-        '<ul><li data-slot="s3" data-fact-id="a1" data-field="text" data-origin="fact">Did a thing</li></ul>',
+        '<h3 data-slot="heading:j1" data-fact-id="j1" data-field="heading" data-origin="fact"></h3>',
+        '<ul><li data-slot="bullet:a1" data-fact-id="a1" data-field="title" data-origin="fact"></li></ul>',
+        '<p data-slot="greeting" data-fact-id="p1" data-field="greeting" data-origin="boilerplate">Dear Sir,</p>',
     ]
+    assert [s.placeholder for s in read_slots(stored_html(doc))] == ["", "", "", "Dear Sir,"]
 
 
-def test_an_override_replaces_the_slot_text_and_counts_as_the_users_own_words() -> None:
-    back = read_document(stored_html(sample_document()), {"s1": "  Jane   Q. Doe "})
+def test_the_text_of_each_slot_comes_from_the_resolved_texts_and_overrides_count_as_the_users_own_words() -> None:
+    html = stored_html(sample_document())
+    back = read_document(html, {"name": "  Jane   Q. Doe "}, frozenset({"name"}))
     assert back.name == Line("Jane Q. Doe", sample_document().name.source_fact_id, Origin.USER)
+    assert read_slots(html)[0].id == "name"
 
 
 def test_markup_outside_the_allowlist_never_reaches_the_document() -> None:

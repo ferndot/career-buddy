@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from html import escape
-from itertools import count
 
 from career_buddy.domain.document import Document, Line, Style
+from career_buddy.domain.slots import Role, slot_for
 
 _FONTS = {"sans": "Helvetica, Arial, sans-serif", "serif": "'Times New Roman', Times, serif"}
 
@@ -20,30 +20,34 @@ def document_css(style: Style, extra_css: str = "") -> str:
 
 
 def stored_html(doc: Document) -> str:
-    """The editable body kept with a saved document: allowed tags only, each text line a slot bound to its fact.
+    """The editable layout kept with a saved document: allowed tags only, each text line a slot.
 
+    A line shown from a fact is an empty element: its text is found when the document is read (domain/slots.py), so
+    nothing the facts or the user say is stored here. Fixed wording (a letter's greeting) is the slot's placeholder.
     Section titles are fixed headings, not slots. The `intro` class marks the lines under the name, so a letter's
     untitled section reads back apart from them.
     """
-    slots = count(1)
+    taken: set[str] = set()
 
-    def line(tag: str, text: Line, field: str = "text", css: str = "") -> str:
-        fact = f' data-fact-id="{escape(text.source_fact_id)}"' if text.source_fact_id else ""
+    def line(tag: str, role: Role, text: Line, css: str = "") -> str:
+        slot = slot_for(role, text, taken)
+        ids = " ".join(slot.fact_ids or ((text.source_fact_id,) if text.source_fact_id else ()))
+        fact = f' data-fact-id="{escape(ids)}"' if ids else ""
         cls = f' class="{css}"' if css else ""
-        return (f'<{tag}{cls} data-slot="s{next(slots)}"{fact} data-field="{field}" data-origin="{text.origin.value}">'
-                f"{escape(text.text)}</{tag}>")
+        return (f'<{tag}{cls} data-slot="{escape(slot.id)}"{fact} data-field="{escape(text.field)}" data-origin="{text.origin.value}">'
+                f"{escape(slot.placeholder)}</{tag}>")
 
-    parts = [line("h1", doc.name), *(line("p", intro, css="intro") for intro in doc.intro)]
+    parts = [line("h1", "name", doc.name), *(line("p", "intro", intro, css="intro") for intro in doc.intro)]
     for section in doc.sections:
         if section.title:
             parts.append(f'<h2 data-origin="boilerplate">{escape(section.title)}</h2>')
         for entry in section.entries:
             if entry.heading:
-                parts.append(line("h3", entry.heading, "title"))
+                parts.append(line("h3", "heading", entry.heading))
             if entry.paragraph:
-                parts.append(line("p", entry.paragraph))
+                parts.append(line("p", "paragraph", entry.paragraph))
             if entry.bullets:
-                parts.append("<ul>" + "".join(line("li", b) for b in entry.bullets) + "</ul>")
+                parts.append("<ul>" + "".join(line("li", "bullet", b) for b in entry.bullets) + "</ul>")
     return "\n".join(parts)
 
 

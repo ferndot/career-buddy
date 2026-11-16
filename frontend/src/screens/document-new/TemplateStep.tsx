@@ -1,7 +1,10 @@
 import { Box, Field, Input, Text } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
+import { LoadingState } from '../../components'
 import { AtsTag } from '../documents/DocumentsTable'
-import { getPreview, type Template } from '../documents/api'
+import { previewQuery, type Template } from '../documents/api'
+import { Directions } from './Directions'
+import { shown } from './layout'
 import { PreviewEditor } from './PreviewEditor'
 import { buildBody, missingInputs, type DocDraft, type DocKind, type Wizard } from './state'
 
@@ -16,9 +19,9 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
   const chosen = templates.find((t) => t.id === doc.templateId)
   const fields = chosen ? [...chosen.required, ...chosen.optional] : []
   const ready = !missingInputs(doc, chosen)
-  const body = buildBody(w, kind, false) // text overrides stay out: the preview shows generated text beside them
-  const preview = useQuery({ queryKey: ['details-preview', body], queryFn: () => getPreview(body), enabled: ready })
+  const preview = useQuery({ ...previewQuery(buildBody(w, kind)), enabled: ready }) // the facts' text: generated and edited text is laid over it
   const p = preview.data
+  const view = p && shown(p.document, doc, kind)
   return (
     <Box display="flex" gap="6" flexWrap="wrap" alignItems="flex-start">
       <Box flex="1 1 280px" minW="0" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" p="5" display="flex" flexDirection="column" gap="5">
@@ -28,7 +31,7 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
             {choices.map((t) => {
               const on = t.id === doc.templateId
               return (
-                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, inputs: {} })}>
+                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, inputs: {}, generated: {}, flags: {} })}>
                   <Text fontWeight="semibold" fontSize="sm">{t.label}</Text>
                 </Box>
               )
@@ -41,6 +44,7 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
             <Input {...field} value={doc.inputs[f] ?? ''} onChange={(e) => setDoc({ inputs: { ...doc.inputs, [f]: e.target.value } })} />
           </Field.Root>
         ))}
+        <Directions key={kind} w={w} kind={kind} ready={ready} setDoc={setDoc} />
         {p && (
           <Box display="flex" flexDirection="column" gap="2">
             <Text fontWeight="semibold" fontSize="sm">ATS check</Text>
@@ -53,11 +57,11 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
       </Box>
       <Box flex="1.4 1 320px" minW="0" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" p="5">
         <Text fontWeight="semibold" mb="1">Preview</Text>
-        <Text fontSize="xs" color="app.muted" mb="3">Edit any bullet or the summary to use your own wording. Unedited text follows your career facts.</Text>
+        <Text fontSize="xs" color="app.muted" mb="3">Edit the summary, a bullet or a letter paragraph to use your own wording. Unedited text is the generated text, or your career facts.</Text>
         {!ready && <Text color="app.muted">Fill in the required fields to see the preview.</Text>}
-        {ready && preview.isPending && <Text color="app.muted">Building your preview...</Text>}
+        {ready && preview.isPending && <LoadingState text="Building your preview..." />}
         {preview.isError && <Text role="alert" color="app.missText">Could not build the preview.</Text>}
-        {p && <PreviewEditor doc={p.document} overrides={doc.overrides} onChange={(overrides) => setDoc({ overrides })} />}
+        {view && <PreviewEditor doc={view.doc} defaults={view.defaults} generated={doc.generated} flags={doc.flags} overrides={doc.overrides} onChange={(overrides) => setDoc({ overrides })} />}
       </Box>
     </Box>
   )

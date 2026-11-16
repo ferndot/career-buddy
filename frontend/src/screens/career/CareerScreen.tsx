@@ -1,7 +1,7 @@
-import { Button, Flex, Link as ChakraLink } from '@chakra-ui/react'
+import { Button, Flex } from '@chakra-ui/react'
 import { type ReactNode, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { EmptyState, PageHeader } from '../../components'
+import { EmptyState, LoadingState, PageHeader } from '../../components'
 import { useFacts, useGraph } from './api'
 import { CareerBuddy } from './CareerBuddy'
 import { DuplicatesBanner } from './DuplicatesBanner'
@@ -30,16 +30,15 @@ export function CareerScreen() {
     return (
       <>
         {header()}
-        <EmptyState
-          title={loading ? 'Loading your career…' : 'Nothing to explore yet'}
-          description={loading ? undefined : 'Add a source to build your career graph.'}
-        >
-          {!loading && (
-            <ChakraLink asChild color="app.link">
+        {loading ? (
+          <LoadingState text="Loading your career..." />
+        ) : (
+          <EmptyState title="Nothing to explore yet" description="Add a source to build your career graph.">
+            <Button asChild bg="app.primary" color="app.onPrimary">
               <Link to="/sources">Go to Sources</Link>
-            </ChakraLink>
-          )}
-        </EmptyState>
+            </Button>
+          </EmptyState>
+        )}
       </>
     )
   }

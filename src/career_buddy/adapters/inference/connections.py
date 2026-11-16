@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from career_buddy.adapters.inference.document_writer import ProviderDocumentWriter
 from career_buddy.adapters.inference.openai_compatible import openai_client
 from career_buddy.adapters.inference.presets import BY_ID, PRESETS, Preset
 from career_buddy.adapters.inference.probe import probe_anthropic, probe_openai
@@ -30,6 +31,15 @@ KEEP = object()  # "leave the saved active choice as it is"
 
 class InvalidConnection(ValueError):
     """The request cannot be saved. The message is plain words for the person using the page."""
+
+
+@dataclass(frozen=True)
+class Inference:
+    """What the active connection provides, one provider behind each."""
+
+    extractor: Any
+    rewriter: Any
+    writer: Any
 
 
 class UnknownConnection(KeyError):
@@ -212,9 +222,9 @@ class LLMConnections:
             return anthropic_client(key or "", self._transport, conn.base_url)
         return openai_client(conn.base_url, key or "", self._transport)
 
-    def inference(self) -> tuple[Any, Any] | None:
-        """(extractor, rewriter) for the active connection, or None so the caller uses the offline heuristic.
-        Both go through one LlmProvider, whichever API the connection speaks."""
+    def inference(self) -> Inference | None:
+        """The extractor, rewriter and document writer for the active connection, or None so the caller uses the offline
+        heuristics. All go through one LlmProvider, whichever API the connection speaks."""
         conn = next((c for c in self._all() if c.id == self.active_id()), None)
         if not conn:
             return None
@@ -222,7 +232,7 @@ class LLMConnections:
         client = self._client(conn, key)
         provider = (StructuredAnthropicProvider(client, conn.model) if conn.preset == "anthropic"
                     else StructuredOpenAIProvider(client, conn.model))
-        return RedstringExtractor(provider), ProviderRewriter(provider)
+        return Inference(RedstringExtractor(provider), ProviderRewriter(provider), ProviderDocumentWriter(provider))
 
     async def test(self, conn_id: str | None, draft: dict[str, Any]) -> dict[str, Any]:
         """Ask the server for its model list. No resume text is sent and nothing is billed."""

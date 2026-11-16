@@ -1,7 +1,8 @@
 """Reads a saved document's stored HTML back into a Document, so the renderers and the ATS check see what the user has.
 
 Only the allowed tags count (h1 h2 h3 p ul li; strong, em and br stay inside a line). Anything else is ignored; script and
-style content is dropped. Text slots resolve through `overrides` (slot id -> the user's wording) before the stored text.
+style content is dropped. A slot's text is `texts[slot id]` (see domain/slots.py for how that is found) in place of the
+element's own text; the slots named in `own` count as the user's own words.
 """
 
 from __future__ import annotations
@@ -9,15 +10,18 @@ from __future__ import annotations
 from html.parser import HTMLParser
 
 from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.slots import Slot
 
 _LINE_TAGS = {"h1", "h2", "h3", "p", "li"}
 _DROPPED = {"script", "style"}
 
 
 class _Reader(HTMLParser):
-    def __init__(self, overrides: dict[str, str]) -> None:
+    def __init__(self, texts: dict[str, str], own: frozenset[str]) -> None:
         super().__init__()
-        self._overrides = overrides
+        self._texts = texts
+        self._own = own
+        self.slots: list[Slot] = []
         self.name: Line | None = None
         self.intro: list[Line] = []
         self.sections: list[tuple[str, list[dict]]] = []  # (title, entries); an entry is {heading, paragraph, bullets}
@@ -62,15 +66,18 @@ class _Reader(HTMLParser):
 
     def _finish(self, tag: str, attrs: dict[str, str], parts: list[str]) -> None:
         slot = attrs.get("data-slot", "")
-        text = " ".join((self._overrides[slot] if slot in self._overrides else "".join(parts)).split())
+        own_text = " ".join("".join(parts).split())
+        if slot:
+            self.slots.append(Slot(slot, tuple(attrs.get("data-fact-id", "").split()), attrs.get("data-field", ""), own_text))
+        text = " ".join((self._texts[slot] if slot in self._texts else own_text).split())
         if not text:
             return
         if tag == "h2":
             self.sections.append((text, []))
             self._entry = None
             return
-        origin = Origin.USER if slot in self._overrides else _origin(attrs.get("data-origin", ""))
-        line = Line(text, attrs.get("data-fact-id") or None, origin)
+        origin = Origin.USER if slot in self._own else _origin(attrs.get("data-origin", ""))
+        line = Line(text, (attrs.get("data-fact-id") or "").split(" ")[0] or None, origin)
         entry = self._entry
         if tag == "h1" and self.name is None:
             self.name = line
@@ -93,10 +100,20 @@ def _origin(value: str) -> Origin:
         return Origin.USER  # typed into the editor: no origin recorded
 
 
-def read_document(html: str, overrides: dict[str, str] | None = None, label: str = "Resume") -> Document:
-    reader = _Reader(overrides or {})
+def _read(html: str, texts: dict[str, str], own: frozenset[str]) -> _Reader:
+    reader = _Reader(texts, own)
     reader.feed(html)
     reader.close()
+    return reader
+
+
+def read_slots(html: str) -> list[Slot]:
+    """The slots of a layout, in reading order, with the placeholder text each holds."""
+    return _read(html, {}, frozenset()).slots
+
+
+def read_document(html: str, texts: dict[str, str] | None = None, own: frozenset[str] = frozenset(), label: str = "Resume") -> Document:
+    reader = _read(html, texts or {}, own)
     sections = tuple(
         Section(title, tuple(Entry(e["heading"], e["paragraph"], tuple(e["bullets"])) for e in entries))
         for title, entries in reader.sections

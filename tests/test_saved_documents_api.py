@@ -52,9 +52,11 @@ def test_saving_returns_a_record_and_keeps_the_document_as_html_and_css(client: 
     content = client.get(f"/api/saved-documents/{record['id']}/content").json()
     assert content["overrides"] == {} and "Times New Roman" in content["css"]
     html = content["html"]
-    assert re.search(r'<h1 data-slot="s1" data-fact-id="[0-9a-f-]+" data-field="text" data-origin="fact">Jane Doe</h1>', html)
-    assert re.search(r'<li data-slot="s\d+" data-fact-id="[0-9a-f-]+" data-field="text" data-origin="fact">Cut build times by 60%</li>', html)
+    assert re.search(r'<h1 data-slot="name" data-fact-id="[0-9a-f-]+" data-field="title" data-origin="fact"></h1>', html)
+    assert re.search(r'<li data-slot="bullet:[0-9a-f-]+" data-fact-id="[0-9a-f-]+" data-field="title" data-origin="fact"></li>', html)
     assert "<script" not in html and "<h2 data-origin=\"boilerplate\">Experience</h2>" in html
+    assert "Jane Doe" not in html and "Cut build times" not in html and "Builds reliable" not in html  # the layout holds no text
+    assert content["slots"]["name"] == "Jane Doe" and "Cut build times by 60%" in content["slots"].values()
 
 
 def test_an_empty_label_falls_back_to_the_file_name_without_extension(client: TestClient) -> None:
@@ -104,14 +106,67 @@ def test_the_ats_check_runs_on_download_and_the_record_keeps_the_save_time_resul
     assert file(client, record, "txt").headers.get("x-ats-issues", "") == render(client, "txt").headers.get("x-ats-issues", "")
 
 
-def test_overrides_on_disk_win_over_the_stored_text_at_download(client: TestClient, tmp_path: Path) -> None:
-    """overrides.json is read at download time. Nothing writes it yet, so the test plants one in the stored layout."""
+def stored(tmp_path: Path, record: dict, name: str) -> Path:
+    return tmp_path / "objects" / "documents" / record["id"] / name
+
+
+def bullet_id(client: TestClient, text: str = "Cut build times by 60%") -> str:
+    senior = next(p for p in client.get("/api/profile").json()["positions"] if p["title"] == "Senior Engineer")
+    return senior["achievement_ids"][senior["achievements"].index(text)]
+
+
+def test_overrides_on_disk_win_over_the_facts_at_download(client: TestClient, tmp_path: Path) -> None:
+    """overrides.json is read at download time, so an edit made later (here planted on disk) shows without a new save."""
     record = save(client).json()
     assert b"Jane Doe" in file(client, record, "txt").content
-    (tmp_path / "objects" / "documents" / record["id"] / "overrides.json").write_text(json.dumps({"s1": "Jane Q. Doe"}))
+    stored(tmp_path, record, "overrides.json").write_text(json.dumps({"name": "Jane Q. Doe"}))
     out = file(client, record, "txt").content
     assert out.startswith(b"Jane Q. Doe\n") and b"Jane Doe" not in out
-    assert client.get(f"/api/saved-documents/{record['id']}/content").json()["overrides"] == {"s1": "Jane Q. Doe"}
+    content = client.get(f"/api/saved-documents/{record['id']}/content").json()
+    assert content["overrides"] == {"name": "Jane Q. Doe"} and content["slots"]["name"] == "Jane Q. Doe"
+
+
+def test_the_users_wording_sent_with_a_save_lands_in_overrides_json_and_not_in_the_layout(client: TestClient, tmp_path: Path) -> None:
+    cut = bullet_id(client)
+    record = save(client, overrides={cut: "Halved build times", "summary": "My own summary", "bullet:nope": "orphan", "stray": "x"}).json()
+    assert json.loads(stored(tmp_path, record, "overrides.json").read_text()) == {f"bullet:{cut}": "Halved build times", "summary": "My own summary"}
+    html = stored(tmp_path, record, "document.html").read_text()
+    assert "Halved build times" not in html and "My own summary" not in html
+    out = file(client, record, "txt").text
+    assert "- Halved build times" in out and "My own summary" in out and "Cut build times" not in out
+
+
+def test_a_fact_edited_after_saving_shows_in_the_next_download_and_a_deleted_one_drops_out(client: TestClient) -> None:
+    record = save(client).json()
+    cut = bullet_id(client)
+    assert client.patch(f"/api/facts/{cut}", json={"title": "Cut build times by 70%"}).status_code == 200
+    assert client.patch(f"/api/facts/{client.get('/api/profile').json()['id']}", json={"title": "Jane Q. Doe"}).status_code == 200
+    out = file(client, record, "txt").text
+    assert out.startswith("Jane Q. Doe\n") and "- Cut build times by 70%" in out and "60%" not in out
+    assert client.delete(f"/api/facts/{cut}").status_code == 204
+    after = file(client, record, "txt").text
+    assert "Cut build times" not in after and "Migrated 40 services" in after
+
+
+def test_an_override_wins_over_a_later_fact_edit(client: TestClient) -> None:
+    person = client.get("/api/profile").json()["id"]
+    record = save(client, overrides={"name": "J. Doe"}).json()
+    assert client.patch(f"/api/facts/{person}", json={"title": "Jane Q. Doe"}).status_code == 200
+    assert file(client, record, "txt").text.startswith("J. Doe\n")
+
+
+def test_letter_paragraphs_sent_with_a_save_replace_the_template_body_and_stay_editable_slots(client: TestClient, tmp_path: Path) -> None:
+    paragraphs = {"para:1": "I build data platforms.", "para:2": "Acme would get that from me."}
+    record = client.post("/api/saved-documents", json={**LETTER, "overrides": paragraphs}).json()
+    assert json.loads(stored(tmp_path, record, "overrides.json").read_text()) == paragraphs
+    html = stored(tmp_path, record, "document.html").read_text()
+    assert 'data-slot="para:1"' in html and 'data-slot="para:2"' in html and "I build data platforms" not in html
+    out = file(client, record, "txt").text.splitlines()
+    assert out[0] == "Jane Doe" and "Dear Hiring Team," in out and "I build data platforms." in out
+    assert out.index("Dear Hiring Team,") < out.index("I build data platforms.") < out.index("Acme would get that from me.") < out.index("Sincerely,")
+    assert "I am writing to apply" not in "\n".join(out)
+    slots = client.get(f"/api/saved-documents/{record['id']}/content").json()["slots"]
+    assert slots["para:1"] == "I build data platforms." and slots["greeting"] == "Dear Hiring Team," and slots["signature"] == "Jane Doe"
 
 
 def test_the_list_is_newest_first_and_survives_a_restart(tmp_path: Path) -> None:

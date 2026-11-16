@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
@@ -19,6 +20,9 @@ class Line:
     text: str
     source_fact_id: str | None = None
     origin: Origin = Origin.FACT
+    # Layout hints for a saved document, not part of what a line says, so they do not take part in comparisons.
+    field: str = dataclasses.field(default="", compare=False)  # which value of the source fact this line shows; "" is fixed wording (domain/slots.py)
+    cites: tuple[str, ...] = dataclasses.field(default=(), compare=False)  # fact ids behind a line several facts make up, such as the skills list
 
 
 @dataclass(frozen=True)

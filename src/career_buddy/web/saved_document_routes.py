@@ -9,11 +9,18 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
+from pydantic import BaseModel, Field
+
 from career_buddy.application.ports import RendererUnavailable
 from career_buddy.application.saved_documents import SavedDocuments, SavedMeta
 from career_buddy.web.requests import SaveRequest
 
 LISTED = ("id", "label", "template", "filename", "created_at", "ats_issues")
+
+
+class RegenerateRequest(BaseModel):
+    instructions: str = Field("", max_length=2000)  # new directions; empty keeps the ones saved with the document
+    resume_pages: Literal[1, 2, 3] | None = None  # a new length for this resume; omitted keeps the saved one
 
 
 def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
@@ -30,14 +37,19 @@ def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
     @router.post("", status_code=201)
     async def save(body: SaveRequest) -> dict[str, object]:
         try:
-            return listed(await saved().save(body.template, body.style, body.options, body.label))
+            return listed(await saved().save(body.template, body.style, body.options, body.label, body.generated, body.instructions, body.resume_pages))
         except KeyError as error:
             raise HTTPException(404, f"Unknown template: {error.args[0]}") from error
 
     @router.get("/{doc_id}/content")
-    def content(doc_id: str) -> dict[str, object]:
-        _, html, css, overrides = saved().content(doc_id)
-        return {"html": html, "css": css, "overrides": overrides}
+    async def content(doc_id: str) -> dict[str, object]:
+        c = saved().content(doc_id)
+        return {"html": c.html, "css": c.css, "overrides": c.overrides, "generated": {k: w.text for k, w in c.generated.items()},
+                "source": asdict(c.source) if c.source else None, "slots": await saved().slots(doc_id)}
+
+    @router.post("/{doc_id}/regenerate")
+    async def regenerate(doc_id: str, body: RegenerateRequest) -> dict[str, object]:
+        return asdict(await saved().regenerate(doc_id, body.instructions, body.resume_pages))
 
     @router.get("/{doc_id}/file")
     async def download(doc_id: str, format: Literal["docx", "pdf", "txt"] | None = None) -> Response:

@@ -13,10 +13,12 @@ from career_buddy.domain.ats import Issue, check
 from career_buddy.domain.document import Document, Origin, Style
 from career_buddy.domain.knowledge import knowledge
 from career_buddy.domain.markers import Change, clean, clean_document
+from career_buddy.domain.model import Fact
 from career_buddy.domain.profile import Profile, assemble_profile
 from career_buddy.domain.rewording import verify_rewording
+from career_buddy.domain.slots import fact_texts
 from career_buddy.domain.tailoring import Report, apply_overrides, override_paragraphs, tailor
-from career_buddy.domain.templates import build_document, get_template
+from career_buddy.domain.templates import TemplateSpec, build_document, get_template
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,17 @@ class Suggestions:
     rejected: list[Rejection]
 
 
+@dataclass(frozen=True)
+class Tailored:
+    """What a template would show for a job: the reduced profile, the match report, and every fact with its merged aliases."""
+
+    spec: TemplateSpec
+    profile: Profile
+    report: Report
+    facts: dict[str, Fact]
+    absorbed: dict[str, list[Fact]]
+
+
 class _NoMerges:
     async def absorbed(self) -> dict:
         return {}
@@ -96,6 +109,18 @@ class DocumentService:
         tailored = override_paragraphs(tailored, options.overrides)
         doc, markers = clean_document(apply_overrides(build_document(tailored, spec, options.inputs), options.overrides))
         return doc, Preview(doc, report, markers), profile
+
+    async def tailored(self, template_id: str, options: TailorOptions) -> Tailored:
+        spec = get_template(template_id)  # KeyError: unknown template
+        if missing := [name for name in spec.required if not options.inputs.get(name, "").strip()]:
+            raise MissingInputs(", ".join(missing))
+        batch = await self._graph.snapshot()
+        profile, report = tailor(assemble_profile(batch), options.job_text, spec, options.selection, options.skills, options.education)
+        return Tailored(spec, profile, report, {f.id: f for f in batch.facts}, await self._merged.absorbed())
+
+    async def lookup(self) -> dict[tuple[str, str], str]:
+        """What the facts say now, for resolving a saved document's slots."""
+        return fact_texts(assemble_profile(await self._graph.snapshot()))
 
     @property
     def formats(self) -> list[str]:

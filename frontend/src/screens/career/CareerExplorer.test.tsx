@@ -44,5 +44,5 @@ it('switches kinds with tabs and follows a linked item to its detail', async () 
 it('filters the list by the search text', () => {
   renderApp(<CareerExplorer facts={facts} edges={edges} career={career} />)
   fireEvent.change(screen.getByRole('textbox', { name: 'Search' }), { target: { value: 'zzz' } })
-  expect(screen.getByText('Nothing here yet.')).toBeInTheDocument()
+  expect(screen.getByText('Nothing here yet')).toBeInTheDocument()
 })

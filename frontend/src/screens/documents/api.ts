@@ -28,7 +28,7 @@ export type Profile = {
 }
 export type Fit = { positions: string[]; matched_skills: string[] }
 export type Issue = { code: string; message: string }
-export type DocLine = { text: string; source_fact_id: string | null; origin: string }
+export type DocLine = { text: string; source_fact_id: string | null; origin: string; field: string; cites: string[] } // field and cites place the line in a saved layout (see slotDoc)
 export type DocEntry = { heading: DocLine | null; paragraph: DocLine | null; bullets: DocLine[] }
 export type PreviewDoc = { name: DocLine; intro: DocLine[]; sections: { title: string; entries: DocEntry[] }[]; label: string }
 export type Preview = {
@@ -45,8 +45,11 @@ export type TailorBody = {
   skill_ids?: string[]
   education_ids?: string[]
   inputs: Record<string, string>
-  overrides?: Record<string, string> // the user's own wording: bullet fact id, or "summary" or "headline" -> text
+  overrides?: Record<string, string> // the user's own wording, by slot id ("summary", "bullet:<fact id>", "para:<n>", "headline", ...)
 }
+
+/** The preview query shared by the template step (on screen) and the save (letters read their paragraphs from it). */
+export const previewQuery = (body: TailorBody) => ({ queryKey: ['details-preview', body], queryFn: () => getPreview(body) })
 
 export const getTemplates = () => apiFetch<Template[]>(endpoints.templates.list())
 export const getProfile = () => apiFetch<Profile>(endpoints.profile.get())
@@ -56,6 +59,20 @@ export const getPreview = (body: TailorBody, format = 'docx') =>
   apiFetch<Preview>(endpoints.documents.preview(), { method: 'POST', body: { ...body, format } })
 export const fetchJobText = (url: string) =>
   apiFetch<{ text: string }>(endpoints.job.fetch(), { method: 'POST', body: { url } })
+
+/** A slot the person should look at: a bullet the writer could not reword (it shows the fact's own words), or text left empty. */
+export type Flag = { code: 'not_rewritten' | 'rejected'; reasons: string[] }
+/** The writer's draft: slot id -> text. Nothing is stored; saving the document keeps it as generated text. */
+export type Generated = {
+  slots: Record<string, string>
+  cites: Record<string, string[]>
+  flags: Record<string, Flag>
+}
+export const MAX_INSTRUCTIONS = 2000
+export type ResumePages = 1 | 2 | 3
+/** `pinned` are the slots the user wrote themselves: the writer leaves them alone. `resume_pages` is how long a resume should be. */
+export const generateText = (body: TailorBody & { instructions: string; pinned: string[]; resume_pages: ResumePages }) =>
+  apiFetch<Generated>(endpoints.documents.generate(), { method: 'POST', body })
 
 export type SavedDocument = {
   id: string
@@ -69,7 +86,10 @@ export type SaveBody = Omit<TailorBody, 'selection' | 'skill_ids' | 'education_i
   selection: string[] | null
   skill_ids: string[] | null
   education_ids: string[] | null
-  overrides: Record<string, string>
+  overrides: Record<string, string> // the user's own wording by slot id
+  generated: Record<string, string> // the writer's text by slot id, kept apart so regenerating never touches an override
+  instructions: string // the directions given to the writer, kept for regenerating
+  resume_pages: ResumePages // this resume's length, kept for regenerating
   font: 'sans' | 'serif'
   paper: 'letter' | 'a4'
   label: string

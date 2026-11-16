@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { LuPlus } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
-import { RobotMascot } from '../../brand'
-import { EmptyState, PageHeader, toaster } from '../../components'
+import { EmptyState, LoadingState, PageHeader, toaster } from '../../components'
 import { DeleteDialog } from './DeleteDialog'
 import { deleteSavedDocument, getSavedDocuments, getTemplates, SAVED_KEY, type SavedDocument } from './api'
 import { DocumentsTable, type Row } from './DocumentsTable'
@@ -50,14 +49,11 @@ export function DocumentsScreen() {
         actions={generateButton}
       />
       {saved.isPending ? (
-        <Box display="flex" alignItems="center" gap="3">
-          <RobotMascot mood="thinking" size={48} />
-          <Text color="app.muted">Loading your documents...</Text>
-        </Box>
+        <LoadingState text="Loading your documents..." />
       ) : saved.isError ? (
         <Text role="alert" color="app.missText">Could not load your documents.</Text>
       ) : docs.length === 0 ? (
-        <EmptyState mascot title="No documents yet" description="Create a resume or cover letter from a job posting.">
+        <EmptyState title="No documents yet" description="Create a resume or cover letter from a job posting.">
           {generateButton}
         </EmptyState>
       ) : (

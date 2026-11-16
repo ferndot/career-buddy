@@ -1,7 +1,7 @@
-import { Button, Spinner, Tabs, Text } from '@chakra-ui/react'
+import { Button, Tabs, Text } from '@chakra-ui/react'
 import { useState } from 'react'
 import { LuPlus } from 'react-icons/lu'
-import { EmptyState, PageHeader } from '../../components'
+import { EmptyState, LoadingState, PageHeader } from '../../components'
 import { AddConnectionDialog } from './AddConnectionDialog'
 import { AppearanceSettings } from './AppearanceSettings'
 import { ConnectionCard } from './ConnectionCard'
@@ -33,7 +33,7 @@ export function SettingsScreen() {
         </Tabs.List>
         <Tabs.Content value="connections">
           <Text as="h2" fontWeight="semibold" color="app.text" mb="3">LLM connections</Text>
-          {connections.isPending && <Spinner color="app.primary" />}
+          {connections.isPending && <LoadingState text="Loading your connections..." />}
           {connections.isError && <Text color="app.missText" role="alert">Could not load your connections.</Text>}
           {connections.data && items.length === 0 && (
             <EmptyState title="No connections yet" description="Add one to let an AI model reword your resume.">

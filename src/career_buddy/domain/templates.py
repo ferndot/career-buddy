@@ -53,26 +53,37 @@ def _period(pos: PositionView) -> str:
     return format_range(pos.attributes.get("started", ""), pos.attributes.get("finished", ""))
 
 
-def _position(pos: PositionView) -> Entry:
+def position_heading(pos: PositionView) -> str:
     period = _period(pos)
     heading = f"{pos.title}, {pos.organization}" if pos.organization else pos.title
+    return f"{heading} ({period})" if period else heading
+
+
+def _position(pos: PositionView) -> Entry:
     source = pos.id or None
     ids = pos.achievement_ids or (None,) * len(pos.achievements)
     return Entry(
-        heading=Line(f"{heading} ({period})" if period else heading, source),
-        bullets=tuple(Line(a, aid or source) for a, aid in zip(pos.achievements, ids)),
+        heading=Line(position_heading(pos), source, field="heading" if source else ""),
+        bullets=tuple(Line(a, aid or source, field="title" if aid else "") for a, aid in zip(pos.achievements, ids)),
     )
+
+
+def _own(profile: Profile, field: str) -> str:
+    """The person's field a line shows. Empty without a person fact: such a line is fixed wording."""
+    return field if profile.id else ""
 
 
 def _sections(profile: Profile) -> dict[str, tuple[Entry, ...]]:
     summary = profile.attributes.get("summary", "")
     return {
-        "summary": (Entry(paragraph=Line(summary, profile.id or None)),) if summary else (),
+        "summary": (Entry(paragraph=Line(summary, profile.id or None, field=_own(profile, "summary"))),) if summary else (),
         "experience": tuple(_position(p) for p in profile.positions),
         "education": (
-            (Entry(bullets=tuple(Line(e.label, e.id or None) for e in profile.education)),) if profile.education else ()
+            (Entry(bullets=tuple(Line(e.label, e.id or None, field="label" if e.id else "") for e in profile.education)),)
+            if profile.education else ()
         ),
-        "skills": (Entry(paragraph=Line(", ".join(profile.skills), profile.id or None)),) if profile.skills else (),
+        "skills": (Entry(paragraph=Line(", ".join(profile.skills), profile.id or None, field="skills" if profile.skill_ids else "",
+                                        cites=profile.skill_ids)),) if profile.skills else (),
     }
 
 
@@ -84,5 +95,5 @@ def build_document(profile: Profile, spec: TemplateSpec, inputs: dict[str, str] 
     person = profile.id or None
     contact = profile.attributes.get("location", "")
     headline = profile.attributes.get("headline", "")
-    intro = tuple(Line(text, person) for text in (contact, headline) if text)
-    return Document(Line(profile.name, person), intro, sections)
+    intro = tuple(Line(text, person, field=_own(profile, name)) for name, text in (("location", contact), ("headline", headline)) if text)
+    return Document(Line(profile.name, person, field=_own(profile, "title")), intro, sections)

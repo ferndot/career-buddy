@@ -47,6 +47,7 @@ export const endpoints = {
     check: () => '/api/documents/check', // POST
     preview: () => '/api/documents/preview', // POST
     suggest: () => '/api/documents/suggest', // POST
+    generate: () => '/api/documents/generate', // POST
     resume: (fmt: string) => `/api/resume/${e(fmt)}`, // GET (file download)
     coverLetter: () => '/api/cover-letter', // POST (file response)
     fit: () => '/api/fit', // POST

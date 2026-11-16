@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { SAVED_KEY, saveDocument, type SaveBody, type SavedDocument, type Template } from '../documents/api'
-import { buildSave, type DocKind, type Wizard } from './state'
+import { previewQuery, SAVED_KEY, saveDocument, type Preview, type SaveBody, type SavedDocument, type Template } from '../documents/api'
+import { buildBody, buildSave, type DocKind, type Wizard } from './state'
 
 type Pending = { sig: string; doc: Promise<SavedDocument> }
 
@@ -16,9 +16,12 @@ export function useSaved(w: Wizard, templates: Template[] | undefined) {
 
   const body = (kind: DocKind): SaveBody | null => {
     const t = templates?.find((x) => x.id === w.docs[kind].templateId)
-    return t ? buildSave(w, kind, t) : null
+    // the step 4 preview is cached: a letter written as paragraphs sends them all, and reads their text from it
+    const preview = qc.getQueryData<Preview>(previewQuery(buildBody(w, kind)).queryKey)
+    return t ? buildSave(w, kind, t, preview?.document) : null
   }
-  const save = (kind: DocKind): Promise<SavedDocument> => {
+  const save = async (kind: DocKind): Promise<SavedDocument> => {
+    if (kind === 'letter') await qc.ensureQueryData(previewQuery(buildBody(w, kind))).catch(() => undefined)
     const b = body(kind)
     if (!b) return Promise.reject(new Error('Choose a template first.'))
     const sig = JSON.stringify(b)

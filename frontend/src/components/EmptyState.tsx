@@ -2,11 +2,20 @@ import { Box, Text } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
 import { RobotMascot } from '../brand'
 
-type Props = { title: string; description?: string; mascot?: boolean; children?: ReactNode }
+type Props = {
+  title: string
+  description?: string
+  /** Optional single primary action (a button). */
+  children?: ReactNode
+  /** A loading state: the thinking robot, announced politely to screen readers. */
+  loading?: boolean
+}
 
-export function EmptyState({ title, description, mascot, children }: Props) {
+/** The one layout for "nothing here yet" and "loading": robot, title, short description, optional action. */
+export function EmptyState({ title, description, children, loading }: Props) {
   return (
     <Box
+      role={loading ? 'status' : undefined}
       textAlign="center"
       py="10"
       px="6"
@@ -16,11 +25,9 @@ export function EmptyState({ title, description, mascot, children }: Props) {
       borderColor="app.dash"
       borderRadius="lg"
     >
-      {mascot && (
-        <Box display="flex" justifyContent="center" mb="2">
-          <RobotMascot size={72} />
-        </Box>
-      )}
+      <Box display="flex" justifyContent="center" mb="2">
+        <RobotMascot mood={loading ? 'thinking' : 'happy'} size={72} />
+      </Box>
       <Text fontWeight="semibold" color="app.text">
         {title}
       </Text>
@@ -33,3 +40,5 @@ export function EmptyState({ title, description, mascot, children }: Props) {
     </Box>
   )
 }
+
+export const LoadingState = ({ text }: { text: string }) => <EmptyState loading title={text} />

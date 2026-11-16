@@ -32,11 +32,13 @@ from career_buddy.application.ports import (
     UnreadableDocument,
     UnsupportedFileType,
 )
-from career_buddy.application.saved_documents import SavedDocumentNotFound
+from career_buddy.application.generation import UngroundedDraft
+from career_buddy.application.saved_documents import NoSource, SavedDocumentNotFound
 from career_buddy.application.services import fact_json
 from career_buddy.composition import App, build_app, new_jobs
 from career_buddy.domain.model import FactKind, InvalidFact
 from career_buddy.domain.templates import TEMPLATES
+from career_buddy.web.document_routes import document_router
 from career_buddy.web.llm_routes import llm_router
 from career_buddy.web.requests import DocumentRequest, PreviewRequest, SuggestRequest, TailorRequest
 from career_buddy.web.saved_document_routes import saved_document_router
@@ -146,7 +148,7 @@ def create_app(
     def not_found(_: Request, error: FactNotFound) -> JSONResponse:
         return JSONResponse({"detail": f"Unknown fact: {error}"}, status_code=404)
 
-    for error_type, status, message in ((SavedDocumentNotFound, 404, "Unknown saved document"), (SourceNotFound, 404, "Unknown source"), (SourceBusy, 409, "This source is still being processed"),
+    for error_type, status, message in ((SavedDocumentNotFound, 404, "Unknown saved document"), (NoSource, 409, "This document was saved before it kept what it was built from, so it cannot be written again"), (SourceNotFound, 404, "Unknown source"), (SourceBusy, 409, "This source is still being processed"),
                                         (NoOriginal, 422, "This source has no original file to read again")):
         api.exception_handler(error_type)(lambda _, error, status=status, message=message: JSONResponse({"detail": message}, status_code=status))
 
@@ -156,7 +158,12 @@ def create_app(
 
     @api.exception_handler(LLMUnavailable)
     def llm_unavailable(_: Request, error: LLMUnavailable) -> JSONResponse:
-        return JSONResponse({"detail": str(error)}, status_code=503)
+        return JSONResponse({"detail": str(error), "code": "llm_unavailable"}, status_code=503)  # a stable code the pages can act on
+
+    @api.exception_handler(UngroundedDraft)
+    def ungrounded(_: Request, error: UngroundedDraft) -> JSONResponse:  # 502: the model answered, but not with text the facts support
+        return JSONResponse({"detail": str(error), "code": "ungrounded",
+                             "rejected": [{"slot": r.slot, "reasons": list(r.reasons)} for r in error.rejected]}, status_code=502)
 
     for error_type, status in ((InvalidConnection, 422), (UnknownConnection, 404), (ReadOnlyConnection, 409)):
         api.exception_handler(error_type)(lambda _, error, status=status: JSONResponse({"detail": connection_error(error)}, status_code=status))
@@ -167,6 +174,7 @@ def create_app(
 
     api.include_router(llm_router(lambda: app().llm, rebuild))
     api.include_router(saved_document_router(lambda: app().saved))
+    api.include_router(document_router(lambda: app().generation))
     api.include_router(source_log_router(source_log, lambda: app().queries.sources()))
 
     async def started(source: str, facts: int | None) -> Response | dict[str, int]:

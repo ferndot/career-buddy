@@ -27,6 +27,7 @@ STOPWORDS = frozenset(
 _TOKEN = re.compile(r"[A-Za-z0-9+#]+(?:[.'’][A-Za-z0-9+#]+)*")
 # shortcut: a requirements section is a line matching this up to the next blank line, not a real parser.
 _REQUIREMENTS = re.compile(r"requirement|qualification|must have|you have|you.ll need|what you bring", re.I)
+TOKEN_PATTERN = _TOKEN
 REPORT_LIMIT = 25
 
 
@@ -200,7 +201,7 @@ def apply_overrides(doc: Document, overrides: dict[str, str]) -> Document:
 
     def bullet(line: Line) -> Line:
         text = overrides.get(line.source_fact_id or "", "").strip()
-        return Line(text, line.source_fact_id, Origin.USER) if text else line
+        return replace(line, text=text, origin=Origin.USER) if text else line
 
     def entry(item: Entry) -> Entry:
         return replace(item, bullets=tuple(map(bullet, item.bullets)))

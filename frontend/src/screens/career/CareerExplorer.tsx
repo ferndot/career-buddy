@@ -1,6 +1,7 @@
 import { Box, Button, Flex, Grid, Heading, IconButton, Input, Tabs, Text } from '@chakra-ui/react'
 import { Fragment, type ReactNode, useMemo, useState } from 'react'
 import { LuEye, LuEyeOff, LuPencil, LuTrash2 } from 'react-icons/lu'
+import { EmptyState } from '../../components'
 import type { Edge, Fact } from './api'
 import { useDeleteFact, useReviseFact } from './api'
 import { AddEducationDialog, AddPositionDialog } from './AddEntryDialogs'
@@ -80,7 +81,7 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
               })}
             </Box>
           ))}
-          {items.length === 0 && <Text color="app.muted" fontSize="sm">Nothing here yet.</Text>}
+          {items.length === 0 && <EmptyState title="Nothing here yet" />}
         </Box>
       </Box>
       <Box minW="0">

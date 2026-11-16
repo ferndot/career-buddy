@@ -9,6 +9,7 @@ from typing import Literal, Protocol
 from career_buddy.domain.ats import Extracted
 from career_buddy.domain.document import Document, Style
 from career_buddy.domain.events import Event
+from career_buddy.domain.generation import Brief, Claim, Generated, Rejection
 from career_buddy.domain.model import Fact, FactBatch
 
 
@@ -88,6 +89,16 @@ class Rewriter(Protocol):
     """Optional LLM wording for one achievement, from its knowledge text. Its output is never trusted: it goes through `verify_rewording`."""
 
     async def rewrite(self, text: str, terms: Sequence[str], job_text: str = "") -> str: ...
+
+
+class DocumentWriter(Protocol):
+    """LLM that writes a resume's summary, bullets and skills or a letter's paragraphs from the facts a document prints. Its
+    output is never trusted: every claim goes through `domain.grounding`. LLMUnavailable when the model cannot answer."""
+
+    async def write(self, brief: Brief) -> Generated: ...
+
+    async def repair(self, brief: Brief, failed: Sequence[Rejection]) -> dict[str, Claim]:
+        """One more try at the claims that failed, by slot id. Only those slots come back."""
 
 
 class ObjectNotFound(Exception):

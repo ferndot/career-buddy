@@ -1,7 +1,7 @@
 import { Box, Button, Text } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { toaster } from '../../components'
+import { LoadingState, toaster } from '../../components'
 import { DocsStep } from './DocsStep'
 import { DocTabs } from './DocTabs'
 import { DownloadStep } from './DownloadStep'
@@ -52,8 +52,8 @@ export function NewDocumentScreen() {
   const loaded = templates.data && (w.step < 3 || profile.data)
   const failed = templates.isError || profile.isError
   const body = !loaded ? (
-    <Text color="app.muted">{failed ? 'Could not load your profile and templates.' : 'Loading...'}</Text>
-  ) : w.step === 3 ? (
+    failed ? <Text color="app.muted">Could not load your profile and templates.</Text> : <LoadingState text="Loading your profile and templates..." />
+  ) :w.step === 3 ? (
     <>
       <MissingPane w={w} missing={missing} set={set} />
       {profile.data && <FactsPicker doc={w.docs[active]} setDoc={setDoc(active)} profile={profile.data} hasJob={hasJob} loading={loading} />}

@@ -1,4 +1,5 @@
-import type { Profile, SaveBody, TailorBody, Template } from '../documents/api'
+import type { Flag, PreviewDoc, ResumePages, Profile, SaveBody, TailorBody, Template } from '../documents/api'
+import { saveTexts } from './layout'
 
 export type DocKind = Template['kind']
 
@@ -16,7 +17,11 @@ export type DocDraft = {
   skillIds: string[] // selected skill ids
   bullets: string[] // selected bullet fact ids
   education: string[] // selected education fact ids
-  overrides: Record<string, string> // the user's own wording: bullet fact id, or "summary" -> text. Wins over generated text.
+  overrides: Record<string, string> // the user's own wording by slot id ("summary", "bullet:<fact id>", "para:<n>") -> text. Wins over generated text.
+  instructions: string // the user's directions for the writer
+  resumePages: ResumePages // how long this resume should be; a letter ignores it
+  generated: Record<string, string> // the writer's draft by slot id: the default text of a slot, never an override
+  flags: Record<string, Flag> // slots of the draft the person should look at, by slot id
   seeded: boolean // the AI suggestion has been applied to this document
 }
 
@@ -40,6 +45,10 @@ export const emptyDoc: DocDraft = {
   bullets: [],
   education: [],
   overrides: {},
+  instructions: '',
+  resumePages: 1,
+  generated: {},
+  flags: {},
   seeded: false,
 }
 
@@ -112,27 +121,32 @@ export function withOverride(overrides: Record<string, string>, key: string, tex
 export const missingInputs = (d: DocDraft, t: Template | undefined) => !t || t.required.some((f) => !d.inputs[f]?.trim())
 
 /**
- * The request for one document. The headline goes in as an override (the backend reads "headline" there); the user's own
- * text overrides are left out of the on-screen preview, which shows generated text next to them.
+ * The request for one document: its facts and template, never the user's text. The headline goes in as an override (the
+ * backend reads "headline" there); the on-screen preview and the writer start from the facts, not from the user's edits.
  */
-export function buildBody(w: Wizard, kind: DocKind, withText = true): TailorBody & { overrides: Record<string, string> } {
+export function buildBody(w: Wizard, kind: DocKind): TailorBody & { overrides: Record<string, string> } {
   const d = w.docs[kind]
-  const text = withText ? Object.fromEntries(Object.entries(d.overrides).filter(([, v]) => v.trim())) : {}
   const seeded = d.seeded && w.prefilled
   return {
     template: d.templateId,
     job_text: w.jobText,
     inputs: d.inputs,
-    overrides: { ...text, ...(d.headline ? { headline: d.headline } : {}) },
+    overrides: d.headline ? { headline: d.headline } : {},
     ...(seeded ? { selection: d.bullets, skill_ids: d.skillIds, education_ids: d.education } : {}),
   }
 }
 
-export function buildSave(w: Wizard, kind: DocKind, t: Template): SaveBody {
+/** The save request. `preview` is the document's layout, which a letter needs to name its paragraphs. */
+export function buildSave(w: Wizard, kind: DocKind, t: Template, preview?: PreviewDoc): SaveBody {
   const b = buildBody(w, kind)
   const { role, company } = w.docs[kind].inputs
+  const { overrides, generated } = saveTexts(preview, w.docs[kind], kind)
   return {
     ...b,
+    overrides: { ...overrides, ...b.overrides },
+    generated,
+    instructions: w.docs[kind].instructions.trim(),
+    resume_pages: w.docs[kind].resumePages,
     selection: b.selection ?? null,
     skill_ids: b.skill_ids ?? null,
     education_ids: b.education_ids ?? null,

@@ -1,6 +1,7 @@
 import { Box, Text } from '@chakra-ui/react'
 import { LuCheck } from 'react-icons/lu'
 import { RobotMascot } from '../../brand'
+import { SpeechBubble } from './SpeechBubble'
 import { DOC_KINDS, type DocKind, type Wizard } from './state'
 
 type Props = { w: Wizard; set: (patch: Partial<Wizard>) => void }
@@ -16,20 +17,9 @@ export function DocsStep({ w, set }: Props) {
   return (
     <Box maxW="560px" mx="auto" minH="50vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" gap="4">
       <RobotMascot />
-      <Box
-        position="relative"
-        bg="app.surface"
-        borderWidth="1px"
-        borderColor="app.borderStrong"
-        borderRadius="xl"
-        px="5"
-        py="3"
-        textAlign="center"
-        // the tail points up at the robot
-        _before={{ content: '""', position: 'absolute', top: '-7px', left: 'calc(50% - 6px)', w: '12px', h: '12px', bg: 'app.surface', borderTopWidth: '1px', borderLeftWidth: '1px', borderColor: 'app.borderStrong', transform: 'rotate(45deg)' }}
-      >
+      <SpeechBubble>
         <Text as="h1" fontSize="xl" fontWeight="semibold" color="app.text">{DOCS_QUESTION}</Text>
-      </Box>
+      </SpeechBubble>
       <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap="3" w="full" role="group" aria-label="Documents">
         {DOC_KINDS.map((k) => {
           const on = w.kinds.includes(k.id)

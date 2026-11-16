@@ -31,6 +31,12 @@ class SuggestRequest(TailorRequest):
     job_text: str = Field(min_length=1)
 
 
+class GenerateRequest(TailorRequest):
+    instructions: str = Field("", max_length=2000)  # the user's free-text directions for the writer; empty is fine
+    pinned: list[str] = Field([], max_length=500)  # slot ids the user wrote themselves: the writer leaves them alone
+    resume_pages: Literal[1, 2, 3] = 1  # how long a resume should be; a letter ignores it
+
+
 class PreviewRequest(TailorRequest):
     format: str = "docx"  # the format whose ATS check the preview reports
 
@@ -51,6 +57,9 @@ class SaveRequest(TailorRequest):
     font: Literal["sans", "serif"] = "sans"
     paper: Literal["letter", "a4"] = "letter"
     label: str = ""  # a name for the saved document; empty means the file name
+    generated: dict[str, str] = {}  # what the writer wrote, by slot id: kept apart from `overrides`, which is the user's own wording
+    instructions: str = Field("", max_length=2000)  # the user's directions for the writer, kept for regenerating
+    resume_pages: Literal[1, 2, 3] = 1  # this resume's length, kept for regenerating
 
     @property
     def style(self) -> Style:

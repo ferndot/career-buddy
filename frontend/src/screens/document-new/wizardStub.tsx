@@ -4,7 +4,7 @@ import { vi } from 'vitest'
 import { renderApp } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
 
-const line = (text: string, id: string | null = null) => ({ text, source_fact_id: id, origin: 'fact' })
+const line = (text: string, id: string | null = null, field = '') => ({ text, source_fact_id: id, origin: 'fact', field, cites: [] })
 const profile = {
   name: 'Ada', attributes: { headline: 'Engineer' }, skills: ['Python', 'SQL'], skill_ids: ['s1', 's2'],
   positions: [{ id: 'p1', title: 'Engineer', organization: 'Acme', attributes: {}, achievements: ['Shipped it'], achievement_ids: ['b1'] }],
@@ -17,26 +17,48 @@ const templates = [
 const preview = (missing: string[]) => ({
   lines: ['Ada'],
   document: {
-    name: line('Ada', 'person'), intro: [], label: 'Resume',
+    name: line('Ada', 'person', 'title'), intro: [], label: 'Resume',
     sections: [
-      { title: 'Summary', entries: [{ heading: null, paragraph: line('Builds things', 'person'), bullets: [] }] },
-      { title: 'Experience', entries: [{ heading: line('Engineer, Acme', 'p1'), paragraph: null, bullets: [line('Shipped it', 'b1')] }] },
+      { title: 'Summary', entries: [{ heading: null, paragraph: line('Builds things', 'person', 'summary'), bullets: [] }] },
+      { title: 'Experience', entries: [{ heading: line('Engineer, Acme', 'p1', 'heading'), paragraph: null, bullets: [line('Shipped it', 'b1', 'title')] }] },
     ],
   },
   tailoring: { matched: ['Python'], missing },
   ats: { format: 'docx', passes: true, issues: [] },
 })
 
+// A cover letter as the backend lays it out: greeting, two template paragraphs (para:1, para:2), sign-off and name.
+const letter = (missing: string[]) => ({
+  ...preview(missing),
+  document: {
+    name: line('Ada', 'person', 'title'), intro: [], label: 'Cover Letter',
+    sections: [{ title: '', entries: [
+      ['Dear Hiring Team,', 'greeting'], ['I am writing to apply.', ''], ['Thank you for your consideration.', ''], ['Sincerely,', 'closing'], ['Ada', 'title'],
+    ].map(([text, field]) => ({ heading: null, paragraph: line(text, 'person', field), bullets: [] })) }],
+  },
+})
+
+/** What the writer returns, by kind of document. */
+export const DRAFTS = {
+  resume: { slots: { summary: 'Generated summary', 'bullet:b1': 'Generated bullet' }, cites: {}, flags: {} },
+  letter: { slots: { 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' }, cites: {}, flags: {} },
+}
+
 export type Calls = { method: string; url: string; body?: Record<string, unknown> }[]
 
-/** Answers every wizard request. `calls` records them in order. */
-export function stubApi(missing: string[] = []) {
+/** Answers every wizard request. `calls` records them in order. `model` is whether an LLM connection is active; `generate` replaces the writer's answer. */
+export function stubApi(missing: string[] = [], model = true, generate?: (asked: Record<string, unknown>) => Response) {
   const calls: Calls = []
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url)
     const method = init?.method ?? 'GET'
     calls.push({ method, url: u, body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined })
+    const asked = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
+    if (u.endsWith('/api/llm/connections')) return new Response(JSON.stringify({ active: model ? 'c1' : null, connections: [] }))
+    if (u.endsWith('/api/documents/generate') && generate) return generate(asked)
+    if (u.endsWith('/api/documents/generate')) return new Response(JSON.stringify(asked.template === 'cover-letter' ? DRAFTS.letter : DRAFTS.resume))
+    if (u.endsWith('/api/documents/preview') && asked.template === 'cover-letter') return new Response(JSON.stringify(letter(missing)))
     if (method === 'POST' && u.endsWith('/api/saved-documents')) {
       return new Response(JSON.stringify({ id: 'd1', label: 'x', template: 'resume-classic', format: '', filename: 'resume', created_at: '2026-11-14T10:00:00Z', ats_issues: [], version: 2 }), { status: 201 })
     }
