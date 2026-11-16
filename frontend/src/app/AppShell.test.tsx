@@ -28,6 +28,6 @@ describe('AppShell', () => {
 
   it('renders /documents/new', () => {
     renderApp(<AppRoutes />, '/documents/new')
-    expect(screen.getByRole('heading', { level: 1, name: 'New document' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Where is the job posting?' })).toBeInTheDocument()
   })
 })

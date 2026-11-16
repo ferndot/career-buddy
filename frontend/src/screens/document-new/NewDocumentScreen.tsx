@@ -2,31 +2,24 @@ import { Box, Button, Text } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader, toaster } from '../../components'
+import { toaster } from '../../components'
 import { getFit, getPreview, getProfile, getTemplates, SAVED_KEY, saveDocument } from '../documents/api'
 import { DetailsStep } from './DetailsStep'
 import { JobStep } from './JobStep'
 import { ReviewStep } from './ReviewStep'
-import { STEP_LABELS, StepIndicator } from './StepIndicator'
+import { StepIndicator } from './StepIndicator'
 import { TemplateStep } from './TemplateStep'
 import { buildSave, clearDraft, loadDraft, prefill, saveDraft, type Wizard } from './state'
-
-const SUBTITLES = [
-  'Add the job posting, or skip it for a general document.',
-  'Pick what to make and how it should look.',
-  'Check what we filled in from the job posting before you review.',
-  'Check the preview, then save it to your documents.',
-]
 
 export function NewDocumentScreen() {
   const navigate = useNavigate()
   const [w, setW] = useState<Wizard>(loadDraft)
-  const [draftSaved, setDraftSaved] = useState(false)
   const qc = useQueryClient()
   const set = (patch: Partial<Wizard>) => {
-    setDraftSaved(false)
     setW((prev) => ({ ...prev, ...patch }))
   }
+
+  useEffect(() => saveDraft(w), [w]) // the draft saves itself
 
   const templates = useQuery({ queryKey: ['templates'], queryFn: getTemplates })
   const template = templates.data?.find((t) => t.id === w.templateId)
@@ -53,7 +46,7 @@ export function NewDocumentScreen() {
   }, [onDetails, profile.data, fit.data, fitSettled, w.prefilled])
 
   const missingInput = template?.required.some((f) => !w.inputs[f]?.trim()) ?? true
-  const canNext = w.step === 2 ? !missingInput : w.step === 3 ? w.prefilled : true
+  const canNext = w.step === 1 ? hasJob : w.step === 2 ? !missingInput : w.step === 3 ? w.prefilled : true
   const go = (step: Wizard['step']) => set({ step })
 
   const save = useMutation({
@@ -72,7 +65,6 @@ export function NewDocumentScreen() {
 
   return (
     <>
-      <PageHeader title="New document" subtitle={`Step ${w.step} of 4. ${SUBTITLES[w.step - 1]}`} />
       <StepIndicator current={w.step} />
       {w.step === 1 && <JobStep w={w} set={set} />}
       {w.step === 2 &&
@@ -95,20 +87,14 @@ export function NewDocumentScreen() {
       {w.step === 4 && template && (
         <ReviewStep w={w} template={template} set={set} />
       )}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mt="6" gap="3" flexWrap="wrap">
+      <Box display="flex" justifyContent="flex-end" alignItems="center" mt="6" gap="3">
+        {save.isError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the document.</Text>}
         <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
           Back
         </Button>
-        <Box display="flex" gap="2" alignItems="center">
-          {draftSaved && <Text fontSize="sm" color="app.muted" role="status">Draft saved</Text>}
-          <Button variant="outline" borderColor="app.borderStrong" color="app.text" onClick={() => { saveDraft(w); setDraftSaved(true) }}>
-            Save draft
-          </Button>
-          {save.isError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the document.</Text>}
-          <Button bg="app.primary" color="app.onPrimary" disabled={!canNext} loading={save.isPending} onClick={next}>
-            {w.step === 4 ? 'Done' : `Next: ${STEP_LABELS[w.step].toLowerCase()}`}
-          </Button>
-        </Box>
+        <Button bg="app.primary" color="app.onPrimary" disabled={!canNext} loading={save.isPending} onClick={next}>
+          {w.step === 4 ? 'Done' : 'Next'}
+        </Button>
       </Box>
     </>
   )
