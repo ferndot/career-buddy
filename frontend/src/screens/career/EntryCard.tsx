@@ -5,7 +5,9 @@ import { useReorder, useReviseFact } from './api'
 import type { Bullet, Entry } from './model'
 
 /** One position or education entry; each bullet can be shown or hidden, moved up or down, and edited. */
-export function EntryCard({ entry, children, onEditBullet }: { entry: Entry; children?: ReactNode; onEditBullet?: (b: Bullet) => void }) {
+export function EntryCard({ entry, children, actions, onEditBullet }: {
+  entry: Entry; children?: ReactNode; actions?: ReactNode; onEditBullet?: (b: Bullet) => void
+}) {
   const revise = useReviseFact()
   const reorder = useReorder()
 
@@ -52,6 +54,7 @@ export function EntryCard({ entry, children, onEditBullet }: { entry: Entry; chi
           </IconButton>
         </Flex>
       ))}
+      {actions && <Box mt="2">{actions}</Box>}
       {children}
     </Box>
   )
