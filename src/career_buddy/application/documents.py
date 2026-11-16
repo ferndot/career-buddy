@@ -114,14 +114,22 @@ class DocumentService:
         doc, preview, _ = await self._build(template_id, options)
         return replace(preview, format=fmt, issues=(await self._file(doc, fmt, style))[2])
 
+    async def compose(self, template_id: str, options: TailorOptions = TailorOptions()) -> tuple[Document, str]:
+        """The document for these options and the stem of its file name, with no file rendered."""
+        doc, _, profile = await self._build(template_id, options)
+        stem = re.sub(r"[^A-Za-z0-9]+", "-", profile.name).strip("-") or "Candidate"
+        return doc, f"{stem}-{re.sub(r'[^A-Za-z0-9]+', '-', doc.label).strip('-')}"
+
+    async def export(self, doc: Document, fmt: str, style: Style, stem: str) -> Rendered:
+        """A document in one format, with its ATS check. KeyError: unknown format."""
+        renderer, data, issues = await self._file(doc, fmt, style)
+        return Rendered(data, renderer.media_type, f"{stem}.{renderer.extension}", issues)
+
     async def render(
         self, template_id: str, fmt: str, style: Style = Style(), options: TailorOptions = TailorOptions()
     ) -> Rendered:
-        doc, _, profile = await self._build(template_id, options)
-        renderer, data, issues = await self._file(doc, fmt, style)
-        stem = re.sub(r"[^A-Za-z0-9]+", "-", profile.name).strip("-") or "Candidate"
-        kind = re.sub(r"[^A-Za-z0-9]+", "-", doc.label).strip("-")
-        return Rendered(data, renderer.media_type, f"{stem}-{kind}.{renderer.extension}", issues)
+        doc, stem = await self.compose(template_id, options)
+        return await self.export(doc, fmt, style, stem)
 
     async def check(
         self, template_id: str, fmt: str, style: Style = Style(), options: TailorOptions = TailorOptions()

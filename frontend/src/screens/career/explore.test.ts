@@ -3,7 +3,7 @@ import { explore, groupPositions, groupSkills, subtitle } from './explore'
 const f = (id: string, kind: string, title: string, attributes: Record<string, string> = {}) => ({ id, kind, title, attributes, source: 's' })
 const facts = [
   f('p', 'Person', 'Jane Doe'),
-  f('pos', 'Position', 'Senior Engineer', { period: '2019 - Present' }),
+  f('pos', 'Position', 'Senior Engineer', { started: '2019', finished: 'present' }),
   f('org', 'Organization', 'Acme'),
   f('b', 'Achievement', 'B bullet'),
   f('a', 'Achievement', 'A bullet'),
@@ -35,8 +35,8 @@ it('groups neighbors by kind from either edge direction, leaving out the person'
 })
 
 it('writes a one-line subtitle per kind', () => {
-  expect(subtitle(ex.byId.get('pos')!, ex)).toBe('Acme · 2019 - Present')
-  expect(subtitle(f('x', 'Position', 'X', { started: '2010', finished: '2012' }), ex)).toBe('2010 to 2012')
+  expect(subtitle(ex.byId.get('pos')!, ex)).toBe('Acme · 2019 – Present')
+  expect(subtitle(f('x', 'Position', 'X', { started: '2010', finished: '2012' }), ex)).toBe('2010 – 2012')
   expect(subtitle(ex.byId.get('a')!, ex)).toBe('Senior Engineer')
   expect(subtitle(ex.byId.get('org')!, ex)).toBe('1 linked')
   expect(subtitle(ex.byId.get('sk')!, ex)).toBe('')
@@ -46,9 +46,9 @@ it('groups positions by employer, groups and their positions newest first', () =
   const facts = [
     f('acme', 'Organization', 'Acme'),
     f('beta', 'Organization', 'Beta'),
-    f('lead', 'Position', 'Lead', { period: 'Mar 2019 - Present' }),
+    f('lead', 'Position', 'Lead', { started: '2019-03', finished: 'present' }),
     f('junior', 'Position', 'Junior', { period: '2016 to 2018' }),
-    f('founder', 'Position', 'Founder', { period: '2014 - 2018' }),
+    f('founder', 'Position', 'Founder', { started: '2014', finished: '2018' }),
     f('intern', 'Position', 'Intern', { period: '2012-2013' }),
   ]
   const edges = [

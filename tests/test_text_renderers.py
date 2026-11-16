@@ -12,14 +12,14 @@ STYLE = Style()
 def test_markdown_matches_the_v1_layout() -> None:
     md = MarkdownRenderer().render(sample_document(), STYLE).decode()
     assert md.startswith("# Jane Doe\n\nLisbon, Portugal\n\nPlatform engineer\n\n## Summary\nBuilds data pipelines\n")
-    assert "### Senior Engineer, Acme Corp (Mar 2019 - Jan 2023)\n- Cut build times by 60%\n\n" in md
+    assert "### Senior Engineer, Acme Corp (Mar 2019 – Jan 2023)\n- Cut build times by 60%\n\n" in md
     assert "## Education\n- BSc Computer Science, University of Lisbon\n\n## Skills\nPython, Kubernetes\n" in md
 
 
 def test_text_uses_plain_headings_and_dash_bullets() -> None:
     txt = TextRenderer().render(sample_document(), STYLE).decode()
     assert txt.startswith("Jane Doe\nLisbon, Portugal\nPlatform engineer\n\nSummary\nBuilds data pipelines\n\nExperience\n")
-    assert "Senior Engineer, Acme Corp (Mar 2019 - Jan 2023)\n- Cut build times by 60%\n" in txt
+    assert "Senior Engineer, Acme Corp (Mar 2019 – Jan 2023)\n- Cut build times by 60%\n" in txt
 
 
 def test_html_is_single_column_and_escapes_text() -> None:

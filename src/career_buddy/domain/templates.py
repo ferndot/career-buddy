@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from career_buddy.domain.dates import format_range, with_dates
 from career_buddy.domain.document import Document, Entry, Line, Section
 from career_buddy.domain.letter_templates import LETTERS
 from career_buddy.domain.profile import PositionView, Profile
@@ -49,13 +50,8 @@ def get_template(template_id: str) -> TemplateSpec:
 
 
 def _period(pos: PositionView) -> str:
-    attrs = pos.attributes
-    if attrs.get("period"):
-        return attrs["period"]
-    start, end = attrs.get("started", ""), attrs.get("finished", "")
-    if start:
-        return f"{start} - {end or 'Present'}"
-    return end
+    attrs = with_dates(pos.attributes)
+    return format_range(attrs.get("started", ""), attrs.get("finished", "")) or attrs.get("period", "")
 
 
 def _position(pos: PositionView) -> Entry:

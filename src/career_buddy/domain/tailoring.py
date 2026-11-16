@@ -10,6 +10,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from career_buddy.domain.dates import parse
 from career_buddy.domain.document import Document, Entry, Line, Origin
 from career_buddy.domain.profile import PositionView, Profile
 from career_buddy.domain.templates import TemplateSpec
@@ -102,6 +103,8 @@ _OPEN_END = (9999, 12)
 
 
 def _year_month(text: str) -> tuple[int, int] | None:
+    if iso := parse(text):
+        return iso[0], iso[1] if len(iso) > 1 else 1
     year = re.search(r"\b(?:19|20)\d{2}\b", text)
     if not year:
         return None

@@ -46,6 +46,6 @@ def test_docx_stacked_org_title_dates_becomes_a_position(client) -> None:
     import_docx(client)
     (position,) = facts(client, "Position")
     assert position["title"] == "Senior Engineer"
-    assert position["attributes"] == {"period": "Mar 2019 - Present"}
+    assert position["attributes"] == {"started": "2019-03", "finished": "present"}
     assert {f["title"] for f in facts(client, "Organization")} == {"Acme Corp", "University of Lisbon"}
     assert [f["title"] for f in facts(client, "Achievement")] == ["Cut build times by 60%"]

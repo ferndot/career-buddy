@@ -1,5 +1,6 @@
 import { Box, Heading, Input, Link, Text, Textarea } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
+import { RobotMascot } from '../../brand'
 import { fetchJobText } from '../documents/api'
 import type { Wizard } from './state'
 
@@ -50,6 +51,7 @@ export function JobStep({ w, set }: Props) {
   const url = w.jobUrl.trim()
   return (
     <Box maxW="560px" mx="auto" minH="50vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center" textAlign="center" gap="4">
+      <RobotMascot mood={status === 'loading' ? 'thinking' : status === 'ok' ? 'celebrate' : 'happy'} />
       <Heading as="h1" size="2xl" fontWeight="semibold" color="app.text">
         Where is the job posting?
       </Heading>
@@ -81,7 +83,7 @@ export function JobStep({ w, set }: Props) {
         </Link>
       )}
       {!w.jobText.trim() && !w.noJob && (
-        <Link as="button" fontSize="sm" color="app.muted" onClick={() => set({ noJob: true })}>
+        <Link as="button" fontSize="sm" color="app.muted" onClick={() => set({ noJob: true, step: 2 })}>
           Continue without a job posting
         </Link>
       )}

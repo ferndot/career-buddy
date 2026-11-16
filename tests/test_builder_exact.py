@@ -16,7 +16,7 @@ def test_a_position_with_achievements_and_skills() -> None:
     person = builder.person("Ada", location=" Rome ", empty="  ")
     builder.position(person, "Eng", "Acme", achievements=("Did it",), skills=("Go", "Rust"), period=" 2020 ", gap="")
     ada = make(K.PERSON, "Ada", location="Rome")
-    org, pos = make(K.ORGANIZATION, "Acme"), make(K.POSITION, "Eng", "Acme", period="2020")
+    org, pos = make(K.ORGANIZATION, "Acme"), make(K.POSITION, "Eng", "Acme", started="2020", finished="2020")
     ach = make(K.ACHIEVEMENT, "Did it", "Eng|Acme")
     go, rust = make(K.SKILL, "Go"), make(K.SKILL, "Rust")
     assert builder.build() == FactBatch(

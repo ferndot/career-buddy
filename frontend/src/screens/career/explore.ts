@@ -65,7 +65,7 @@ export function subtitle(fact: Fact, ex: Explorer): string {
   } else if (fact.kind === 'Achievement') {
     parts.push(near.Position?.[0]?.title ?? '')
   } else if (fact.kind === 'Education') {
-    parts.push(near.Organization?.[0]?.title ?? fact.attributes.school ?? '', fact.attributes.period ?? '')
+    parts.push(near.Organization?.[0]?.title ?? fact.attributes.school ?? '', dates(fact.attributes))
   } else if (fact.kind === 'Skill' && (fact.attributes.level || fact.attributes.years)) {
     const { level = '', years = '' } = fact.attributes
     parts.push(level, years && `${years} ${years === '1' ? 'year' : 'years'}`)
@@ -81,13 +81,17 @@ const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', '
 /** Sortable month number for "Mar 2019", "2019" or "Present" (latest); unreadable values sort oldest. */
 function monthKey(text: string): number {
   if (/present|now|current/i.test(text)) return Infinity
+  const iso = /^(\d{4})(?:-(\d{2}))?/.exec(text)
+  if (iso) return Number(iso[1]) * 12 + Math.max(0, Number(iso[2] ?? 1) - 1)
   const year = /\d{4}/.exec(text)?.[0]
   if (!year) return -Infinity
   return Number(year) * 12 + Math.max(0, MONTHS.indexOf(text.trim().slice(0, 3).toLowerCase()))
 }
 
-/** Start and end sort keys of a period like "Mar 2019 - Present", "2016–2017" or "2012 to 2016". */
+/** Start and end sort keys: from `started`/`finished` (an open end is current), else from period text like "Mar 2019 - Present", "2016–2017" or "2012 to 2016". */
 function span(fact: Fact): [number, number] {
+  const { started = '', finished = '' } = fact.attributes
+  if (started || finished) return [monthKey(started), started && !finished ? Infinity : monthKey(finished)]
   const [start = '', end = start] = dates(fact.attributes).split(/\s+to\s+|\s*[–—-]\s*/)
   return [monthKey(start), monthKey(end)]
 }

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from career_buddy.application.ports import FactGraph
+from career_buddy.domain.dates import with_dates
 from career_buddy.domain.events import (
     DuplicateDismissed,
     Event,
@@ -77,44 +78,59 @@ class Projector:
         """Sources still in use: imported and not removed."""
         return ({s for stated in self._stated_by.values() for s in stated} | self._registered) - self.removed
 
-    def _resolve(self, fact_id: str) -> str:
+    def _live(self, raw: FactBatch) -> set[str]:
+        """Ids some source still states. A merge into anything else is inert: the alias shows again."""
+        return {f.id for f in raw.facts if self._stated_by.get(f.id, {f.source}) - self.removed}
+
+    def _resolve(self, fact_id: str, live: set[str]) -> str:
         seen = {fact_id}
-        while (target := self.merges.get(fact_id)) and target not in seen:
+        while (target := self.merges.get(fact_id)) and target in live and target not in seen:
             fact_id = target
             seen.add(fact_id)
         return fact_id
 
+    @property
+    def revised(self) -> set[str]:
+        """Ids of facts the user has edited."""
+        return set(self._revisions)
+
+    async def dismissed_now(self) -> set[frozenset[str]]:
+        """The dismissed pairs as the snapshot shows them: each end resolved through merges, so a merge does not bring a pair back."""
+        live = self._live(await self._graph.snapshot())
+        return {frozenset(self._resolve(i, live) for i in pair) for pair in self.dismissed}
+
     async def absorbed(self) -> dict[str, list[Fact]]:
         """Canonical fact id -> the alias facts merged into it. Their own wording and details are not in the snapshot."""
+        raw = await self._graph.snapshot()
+        live = self._live(raw)
         out: dict[str, list[Fact]] = {}
-        for f in (await self._graph.snapshot()).facts:
-            if f.id not in self.merges or not (self._stated_by.get(f.id, {f.source}) - self.removed):
-                continue
-            out.setdefault(self._resolve(f.id), []).append(f)
+        for f in raw.facts:
+            if f.id in live and (canonical := self._resolve(f.id, live)) != f.id:
+                out.setdefault(canonical, []).append(f)
         return out
 
     async def snapshot(self) -> FactBatch:
         raw = await self._graph.snapshot()
+        alive = self._live(raw)
+        resolve = lambda i: self._resolve(i, alive)  # noqa: E731
         visible = {}
         for f in raw.facts:
-            if f.id in self.merges:
+            if f.id not in alive or resolve(f.id) != f.id:
                 continue
             live = self._stated_by.get(f.id, {f.source}) - self.removed
-            if not live:
-                continue
             source = f.source if f.source in live else min(live)
             revision = self._revisions.get(f.id)
             visible[f.id] = replace(
                 f,
                 title=revision.title if revision else f.title,
-                attributes=revision.attributes if revision else f.attributes,
+                attributes=with_dates(revision.attributes if revision else f.attributes),  # legacy `period` text is read as dates
                 source=source,
             )
         links = dict.fromkeys(
-            Link(self._resolve(l.source_id), self._resolve(l.target_id), l.kind) for l in raw.links
+            Link(resolve(l.source_id), resolve(l.target_id), l.kind) for l in raw.links
         )
         for l, present in self._link_overrides.items():  # resolved like the rest, so a later merge keeps the edit
-            link = Link(self._resolve(l.source_id), self._resolve(l.target_id), l.kind)
+            link = Link(resolve(l.source_id), resolve(l.target_id), l.kind)
             links.pop(link, None)
             if present:
                 links[link] = None

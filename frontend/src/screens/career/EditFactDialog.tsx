@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Fact } from './api'
 import { useMerge, useReviseFact } from './api'
 import { SKILL_CATEGORIES, SKILL_LEVELS } from './explore'
+import { DateField } from './DateField'
 import { FormDialog } from './FormDialog'
 import { OptionSelect } from './OptionSelect'
 
@@ -11,8 +12,8 @@ const KEEP = ['hidden', 'order']
 
 /** Attributes a kind always offers, even when the fact has none yet. */
 const OFFERED: Record<string, string[]> = {
-  Position: ['organization', 'period'],
-  Education: ['school', 'period'],
+  Position: ['organization', 'started', 'finished'],
+  Education: ['school', 'started', 'finished'],
   Achievement: ['result'],
   Skill: ['category', 'years', 'level'],
 }
@@ -20,7 +21,7 @@ const CHOICES: Record<string, { options: readonly string[]; empty: string }> = {
   category: { options: SKILL_CATEGORIES, empty: 'Uncategorized' },
   level: { options: SKILL_LEVELS, empty: 'Not stated' },
 }
-const LABEL: Record<string, string> = { period: 'Dates', organization: 'Organization', school: 'School' }
+const LABEL: Record<string, string> = { period: 'Dates as written', started: 'Start', finished: 'End', organization: 'Organization', school: 'School' }
 const label = (k: string) => LABEL[k] ?? k.charAt(0).toUpperCase() + k.slice(1)
 
 /** Edits any item's title and its visible attributes, or merges it into another item of the same kind. Other attributes are sent back unchanged, since a revise replaces them all. */
@@ -57,7 +58,10 @@ function Form({ fact, candidates, candidateLabel = (c) => c.title, onClose }: { 
         <Field.Label color="app.text2">Title</Field.Label>
         <Input bg="app.surface" borderColor="app.borderStrong" value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field.Root>
-      {editable.map((k) => (
+      {editable.map((k) => k === 'started' || k === 'finished' ? (
+        <DateField key={k} label={label(k)} value={values[k]} allowPresent={k === 'finished'}
+          onChange={(v) => setValues((cur) => ({ ...cur, [k]: v }))} />
+      ) : (
         <Field.Root key={k} mb="3">
           <Field.Label color="app.text2">{label(k)}</Field.Label>
           {CHOICES[k] ? (

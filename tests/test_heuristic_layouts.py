@@ -49,8 +49,8 @@ Analyst
 def test_org_title_dates_on_separate_lines(client) -> None:
     found = import_text(client, STACKED)
     assert [(f["title"], f["attributes"]) for f in found["Position"]] == [
-        ("Lead Analyst", {"period": "Mar 2012 – Present"}),
-        ("Analyst", {"period": "2010 - 2012"}),
+        ("Lead Analyst", {"started": "2012-03", "finished": "present"}),
+        ("Analyst", {"started": "2010", "finished": "2012"}),
     ]
     assert [f["title"] for f in found["Organization"]] == ["Analytical Society", "Babbage & Co"]
     assert [f["title"] for f in found["Achievement"]] == ["Wrote the first algorithm", "Checked the tables"]

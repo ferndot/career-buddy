@@ -125,16 +125,18 @@ def test_a_file_import_with_a_model_is_queued_too(client) -> None:
     wait_for(client, "resume.txt", "ready")
 
 
-def test_reindex_replaces_the_facts_of_that_source_with_a_new_extraction(client, model) -> None:
+def test_reindex_adds_what_is_new_and_keeps_edits_to_what_was_there(client, model) -> None:
     connect_mock(client)
     client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
     wait_for(client, "ada.txt", "ready")
     assert titles(client) == ["Analyst"]
+    (analyst,) = client.get("/api/facts", params={"kind": "Position"}).json()
+    client.patch(f"/api/facts/{analyst['id']}", json={"title": "Chief Analyst"})
     model.title = "Mathematician"
     res = client.post("/api/sources/ada.txt/reindex")
     assert res.status_code == 202 and res.json()["source"] == "ada.txt" and res.json()["status"] in ("queued", "processing")
     wait_for(client, "ada.txt", "ready")
-    assert titles(client) == ["Mathematician"]
+    assert sorted(titles(client)) == ["Chief Analyst", "Mathematician"]  # the edited fact stays, the re-extraction adds a new one
 
 
 def test_reindex_without_a_model_uses_the_offline_reader(client) -> None:

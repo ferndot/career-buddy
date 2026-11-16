@@ -40,6 +40,7 @@ class FactsMerged:
     canonical_id: str
     undo: bool = False
     at: str = ""
+    auto: bool = False  # the import merged them (a near-certain duplicate), not the user
 
 
 @dataclass(frozen=True)

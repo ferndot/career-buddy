@@ -45,5 +45,13 @@ class DocumentRequest(PreviewRequest):
         return Style(self.font, self.paper)
 
 
-class SaveRequest(DocumentRequest):
+class SaveRequest(TailorRequest):
+    """No format: a saved document is kept as html and converted when it is downloaded."""
+
+    font: Literal["sans", "serif"] = "sans"
+    paper: Literal["letter", "a4"] = "letter"
     label: str = ""  # a name for the saved document; empty means the file name
+
+    @property
+    def style(self) -> Style:
+        return Style(self.font, self.paper)

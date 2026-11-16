@@ -85,7 +85,7 @@ export function NewDocumentScreen() {
         />
       )}
       {w.step === 4 && template && (
-        <ReviewStep w={w} template={template} set={set} />
+        <ReviewStep w={w} template={template} />
       )}
       <Box display="flex" justifyContent="flex-end" alignItems="center" mt="6" gap="3">
         {save.isError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the document.</Text>}

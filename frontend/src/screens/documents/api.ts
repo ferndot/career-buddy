@@ -60,13 +60,13 @@ export type SavedDocument = {
   filename: string
   created_at: string
   ats_issues: string[]
+  version: number // 1: a file in its own format; 2: html, downloaded in any of DOWNLOAD_FORMATS
 }
 export type SaveBody = Omit<TailorBody, 'selection' | 'skill_ids' | 'education_ids'> & {
   selection: string[] | null
   skill_ids: string[] | null
   education_ids: string[] | null
   overrides: Record<string, string>
-  format: string
   font: 'sans' | 'serif'
   paper: 'letter' | 'a4'
   label: string
@@ -109,6 +109,14 @@ export async function downloadDocument(body: TailorBody, format: string): Promis
   return saveResponse(res, `document.${format}`)
 }
 
-export async function downloadSaved(doc: SavedDocument): Promise<void> {
-  return saveResponse(await fetch(apiUrl(endpoints.savedDocuments.file(doc.id))), doc.filename)
+export const DOWNLOAD_FORMATS = [
+  { format: 'docx', label: 'Word' },
+  { format: 'pdf', label: 'PDF' },
+  { format: 'txt', label: 'Text' },
+] as const
+
+/** A version 1 document downloads as it was saved; a version 2 one needs a format. */
+export async function downloadSaved(doc: SavedDocument, format?: string): Promise<void> {
+  const name = format ? `${doc.filename}.${format}` : doc.filename
+  return saveResponse(await fetch(apiUrl(endpoints.savedDocuments.file(doc.id, format))), name)
 }

@@ -1,4 +1,5 @@
 import type { Edge, Fact } from './api'
+import { dates } from './dates'
 
 export type Bullet = { id: string; title: string; attributes: Record<string, string>; hidden: boolean }
 export type Entry = {
@@ -18,10 +19,7 @@ const order = (b: Bullet) => {
   return Number.isNaN(n) ? Infinity : n
 }
 
-export function dates(a: Record<string, string>): string {
-  if (a.period) return a.period
-  return [a.started, a.finished].filter(Boolean).join(' to ')
-}
+export { dates }
 
 /** Joins the flat facts and edges into what the screen shows. Hidden positions, schools and skills are left out; hidden bullets stay (unchecked). */
 export function buildCareer(facts: Fact[], edges: Edge[]): Career | null {

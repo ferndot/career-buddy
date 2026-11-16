@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import mimetypes
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -22,7 +23,8 @@ from career_buddy.application.ports import (
     UnsupportedFileType,
 )
 from career_buddy.application.projector import Projector
-from career_buddy.domain.dedup import merge_candidates
+from career_buddy.domain.dates import checked
+from career_buddy.domain.dedup import auto_merges, canonical_of, merge_candidates
 from career_buddy.domain.events import (
     DuplicateDismissed,
     FactDeleted,
@@ -40,6 +42,8 @@ from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact, Li
 from career_buddy.domain.letter import write_letter
 from career_buddy.domain.profile import Profile, assemble_profile, rank_for_job
 from collections.abc import Awaitable, Callable
+
+log = logging.getLogger(__name__)
 
 
 class ImportService:
@@ -72,29 +76,33 @@ class ImportService:
         await self._projector.project(event)
         return len(batch.facts)
 
-    async def _extract_and_save(self, text: str, source: str, source_key: str, replace: bool) -> int:
+    async def _extract_and_save(self, text: str, source: str, source_key: str) -> int:
+        """Additive: a fact already in the graph keeps its edits and merges, a new one is added. Near-certain duplicates are merged (and logged), the rest only suggested."""
         self._jobs.report(source, "Extracting career facts")
         batch = await self._extractor.extract(text, source)
         self._jobs.report(source, "Saving facts")
-        if replace:  # the old facts go first, so the new extraction replaces them instead of adding to them
-            event = SourceRemoved(source, _now())
-            self._log.append(event)
-            await self._projector.project(event)
         count = await self._record(batch, source_key)
-        await self._merge_duplicates()
+        await self._merge_certain_duplicates()
         return count
 
-    async def _merge_duplicates(self) -> None:
-        """Merge the duplicates the matcher finds, each as a logged merge the user can undo. Dismissed pairs stay apart."""
-        batch = await self._projector.snapshot()
-        titles = {f.id: f.title for f in batch.facts}
-        for a, b, _ in merge_candidates(batch):
-            if a in self._projector.merges or b in self._projector.merges or frozenset((a, b)) in self._projector.dismissed:
-                continue
-            keep, drop = sorted((a, b), key=lambda i: (-len(titles[i]), i))  # the fuller name, e.g. "Acme Corp" over "Acme"
-            event = FactsMerged(drop, keep, False, _now())
-            self._log.append(event)
-            await self._projector.project(event)
+    async def _merge_certain_duplicates(self) -> None:
+        """Merge the pairs at or above the auto-merge bar as logged `auto` merges. A merge can expose
+        more pairs (positions of merged employers), so go on until none is left. Undone and dismissed pairs stay apart."""
+        projector = self._projector
+        while True:
+            batch = await projector.snapshot()
+            touched = projector.revised | {f.id for f in batch.facts if f.source == "manual"}
+            apart = await projector.dismissed_now() | {frozenset((e.alias_id, e.canonical_id)) for e in self._log.replay()
+                                                      if isinstance(e, FactsMerged) and e.undo}
+            pairs = auto_merges(batch, merge_candidates(batch), touched, apart)
+            if not pairs:
+                return
+            titles = {f.id: f.title for f in batch.facts}
+            for alias, canonical in pairs:
+                event = FactsMerged(alias, canonical, False, _now(), True)
+                self._log.append(event)
+                await projector.project(event)
+                log.info("Merged duplicate %r into %r", titles[alias], titles[canonical])
 
     async def import_text(self, text: str, source: str, source_key: str = "") -> int | None:
         """Facts added, or None when the work was queued."""
@@ -102,7 +110,7 @@ class ImportService:
         event = SourceRegistered(source, key, _now())  # before the job, so a failed first run can still be retried
         self._log.append(event)
         await self._projector.project(event)
-        return await self._jobs.run(source, lambda: self._extract_and_save(text, source, key, False), self._background)
+        return await self._jobs.run(source, lambda: self._extract_and_save(text, source, key), self._background)
 
     async def _to_text(self, extension: str, data: bytes) -> str:
         reader = self._file_readers.get(extension)
@@ -129,7 +137,7 @@ class ImportService:
         return keys[-1]
 
     async def reindex(self, source: str) -> None:
-        """Read the stored original again and replace the source's facts with a fresh extraction. Always in the background."""
+        """Read the stored original again and add what a fresh extraction finds; earlier facts and the user's edits stay. Always in the background."""
         if self._jobs.is_active(source):
             raise SourceBusy(source)
         if source not in self._projector.sources():
@@ -140,7 +148,7 @@ class ImportService:
             self._jobs.report(source, "Reading file")
             data = await asyncio.to_thread(self._store.get, key)
             text = await self._to_text(key.rsplit(".", 1)[-1], data)
-            return await self._extract_and_save(text, source, key, True)
+            return await self._extract_and_save(text, source, key)
 
         await self._jobs.run(source, work, True)
 
@@ -223,7 +231,7 @@ class EditService:
         title = fact.title if title is None else title.strip()
         if not title:
             raise InvalidFact("Title is empty")
-        revised = replace(fact, title=title, attributes=fact.attributes if attributes is None else attributes)
+        revised = replace(fact, title=title, attributes=fact.attributes if attributes is None else checked(attributes))
         await self._record(FactRevised(fact_id, revised.title, revised.attributes, _now()))
         return revised
 
@@ -327,11 +335,13 @@ class CareerQueries:
         found = merge_candidates(batch)
         if self._skill_matcher:
             found = sorted(found + await self._skill_matcher(batch), key=lambda c: (-c[2], c[0], c[1]))
+        dismissed = await self._graph.dismissed_now()
+        touched = self._graph.revised | {f.id for f in batch.facts if f.source == "manual"}  # the user's own work is what a merge keeps
         return [
             {"kind": by_id[a].kind, "a": {"id": a, "title": by_id[a].title}, "b": {"id": b, "title": by_id[b].title},
-             "score": round(score, 3)}
+             "score": round(score, 3), "canonical_id": canonical_of(by_id[a], by_id[b], touched)}
             for a, b, score in found
-            if frozenset((a, b)) not in self._graph.dismissed
+            if frozenset((a, b)) not in dismissed
         ]
 
     async def cover_letter(self, job_text: str) -> str:

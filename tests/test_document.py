@@ -28,10 +28,10 @@ def test_resume_classic_builds_fixed_headings_in_template_order() -> None:
 
 def test_positions_put_title_organization_and_dates_on_one_line() -> None:
     lines = build_document(PROFILE, get_template("resume-classic")).lines()
-    assert "Senior Engineer, Acme Corp (Mar 2019 - Jan 2023)" in lines
-    assert "Engineer, Globex (Jun 2023 - Present)" in lines
-    assert "Analyst, Analytical Society (2010 - 2015)" in lines
-    assert lines[lines.index("Senior Engineer, Acme Corp (Mar 2019 - Jan 2023)") + 1] == "Cut build times by 60%"
+    assert "Senior Engineer, Acme Corp (Mar 2019 – Jan 2023)" in lines
+    assert "Engineer, Globex (Jun 2023 – Present)" in lines
+    assert "Analyst, Analytical Society (2010 – 2015)" in lines
+    assert lines[lines.index("Senior Engineer, Acme Corp (Mar 2019 – Jan 2023)") + 1] == "Cut build times by 60%"
 
 
 def test_empty_sections_are_left_out() -> None:

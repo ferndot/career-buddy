@@ -4,7 +4,7 @@ import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
 import { DocumentsScreen } from './DocumentsScreen'
 
-const doc = { id: 'd1', label: 'Engineer · Acme', template: 'resume-classic', format: 'docx', filename: 'resume.docx', created_at: '2026-11-14T10:00:00Z', ats_issues: ['x'] }
+const doc = { id: 'd1', label: 'Engineer · Acme', template: 'resume-classic', format: 'docx', filename: 'resume.docx', created_at: '2026-11-14T10:00:00Z', ats_issues: ['x'], version: 1 }
 const templates = [{ id: 'resume-classic', kind: 'resume', label: 'Classic resume', formats: ['docx'], required: [], optional: [] }]
 
 function stubApi(list: unknown[]) {
@@ -39,6 +39,26 @@ test('lists saved documents and filters by type', async () => {
   await screen.findByText('Classic resume')
   fireEvent.change(screen.getByLabelText('Document type'), { target: { value: 'letter' } })
   expect(screen.getByText('No matches')).toBeInTheDocument()
+})
+
+test('a version 1 document downloads as it was saved, with no format menu', async () => {
+  const calls = stubApi([doc])
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+  renderApp(<DocumentsScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download Engineer · Acme' }))
+  await waitFor(() => expect(calls).toContain('GET /api/saved-documents/d1/file'))
+  expect(screen.queryByRole('menuitem', { name: 'Word' })).not.toBeInTheDocument()
+})
+
+test('a version 2 document picks Word, PDF or Text when downloading', async () => {
+  const calls = stubApi([{ ...doc, version: 2, format: '', filename: 'resume' }])
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+  renderApp(<DocumentsScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download Engineer · Acme' }))
+  expect(await screen.findByRole('menuitem', { name: 'Word' })).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: 'PDF' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Text' }))
+  await waitFor(() => expect(calls).toContain('GET /api/saved-documents/d1/file?format=txt'))
 })
 
 test('deletes through the API', async () => {

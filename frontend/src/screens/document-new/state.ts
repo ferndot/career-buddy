@@ -9,7 +9,6 @@ export type Wizard = {
   inputs: Record<string, string>
   headline: string
   skillIds: string[] // selected skill ids
-  format: string // chosen output format; '' means the template default
   bullets: string[] // selected bullet fact ids
   education: string[] // selected education fact ids
   prefilled: boolean // the AI suggestion has been applied once
@@ -26,7 +25,6 @@ export const initialWizard: Wizard = {
   inputs: {},
   headline: '',
   skillIds: [],
-  format: '',
   bullets: [],
   education: [],
   prefilled: false,
@@ -91,10 +89,6 @@ export function buildBody(w: Wizard): TailorBody {
   }
 }
 
-/** The chosen format, or the template's default (docx when offered). */
-export const pickFormat = (w: Wizard, t: Template) =>
-  t.formats.includes(w.format) ? w.format : t.formats.includes('docx') ? 'docx' : t.formats[0]
-
 export function buildSave(w: Wizard, t: Template): SaveBody {
   const { role, company } = w.inputs
   const b = buildBody(w)
@@ -104,7 +98,6 @@ export function buildSave(w: Wizard, t: Template): SaveBody {
     skill_ids: b.skill_ids ?? null,
     education_ids: b.education_ids ?? null,
     overrides: {},
-    format: pickFormat(w, t),
     font: 'sans',
     paper: 'letter',
     label: [role, company].filter(Boolean).join(' · ') || t.label,

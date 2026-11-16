@@ -1,9 +1,10 @@
-"""Duplicate candidates for the user to confirm. Pure: nothing here merges anything."""
+"""Duplicate candidates, and which of them are certain enough to merge without asking. Pure: nothing here merges anything."""
 
 from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Collection
 from difflib import SequenceMatcher
 from itertools import combinations
 
@@ -13,6 +14,7 @@ from career_buddy.domain.periods import period_of
 from career_buddy.domain.tailoring import STOPWORDS, stem, tokens
 
 THRESHOLD = 0.90
+AUTO_MERGE_THRESHOLD = 0.95  # "OpenAI"/"OpenAPI" score 0.923 and stay a suggestion; only legal-suffix and punctuation variants (1.0) merge by themselves
 _LEGAL = {"inc", "corp", "corporation", "co", "ltd", "llc", "plc", "gmbh", "sa", "ag"}
 
 
@@ -91,3 +93,31 @@ def _achievement_similarity(a: Fact, b: Fact) -> float:
 
 def _content_words(text: str) -> set[str]:
     return {stem(t.lower()) for t in tokens(text) if t.lower() not in STOPWORDS}
+
+
+def canonical_of(a: Fact, b: Fact, touched: Collection[str]) -> str:
+    """The id a merge of these two keeps: the one the user touched, else the fuller title, else the smaller id. Symmetric."""
+    return min((a, b), key=lambda f: (f.id not in touched, -len(f.title), f.id)).id
+
+
+def auto_merges(
+    batch: FactBatch,
+    candidates: Collection[tuple[str, str, float]],
+    touched: Collection[str],
+    dismissed: Collection[frozenset[str]] = (),
+) -> list[tuple[str, str]]:
+    """(alias, canonical) pairs to merge without asking: a score at or above AUTO_MERGE_THRESHOLD, the same kind,
+    neither fact hidden, dismissed or touched by the user, and each fact in at most one pair."""
+    by_id = {f.id: f for f in batch.facts}
+    taken: set[str] = set()
+    out: list[tuple[str, str]] = []
+    for a, b, score in candidates:
+        if score < AUTO_MERGE_THRESHOLD or a not in by_id or b not in by_id or {a, b} & (taken | set(touched)):
+            continue
+        fa, fb = by_id[a], by_id[b]
+        if fa.kind != fb.kind or is_hidden(fa) or is_hidden(fb) or frozenset((a, b)) in dismissed:
+            continue
+        keep = canonical_of(fa, fb, touched)
+        out.append((b if keep == a else a, keep))
+        taken |= {a, b}
+    return out

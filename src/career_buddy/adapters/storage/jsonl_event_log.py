@@ -40,7 +40,7 @@ def _encode(event: Event) -> dict[str, object]:
                     "attributes": event.attributes, "at": event.at}
         case FactsMerged():
             return {"type": "FactsMerged", "alias_id": event.alias_id, "canonical_id": event.canonical_id,
-                    "at": event.at, "undo": event.undo}
+                    "at": event.at, "undo": event.undo, "auto": event.auto}
         case DuplicateDismissed():
             return {"type": "DuplicateDismissed", "a_id": event.a_id, "b_id": event.b_id, "at": event.at}
         case SourceRegistered():
@@ -65,7 +65,7 @@ def _decode(record: dict[str, object]) -> Event | None:
         case "FactRevised":
             return FactRevised(record["fact_id"], record["title"], record["attributes"], record.get("at", ""))
         case "FactsMerged":
-            return FactsMerged(record["alias_id"], record["canonical_id"], record.get("undo", False), record.get("at", ""))
+            return FactsMerged(record["alias_id"], record["canonical_id"], record.get("undo", False), record.get("at", ""), record.get("auto", False))
         case "DuplicateDismissed":
             return DuplicateDismissed(record["a_id"], record["b_id"], record.get("at", ""))
         case "SourceRegistered":

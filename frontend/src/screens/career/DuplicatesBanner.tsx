@@ -32,7 +32,7 @@ export function DuplicatesBanner() {
               "{d.a.title}" and "{d.b.title}" ({d.kind})
             </Text>
             <Flex gap="2">
-              <Button size="sm" bg="app.primary" color="app.onPrimary" loading={merge.isPending} onClick={() => merge.mutate({ alias_id: d.b.id, canonical_id: d.a.id })}>
+              <Button size="sm" bg="app.primary" color="app.onPrimary" loading={merge.isPending} onClick={() => merge.mutate({ alias_id: d.canonical_id === d.a.id ? d.b.id : d.a.id, canonical_id: d.canonical_id })}>
                 Merge
               </Button>
               <Button size="sm" variant="ghost" color="app.link" loading={dismiss.isPending} onClick={() => dismiss.mutate({ a_id: d.a.id, b_id: d.b.id })}>

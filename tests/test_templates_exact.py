@@ -31,7 +31,7 @@ def test_a_position_heading_shows_its_period_or_none() -> None:
         PositionView("E", ""),
     )
     headings = [e.heading.text for e in doc.sections[0].entries]
-    assert headings == ["A, Org (2020 - 2021)", "B, Org (2020 - Present)", "C, Org (2019)", "D (2018)", "E"]
+    assert headings == ["A, Org (2020 – 2021)", "B, Org (2020 – Present)", "C, Org (2019)", "D (2018)", "E"]
 
 
 def test_education_lines_and_intro_lines_carry_their_sources() -> None:

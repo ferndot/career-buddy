@@ -66,9 +66,9 @@ def test_an_edit_survives_restart_and_reimport(client, tmp_path: Path) -> None:
 
 def test_attributes_are_replaced_in_full(client) -> None:
     senior = position(client, "Senior Engineer")
-    res = client.patch(f"/api/facts/{senior['id']}", json={"attributes": {"period": "2001 - 2002"}})
-    assert res.json()["attributes"] == {"period": "2001 - 2002"}
-    assert "### Senior Engineer, Acme Corp (2001 - 2002)" in resume(client)
+    res = client.patch(f"/api/facts/{senior['id']}", json={"attributes": {"started": "2001", "finished": "2002"}})
+    assert res.json()["attributes"] == {"started": "2001", "finished": "2002"}
+    assert "### Senior Engineer, Acme Corp (2001 – 2002)" in resume(client)
 
 
 def test_hide_removes_a_bullet_and_unhide_restores_it(client) -> None:
@@ -91,13 +91,13 @@ def test_unknown_fact_and_empty_title_are_rejected(client) -> None:
 def test_manual_add_builds_position_bullet_and_skill(client, tmp_path: Path) -> None:
     person = client.get("/api/profile").json()["id"]
     res = client.post("/api/facts", json={"kind": "Position", "title": "Consultant", "parent_id": person,
-                                          "attributes": {"organization": "Initech", "period": "2024 - 2025"}})
+                                          "attributes": {"organization": "Initech", "started": "2024", "finished": "2025"}})
     assert res.status_code == 201
     consultant = res.json()["id"]
     client.post("/api/facts", json={"kind": "Achievement", "title": "Saved the day", "parent_id": consultant})
     client.post("/api/facts", json={"kind": "Skill", "title": "Rust", "parent_id": person})
     md = resume(client)
-    assert "### Consultant, Initech (2024 - 2025)\n- Saved the day" in md and "Rust" in md
+    assert "### Consultant, Initech (2024 – 2025)\n- Saved the day" in md and "Rust" in md
     manual = [f for f in client.get("/api/facts", params={"kind": "Position"}).json() if f["id"] == consultant]
     assert manual[0]["source"] == "manual" and "organization" not in manual[0]["attributes"]
     with TestClient(create_app(tmp_path)) as restarted:
@@ -118,11 +118,15 @@ def test_manual_add_validation(client, body, status) -> None:
     assert client.post("/api/facts", json=body).status_code == status
 
 
+def suggestions(client: TestClient) -> list[dict]:
+    return client.get("/api/duplicates").json()
+
+
 def test_acme_and_acme_corp_are_merged_on_import_and_the_merge_can_be_undone(client, tmp_path: Path) -> None:
     alias = fact_id(FactKind.ORGANIZATION, "Acme")
     import_resume_file(client)
-    assert "### Platform Lead, Acme Corp (2020 - 2021)" in resume(client)  # merged as it was imported
-    assert "Acme" not in orgs(client) and client.get("/api/duplicates").json() == []
+    assert "### Platform Lead, Acme Corp (" in resume(client)  # merged as it was imported
+    assert "Acme" not in orgs(client) and suggestions(client) == []
 
     import_resume_file(client)  # a re-import does not resurrect the alias
     with TestClient(create_app(tmp_path)) as restarted:
@@ -130,15 +134,28 @@ def test_acme_and_acme_corp_are_merged_on_import_and_the_merge_can_be_undone(cli
 
     merge = {"alias_id": alias, "canonical_id": orgs(client)["Acme Corp"], "undo": True}
     assert client.post("/api/merges", json=merge).status_code == 200
-    md = resume(client)
-    assert "### Platform Lead, Acme (2020 - 2021)" in md and "### Senior Engineer, Acme Corp" in md
-    assert len(client.get("/api/duplicates").json()) == 1  # undone, so it is proposed again
+    assert "### Platform Lead, Acme (" in resume(client) and "### Senior Engineer, Acme Corp" in resume(client)
+    assert len(suggestions(client)) == 1  # undone, so it is proposed again
+    import_resume_file(client)  # and the import does not merge it again behind the user's back
+    assert "Acme" in orgs(client)
+
+
+def test_a_touched_fact_is_never_merged_automatically_and_a_dismissed_suggestion_stays_dismissed(client) -> None:
+    ids = orgs(client)
+    client.patch(f"/api/facts/{ids['Acme Corp']}", json={"title": "Acme Corp"})  # the user's own: no import merges it away
+    import_resume_file(client)
+    assert "Acme" in orgs(client)
+    (org,) = [s for s in suggestions(client) if s["kind"] == "Organization"]
+    assert org["canonical_id"] == ids["Acme Corp"]
+    assert client.post("/api/duplicates/dismiss", json={"a_id": org["a"]["id"], "b_id": org["b"]["id"]}).status_code == 200
+    import_resume_file(client)
+    assert [s for s in suggestions(client) if s["kind"] == "Organization"] == []
 
 
 def test_duplicate_positions_are_merged_on_import_with_their_employer(client) -> None:
     client.post("/api/import/text", json={"text": "Jane Doe\n\nExperience\nSenior Engineer at Acme, 2020 - 2021\n"})
     assert "Acme" not in orgs(client)
-    assert client.get("/api/duplicates").json() == []
+    assert suggestions(client) == []
 
 
 def test_merge_validation(client) -> None:

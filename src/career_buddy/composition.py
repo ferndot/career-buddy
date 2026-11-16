@@ -15,11 +15,12 @@ from career_buddy.adapters.inference.heuristic import HeuristicExtractor
 from career_buddy.adapters.inference.connections import LLMConnections
 from career_buddy.adapters.jobs.memory_jobs import InMemoryJobStore
 from career_buddy.adapters.outputs.render_docx import DocxRenderer
-from career_buddy.adapters.outputs.render_html import HtmlRenderer
+from career_buddy.adapters.outputs.render_html import HtmlRenderer, document_css, stored_html
 from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
 from career_buddy.adapters.outputs.render_pdf import PdfRenderer
 from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.adapters.readers.docx_text import DocxTextReader
+from career_buddy.adapters.readers.html_document import read_document
 from career_buddy.adapters.readers.markup_text import HtmlTextReader, PlainTextReader
 from career_buddy.adapters.readers.pdf_text import PdfTextReader
 from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
@@ -29,7 +30,7 @@ from career_buddy.application.documents import DocumentService
 from career_buddy.application.jobs import SourceJobs
 from career_buddy.application.ports import DocumentRenderer, ObjectStore
 from career_buddy.application.projector import Projector
-from career_buddy.application.saved_documents import SavedDocuments
+from career_buddy.application.saved_documents import HtmlCodec, SavedDocuments
 from career_buddy.application.services import CareerQueries, EditService, ImportService
 
 
@@ -93,4 +94,4 @@ async def build_app(
     }
     documents = DocumentService(projector, renderers, readers, rewriter, merged=projector)
     return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
-               SavedDocuments(store, documents), llm)
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_document)), llm)

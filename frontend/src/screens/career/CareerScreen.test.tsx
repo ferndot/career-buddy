@@ -7,7 +7,7 @@ import { CareerScreen } from './CareerScreen'
 const f = (id: string, kind: string, title: string, attributes = {}) => ({ id, kind, title, attributes, source: 's' })
 const facts = [
   f('p', 'Person', 'Jane Doe'),
-  f('pos', 'Position', 'Senior Engineer', { period: 'Mar 2019 - Present' }),
+  f('pos', 'Position', 'Senior Engineer', { started: '2019-03', finished: 'present' }),
   f('org', 'Organization', 'Acme'),
   f('a1', 'Achievement', 'Cut build times by 60%'),
   f('a2', 'Achievement', 'Ran design reviews', { hidden: 'true' }),
@@ -21,7 +21,7 @@ const edges = [
 const routes: Record<string, unknown> = {
   '/api/facts': facts,
   '/api/graph': { nodes: [], edges },
-  '/api/duplicates': [{ kind: 'Organization', a: { id: 'o1', title: 'Acme' }, b: { id: 'o2', title: 'Acme Corp' }, score: 0.9 }],
+  '/api/duplicates': [{ kind: 'Organization', a: { id: 'o1', title: 'Acme' }, b: { id: 'o2', title: 'Acme Corp' }, score: 0.9, canonical_id: 'o2' }],
 }
 
 afterEach(() => {
@@ -34,8 +34,8 @@ it('opens on the explorer with bullet visibility toggles, the duplicates banner 
   renderApp(<CareerScreen />)
   expect((await screen.findAllByText('Senior Engineer')).length).toBeGreaterThanOrEqual(1) // list item and card
   expect(screen.getByRole('tab', { name: 'Positions (1)' })).toBeInTheDocument()
-  expect(screen.getByText('Acme, Mar 2019 - Present')).toBeInTheDocument() // the card
-  expect(screen.getByText('Acme · Mar 2019 - Present')).toBeInTheDocument() // the list row names the employer
+  expect(screen.getByText('Acme, Mar 2019 – Present')).toBeInTheDocument() // the card
+  expect(screen.getByText('Acme · Mar 2019 – Present')).toBeInTheDocument() // the list row names the employer
   expect(screen.getByRole('button', { name: 'Hide: Cut build times by 60%' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Show: Ran design reviews' })).toBeInTheDocument()
   expect(await screen.findByText('1 possible duplicate')).toBeInTheDocument()
@@ -70,7 +70,7 @@ it('edits an item title and keeps its other attributes', async () => {
   const call = fetchMock.mock.calls.find(([u]) => String(u).includes('/api/facts/pos'))
   const body = JSON.parse(String(call?.[1]?.body))
   expect(body.title).toBe('Staff Engineer')
-  expect(body.attributes.period).toBe('Mar 2019 - Present')
+  expect(body.attributes).toMatchObject({ started: '2019-03', finished: 'present' })
 })
 
 it('unlinks the organization of a position', async () => {
@@ -204,11 +204,78 @@ it('links and unlinks skills on an achievement', async () => {
 it('names the employer on each position in the merge dropdown', async () => {
   const r: Record<string, unknown> = {
     ...routes,
-    '/api/facts': [...facts, f('pos2', 'Position', 'Tech Lead', { period: '2015 - 2018' }), f('org2', 'Organization', 'Beta')],
+    '/api/facts': [...facts, f('pos2', 'Position', 'Tech Lead', { started: '2015', finished: '2018' }), f('org2', 'Organization', 'Beta')],
     '/api/graph': { nodes: [], edges: [...edges, { source: 'p', target: 'pos2', kind: 'HAS_POSITION' }, { source: 'pos2', target: 'org2', kind: 'AT' }] },
   }
   vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(r[url]), { status: 200 }))
   renderApp(<CareerScreen />)
   fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
   expect(screen.getByRole('option', { name: 'Tech Lead - Beta' })).toBeInTheDocument()
+})
+
+it('merges a suggested duplicate into the fact the server says to keep', async () => {
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => new Response(JSON.stringify(routes[url] ?? {}), { status: 200 }))
+  vi.stubGlobal('fetch', fetchMock)
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Merge' }))
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/merges', expect.objectContaining({ method: 'POST' })))
+  const call = fetchMock.mock.calls.find(([u]) => u === '/api/merges')
+  expect(JSON.parse(String(call?.[1]?.body))).toEqual({ alias_id: 'o1', canonical_id: 'o2' })
+})
+
+const patchBody = (fetchMock: ReturnType<typeof vi.fn>) =>
+  JSON.parse(String(fetchMock.mock.calls.find(([u, i]) => String(u).includes('/api/facts/pos') && i?.method === 'PATCH')?.[1]?.body))
+const okFetch = (r: Record<string, unknown> = routes) =>
+  vi.fn(async (url: string, init?: RequestInit) =>
+    init?.method === 'POST' ? new Response('{"id":"n"}', { status: 201 }) : new Response(JSON.stringify(r[url] ?? {}), { status: 200 }))
+
+it('edits the dates of a position in one field per bound, at whatever precision is typed', async () => {
+  const fetchMock = okFetch()
+  vi.stubGlobal('fetch', fetchMock)
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
+  expect(screen.queryByLabelText('Dates')).not.toBeInTheDocument() // no free-text field
+  expect(screen.queryByRole('combobox', { name: /precision/ })).not.toBeInTheDocument() // and no Year/Month/Day selector
+  expect(screen.getByLabelText('Start')).toHaveValue('2019-03')
+  expect(screen.getByLabelText('End')).toBeDisabled() // the end is Present
+  expect(screen.getByLabelText('End: present')).toBeChecked()
+  fireEvent.click(screen.getByLabelText('End: present'))
+  fireEvent.change(screen.getByLabelText('End'), { target: { value: '2021-04-09' } })
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ started: '2019', finished: '2021-04-09' }))
+})
+
+it('flags a date that is not one, keeps text that is not a date, and sends Present for an open end', async () => {
+  const r = { ...routes, '/api/facts': facts.map((x) => (x.id === 'pos' ? { ...x, attributes: { period: 'Spring 2019' } } : x)) }
+  const fetchMock = okFetch(r)
+  vi.stubGlobal('fetch', fetchMock)
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
+  expect(screen.getByLabelText('Dates as written')).toHaveValue('Spring 2019')
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-13' } })
+  expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'true')
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-02-30' } })
+  expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'true')
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-02' } })
+  expect(screen.getByLabelText('Start')).toHaveAttribute('aria-invalid', 'false')
+  fireEvent.click(screen.getByLabelText('End: present'))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(patchBody(fetchMock).attributes).toMatchObject({ period: 'Spring 2019', started: '2019-02', finished: 'present' }))
+})
+
+it('adds a position with start and end dates', async () => {
+  const fetchMock = okFetch()
+  vi.stubGlobal('fetch', fetchMock)
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add position' }))
+  fireEvent.change(await screen.findByLabelText('Job title'), { target: { value: 'Tech Lead' } })
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2021' } })
+  fireEvent.click(screen.getByLabelText('End: present'))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add position' }).at(-1)!)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/facts', expect.objectContaining({ method: 'POST' })))
+  const body = JSON.parse(String(fetchMock.mock.calls.find(([, i]) => i?.method === 'POST')?.[1]?.body))
+  expect(body).toMatchObject({ kind: 'Position', title: 'Tech Lead', attributes: { started: '2021', finished: 'present' } })
+  expect(body.attributes.period).toBeUndefined()
 })

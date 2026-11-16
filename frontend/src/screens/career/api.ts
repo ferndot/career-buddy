@@ -4,7 +4,7 @@ import { apiFetch, endpoints } from '../../api'
 export type Fact = { id: string; kind: string; title: string; attributes: Record<string, string>; source: string }
 export type Edge = { source: string; target: string; kind: string }
 export type Graph = { nodes: unknown[]; edges: Edge[] }
-export type Duplicate = { kind: string; a: { id: string; title: string }; b: { id: string; title: string }; score: number }
+export type Duplicate = { kind: string; a: { id: string; title: string }; b: { id: string; title: string }; score: number; canonical_id: string }
 
 export const factsKey = ['facts'] as const
 const graphKey = ['graph'] as const

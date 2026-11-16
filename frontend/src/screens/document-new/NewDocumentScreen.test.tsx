@@ -87,7 +87,7 @@ test('saves the selection through the saved-documents API', async () => {
     const u = String(url)
     if (u.endsWith('/api/saved-documents') && init?.method === 'POST') {
       saved = JSON.parse(String(init.body))
-      return new Response(JSON.stringify({ id: 'd1', label: 'x', template: 'resume-classic', format: 'docx', filename: 'a.docx', created_at: '2026-11-14T10:00:00Z', ats_issues: [] }), { status: 201 })
+      return new Response(JSON.stringify({ id: 'd1', label: 'x', template: 'resume-classic', format: 'docx', filename: 'a', created_at: '2026-11-14T10:00:00Z', ats_issues: [], version: 2 }), { status: 201 })
     }
     const body = u.includes('templates') ? [template] : u.includes('profile') ? profile : u.includes('preview') ? preview : []
     return new Response(JSON.stringify(body))
@@ -105,10 +105,28 @@ test('saves the selection through the saved-documents API', async () => {
   await waitFor(() => expect(screen.getByRole('button', { name: /^Next/ })).toBeEnabled())
   next()
   await screen.findByText('Ada')
+  expect(screen.queryByText('Format to save')).not.toBeInTheDocument() // the format is chosen when downloading
   fireEvent.click(screen.getByRole('button', { name: 'Done' }))
   await waitFor(() => expect(saved).toBeDefined())
   expect(saved).toMatchObject({
-    template: 'resume-classic', format: 'docx', label: 'Engineer · Acme',
+    template: 'resume-classic', label: 'Engineer · Acme',
     skill_ids: ['s1'], education_ids: ['e1'], selection: ['b1'], overrides: {},
   })
+  expect(saved).not.toHaveProperty('format')
+})
+
+test('first step shows a decorative mascot that stops moving under reduced motion', () => {
+  const { container, unmount } = renderApp(<NewDocumentScreen />)
+  const mascot = container.querySelector('svg[data-mascot]')
+  expect(mascot).toHaveAttribute('aria-hidden', 'true')
+  expect(mascot).toHaveClass('cb-anim')
+  unmount()
+  const real = window.matchMedia
+  window.matchMedia = (q: string) => ({ ...real(q), matches: q.includes('reduce') }) as MediaQueryList
+  try {
+    const { container: still } = renderApp(<NewDocumentScreen />)
+    expect(still.querySelector('svg[data-mascot]')).not.toHaveClass('cb-anim')
+  } finally {
+    window.matchMedia = real
+  }
 })

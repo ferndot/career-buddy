@@ -16,7 +16,7 @@ def org(name: str) -> Fact:
 def test_a_position_with_an_organization_adds_both_and_links_them() -> None:
     batch = manual_fact(FactKind.POSITION, "  Engineer ", PERSON, {"organization": " Acme ", "period": " 2020 ", "x": " "})
     position = Fact(fact_id(FactKind.POSITION, "Engineer", "Acme"), FactKind.POSITION, "Engineer",
-                    {"period": "2020"}, "manual")
+                    {"started": "2020", "finished": "2020"}, "manual")
     assert batch == FactBatch(
         (position, org("Acme")),
         (Link("person-1", position.id, LinkKind.HAS_POSITION), Link(position.id, org("Acme").id, LinkKind.AT)),

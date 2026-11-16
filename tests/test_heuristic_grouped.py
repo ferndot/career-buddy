@@ -25,9 +25,9 @@ def assert_grouped_resume_facts(batch: FactBatch) -> None:
     org, other = "Northwind Labs / Contoso Works", "Fabrikam Systems"
     positions = {f.title: f.attributes for f in of(batch, "Position")}
     assert positions == {
-        "Principal Software Engineer / Product Engineer": {"period": "Mar 2019 – Present"},
-        "Staff Engineer": {"period": "Mar 2019 – Present"},
-        "Software Engineer": {"period": "Jun 2014 – Feb 2019"},
+        "Principal Software Engineer / Product Engineer": {"started": "2019-03", "finished": "present"},
+        "Staff Engineer": {"started": "2019-03", "finished": "present"},
+        "Software Engineer": {"started": "2014-06", "finished": "2019-02"},
     }
     assert {f.title for f in of(batch, "Organization")} >= {org, other}
     assert [f.title for f in of(batch, "Achievement")] == [
@@ -35,8 +35,8 @@ def assert_grouped_resume_facts(batch: FactBatch) -> None:
     ]
 
     assert [(f.title, f.attributes) for f in of(batch, "Education")] == [
-        ("BSc Computer Science", {"school": "Lakeside University", "period": "2014 – 2017"}),
-        ("MSc Data Engineering", {"school": "Harbor College", "period": "2017 – 2019"}),
+        ("BSc Computer Science", {"school": "Lakeside University", "started": "2014", "finished": "2017"}),
+        ("MSc Data Engineering", {"school": "Harbor College", "started": "2017", "finished": "2019"}),
     ]
     assert [f.title for f in of(batch, "Skill")] == [
         "Python", "Go", "SQL", "AWS", "Postgres", "Kafka", "Distributed systems", "API design", "FastAPI", "Pydantic",

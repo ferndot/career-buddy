@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from career_buddy.domain.dates import checked
 from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact, Link, LinkKind, fact_id
 
 PARENT_LINKS = {
@@ -18,7 +19,7 @@ def manual_fact(kind: FactKind, title: str, parent: Fact | None, attributes: dic
     link_kind = PARENT_LINKS.get((kind, parent.kind)) if parent else None
     if not title or link_kind is None:
         raise InvalidFact("A title and a valid parent are required" if parent else f"A {kind} needs a parent")
-    attrs = {k: v.strip() for k, v in attributes.items() if v.strip()}
+    attrs = checked({k: v.strip() for k, v in attributes.items() if v.strip()})
     employer = ""
     if kind in (FactKind.POSITION, FactKind.EDUCATION):
         employer = attrs.pop("organization", "") if kind == FactKind.POSITION else attrs.get("school", "")

@@ -80,7 +80,7 @@ def test_text_import_and_restart_replays_log(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path)) as client:
         md = client.get("/api/resume/markdown").text
         assert md.startswith("# Ada Lovelace")
-        assert "### Analyst, Analytical Society (2010 - 2015)" in md
+        assert "### Analyst, Analytical Society (2010 – 2015)" in md
         assert "- Wrote the first published algorithm" in md
         assert "## Skills\nMathematics, Python" in md
         assert "Trinity College, Trinity College" not in md

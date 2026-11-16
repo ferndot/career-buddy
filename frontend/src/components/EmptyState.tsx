@@ -1,9 +1,10 @@
 import { Box, Text } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
+import { RobotMascot } from '../brand'
 
-type Props = { title: string; description?: string; children?: ReactNode }
+type Props = { title: string; description?: string; mascot?: boolean; children?: ReactNode }
 
-export function EmptyState({ title, description, children }: Props) {
+export function EmptyState({ title, description, mascot, children }: Props) {
   return (
     <Box
       textAlign="center"
@@ -15,6 +16,11 @@ export function EmptyState({ title, description, children }: Props) {
       borderColor="app.dash"
       borderRadius="lg"
     >
+      {mascot && (
+        <Box display="flex" justifyContent="center" mb="2">
+          <RobotMascot size={72} />
+        </Box>
+      )}
       <Text fontWeight="semibold" color="app.text">
         {title}
       </Text>

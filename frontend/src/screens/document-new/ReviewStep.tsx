@@ -4,16 +4,16 @@ import { useState } from 'react'
 import { LuDownload } from 'react-icons/lu'
 import { downloadDocument, getPreview, type Template } from '../documents/api'
 import { AtsTag } from '../documents/DocumentsTable'
-import { buildBody, pickFormat, type Wizard } from './state'
+import { buildBody, type Wizard } from './state'
 
-type Props = { w: Wizard; template: Template; set: (patch: Partial<Wizard>) => void }
+type Props = { w: Wizard; template: Template }
 
-export function ReviewStep({ w, template, set }: Props) {
+export function ReviewStep({ w, template }: Props) {
   const [error, setError] = useState('')
   const body = buildBody(w)
   const preview = useQuery({
-    queryKey: ['document-preview', body, w.format],
-    queryFn: () => getPreview(body, pickFormat(w, template)),
+    queryKey: ['document-preview', body],
+    queryFn: () => getPreview(body),
   })
   const formats = (['docx', 'pdf'] as const).filter((f) => template.formats.includes(f))
   const get = (fmt: string) =>
@@ -51,14 +51,6 @@ export function ReviewStep({ w, template, set }: Props) {
             )}
           </>
         )}
-        <Text fontWeight="semibold" fontSize="sm" mt="2">Format to save</Text>
-        <Box display="flex" gap="2" flexWrap="wrap" role="group" aria-label="Format to save">
-          {template.formats.map((f) => (
-            <Button key={f} size="sm" borderRadius="full" variant={pickFormat(w, template) === f ? 'solid' : 'outline'} bg={pickFormat(w, template) === f ? 'app.activeBg' : 'app.surface'} color={pickFormat(w, template) === f ? 'app.activeText' : 'app.text'} borderColor="app.borderStrong" aria-pressed={pickFormat(w, template) === f} onClick={() => set({ format: f })}>
-              {f.toUpperCase()}
-            </Button>
-          ))}
-        </Box>
         <Text fontSize="13px" color="app.text3">Press Done to save it to your documents.</Text>
         <Text fontWeight="semibold" fontSize="sm" mt="2">Download now</Text>
         <Box display="flex" gap="2" flexWrap="wrap">
