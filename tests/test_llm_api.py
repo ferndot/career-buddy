@@ -140,7 +140,7 @@ def test_the_active_connection_is_the_one_the_app_uses_and_anthropic_gets_native
     monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
 
     def reply(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"content": [{"type": "text", "text": "Cut build times by 60 percent"}]}) if request.method == "POST" else httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps({"text": "Cut build times by 60 percent"})}]}) if request.method == "POST" else httpx.Response(200, json={"data": []})
 
     with Server(tmp_path, reply) as server:
         server.client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})

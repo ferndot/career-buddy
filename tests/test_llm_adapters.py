@@ -6,11 +6,11 @@ import json
 import httpx
 import pytest
 
-from career_graph.adapters.inference.anthropic import ANTHROPIC_URL, AnthropicExtractor, AnthropicRewriter, anthropic_client
 from career_graph.adapters.inference.openai_compatible import openai_client
-from career_graph.adapters.inference.openai_rewriter import OpenAICompatibleRewriter
 from career_graph.adapters.inference.probe import probe_anthropic, probe_openai
 from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
+from career_graph.adapters.inference.rewriter import ProviderRewriter
+from career_graph.adapters.inference.structured_anthropic import ANTHROPIC_URL, StructuredAnthropicProvider, anthropic_client
 from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
 from career_graph.application.ports import LLMUnavailable
 
@@ -53,8 +53,8 @@ def anthropic_reply(text: str) -> httpx.Response:
 
 
 def test_anthropic_extractor_posts_to_messages_with_native_headers_and_no_temperature() -> None:
-    seen, transport = seen_by(lambda r: anthropic_reply("```json\n" + json.dumps(CAREER_JSON) + "\n```"))
-    extractor = AnthropicExtractor(anthropic_client(FAKE_KEY, transport), "claude-test")
+    seen, transport = seen_by(lambda r: anthropic_reply("```json\n" + json.dumps(EXTRACTED) + "\n```"))
+    extractor = RedstringExtractor(StructuredAnthropicProvider(anthropic_client(FAKE_KEY, transport), "claude-test"))
     batch = run(extractor.extract("my resume", "pasted"))
     (request,) = seen
     assert str(request.url) == ANTHROPIC_URL + "/messages"
@@ -64,19 +64,19 @@ def test_anthropic_extractor_posts_to_messages_with_native_headers_and_no_temper
     body = json.loads(request.content)
     assert "temperature" not in body
     assert body["model"] == "claude-test" and body["max_tokens"] > 0
-    assert body["messages"] == [{"role": "user", "content": "my resume"}] and "Extract a career history" in body["system"]
+    assert body["messages"] == [{"role": "user", "content": "my resume"}] and "JSON Schema" in body["system"]
     assert {f.title for f in batch.facts if f.kind == "Person"} == {"Ada Lovelace"}
 
 
 def test_anthropic_rewriter_returns_the_text_block_and_maps_errors_without_the_body() -> None:
-    seen, transport = seen_by(lambda r: anthropic_reply("  Authored the first algorithm \n"))
-    rewriter = AnthropicRewriter(anthropic_client(FAKE_KEY, transport), "claude-test")
+    seen, transport = seen_by(lambda r: anthropic_reply(json.dumps({"text": "  Authored the first algorithm "})))
+    rewriter = ProviderRewriter(StructuredAnthropicProvider(anthropic_client(FAKE_KEY, transport), "claude-test"))
     assert run(rewriter.rewrite("Wrote the first algorithm", ["Python"])) == "Authored the first algorithm"
     assert "Python" in json.loads(seen[0].content)["system"]
 
     _, failing = seen_by(lambda r: httpx.Response(401, json={"error": {"message": f"bad key {FAKE_KEY}"}}))
     with pytest.raises(LLMUnavailable) as raised:
-        run(AnthropicRewriter(anthropic_client(FAKE_KEY, failing), "claude-test").rewrite("x", []))
+        run(ProviderRewriter(StructuredAnthropicProvider(anthropic_client(FAKE_KEY, failing), "claude-test")).rewrite("x", []))
     assert "401" in str(raised.value) and FAKE_KEY not in str(raised.value) and "bad key" not in str(raised.value)
 
 
@@ -108,9 +108,9 @@ def test_openai_extractor_posts_to_chat_completions_with_bearer_and_maps_errors(
 
 
 def test_openai_rewriter_uses_the_client_base_url_and_omits_auth_without_a_key() -> None:
-    seen, transport = seen_by(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": " Reworded "}}]}))
+    seen, transport = seen_by(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": '{"text": " Reworded "}'}}]}))
     client = openai_client("http://localhost:9931/v1", "", transport)
-    assert run(OpenAICompatibleRewriter(client, "m").rewrite("Original", [])) == "Reworded"
+    assert run(ProviderRewriter(StructuredOpenAIProvider(client, "m")).rewrite("Original", [])) == "Reworded"
     assert str(seen[0].url) == "http://localhost:9931/v1/chat/completions" and "authorization" not in seen[0].headers
 
 

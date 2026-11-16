@@ -13,12 +13,12 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from career_graph.adapters.inference.anthropic import AnthropicExtractor, AnthropicRewriter, anthropic_client
 from career_graph.adapters.inference.openai_compatible import openai_client
-from career_graph.adapters.inference.openai_rewriter import OpenAICompatibleRewriter
 from career_graph.adapters.inference.presets import BY_ID, PRESETS, Preset
 from career_graph.adapters.inference.probe import probe_anthropic, probe_openai
 from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
+from career_graph.adapters.inference.rewriter import ProviderRewriter
+from career_graph.adapters.inference.structured_anthropic import StructuredAnthropicProvider, anthropic_client
 from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
 from career_graph.adapters.storage.key_store import KeyStore
 
@@ -213,15 +213,16 @@ class LLMConnections:
         return openai_client(conn.base_url, key or "", self._transport)
 
     def inference(self) -> tuple[Any, Any] | None:
-        """(extractor, rewriter) for the active connection, or None so the caller uses the offline heuristic."""
+        """(extractor, rewriter) for the active connection, or None so the caller uses the offline heuristic.
+        Both go through one LlmProvider, whichever API the connection speaks."""
         conn = next((c for c in self._all() if c.id == self.active_id()), None)
         if not conn:
             return None
         key = self._key(conn)
         client = self._client(conn, key)
-        if conn.preset == "anthropic":
-            return AnthropicExtractor(client, conn.model), AnthropicRewriter(client, conn.model)
-        return RedstringExtractor(StructuredOpenAIProvider(client, conn.model)), OpenAICompatibleRewriter(client, conn.model)
+        provider = (StructuredAnthropicProvider(client, conn.model) if conn.preset == "anthropic"
+                    else StructuredOpenAIProvider(client, conn.model))
+        return RedstringExtractor(provider), ProviderRewriter(provider)
 
     async def test(self, conn_id: str | None, draft: dict[str, Any]) -> dict[str, Any]:
         """Ask the server for its model list. No resume text is sent and nothing is billed."""

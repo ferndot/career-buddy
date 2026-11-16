@@ -1,85 +1,83 @@
 import { Box } from '@chakra-ui/react'
-import { Background, Controls, ReactFlow, type Edge as FlowEdge, type Node } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-import { useMemo } from 'react'
 import { useTheme } from 'next-themes'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d'
 import type { Edge, Fact } from './api'
-import { layoutGraph, NODE_H, NODE_W } from './graphLayout'
+import { graphView, type GraphNode } from './graphLayout'
 import { palette } from '../../theme/tokens'
 
 type Pair = readonly [string, string]
-const TONES: Record<string, { fill: Pair; stroke: Pair; text: Pair }> = {
-  Person: { fill: palette.primary, stroke: palette.primary, text: palette.surface },
-  Position: { fill: palette.nodeFill, stroke: palette.nodeStroke, text: palette.nodeText },
-  Education: { fill: palette.okBg, stroke: palette.done, text: palette.okText },
-  Organization: { fill: palette.surface, stroke: palette.muted, text: palette.nodeText },
-  Skill: { fill: palette.missBg, stroke: palette.missText, text: palette.missText },
+/** Node colours per kind, as [light, dark] pairs from the theme palette. */
+const KIND_COLOR: Record<string, { fill: Pair; ring: Pair }> = {
+  Person: { fill: palette.primary, ring: palette.primary },
+  Position: { fill: palette.nodeFill, ring: palette.nodeStroke },
+  Education: { fill: palette.okBg, ring: palette.done },
+  Organization: { fill: palette.surface, ring: palette.muted },
+  Skill: { fill: palette.missBg, ring: palette.missText },
 }
-const EDGE_COLOR: Pair = palette.muted
+const TEXT: Pair = palette.text
+const LINK: Pair = palette.muted
+const RADIUS = 9
+const FIT_MS = 400
+const FIT_PADDING = 48
 
-/** The stored career graph: visible facts and links, laid out left to right. Achievements show as a count on their position. */
-export function CareerGraph({ facts, edges }: { facts: Fact[]; edges: Edge[] }) {
+/** The stored career graph as a force-directed drawing: visible facts and links. Achievements show as a count on their position. */
+export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: Fact[]; edges: Edge[] }) {
   const { resolvedTheme } = useTheme()
   const mode = resolvedTheme === 'dark' ? 1 : 0
-  const layout = useMemo(() => layoutGraph(facts, edges), [facts, edges])
+  const view = useMemo(() => graphView(facts, edges), [facts, edges])
+  // Memoised on the view: the simulation reheats whenever this object changes identity, and typing elsewhere must not shake the graph.
+  const data = useMemo(() => ({ nodes: view.nodes.map((n) => ({ ...n })), links: view.links.map((l) => ({ ...l })) }), [view])
 
-  const nodes: Node[] = layout.nodes.map((n) => {
-    const tone = TONES[n.kind]
-    const badge = layout.badges[n.id]
-    return {
-      id: n.id,
-      position: { x: n.x, y: n.y },
-      data: {
-        label: (
-          <div style={{ lineHeight: 1.25 }}>
-            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.title}>
-              {n.title}
-            </div>
-            <div style={{ fontSize: 11, opacity: 0.85 }}>
-              {n.kind}
-              {badge ? ` · ${badge} ${badge === 1 ? 'achievement' : 'achievements'}` : ''}
-            </div>
-          </div>
-        ),
-      },
-      style: {
-        width: NODE_W,
-        height: NODE_H,
-        padding: '6px 10px',
-        borderRadius: 8,
-        border: `1.5px solid ${tone.stroke[mode]}`,
-        background: tone.fill[mode],
-        color: tone.text[mode],
-        fontSize: 12,
-      },
-      selectable: false,
-    }
-  })
-  const flowEdges: FlowEdge[] = layout.edges.map((e) => ({
-    id: `${e.kind}:${e.source}:${e.target}`,
-    source: e.source,
-    target: e.target,
-    style: { stroke: EDGE_COLOR[mode], strokeWidth: 1.5 },
-    selectable: false,
-  }))
+  const ref = useRef<HTMLDivElement>(null)
+  const graph = useRef<ForceGraphMethods>(undefined)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Measured, not the library default (the window size): this lives in one column of a grid.
+    const observer = new ResizeObserver(([entry]) => {
+      setSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
-  const summary = `Career graph: ${layout.nodes.length} facts and ${layout.edges.length} links`
   return (
-    <Box as="section" aria-label={summary} h="480px" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflow="hidden">
-      <ReactFlow
-        nodes={nodes}
-        edges={flowEdges}
-        fitView
-        fitViewOptions={{ padding: 0.12 }}
-        minZoom={0.2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+    <Box ref={ref} as="section" aria-label={`Career graph: ${view.nodes.length} facts and ${view.links.length} links`}
+      h="480px" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflow="hidden">
+      {size.width > 0 && (
+        <ForceGraph2D
+          ref={graph}
+          width={size.width}
+          height={size.height}
+          graphData={data}
+          nodeRelSize={RADIUS}
+          nodeLabel={(n) => `${(n as GraphNode).title} (${(n as GraphNode).kind})`}
+          linkColor={() => LINK[mode]}
+          linkWidth={1.5}
+          enableNodeDrag={false}
+          cooldownTicks={120}
+          onEngineStop={() => graph.current?.zoomToFit(FIT_MS, FIT_PADDING)}
+          nodeCanvasObject={(node, ctx, scale) => {
+            const n = node as GraphNode & { x: number; y: number }
+            const color = KIND_COLOR[n.kind] ?? KIND_COLOR.Organization
+            ctx.beginPath()
+            ctx.arc(n.x, n.y, RADIUS, 0, 2 * Math.PI)
+            ctx.fillStyle = color.fill[mode]
+            ctx.fill()
+            ctx.lineWidth = 1.5 / scale
+            ctx.strokeStyle = color.ring[mode]
+            ctx.stroke()
+            const size = 11 / scale
+            ctx.font = `${size}px Inter, sans-serif`
+            ctx.textAlign = 'center'
+            ctx.fillStyle = TEXT[mode]
+            const label = n.achievements ? `${n.title} · ${n.achievements}` : n.title
+            ctx.fillText(label.length > 26 ? `${label.slice(0, 25)}…` : label, n.x, n.y + RADIUS + size)
+          }}
+        />
+      )}
     </Box>
   )
-}
+})

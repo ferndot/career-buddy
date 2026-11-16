@@ -17,7 +17,7 @@ CUT, KUBE = "Cut build times by 60%", "Migrated 40 services to Kubernetes"
 
 
 def reply(text: str) -> httpx.Response:
-    return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
+    return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"text": text})}}]})
 
 
 def source_of(request: httpx.Request) -> str:
