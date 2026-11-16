@@ -23,11 +23,6 @@ export function CareerScreen() {
     <PageHeader
       title="Career"
       subtitle="Browse your facts and follow the links between them. Tick the bullets you want to keep; untick to hide them."
-      actions={
-        <Button asChild bg="app.primary" color="app.onPrimary">
-          <Link to="/documents/new">Continue to Generator</Link>
-        </Button>
-      }
     />
   )
 
