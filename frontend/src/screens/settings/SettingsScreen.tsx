@@ -5,10 +5,11 @@ import { EmptyState, PageHeader } from '../../components'
 import { AddConnectionDialog } from './AddConnectionDialog'
 import { AppearanceSettings } from './AppearanceSettings'
 import { ConnectionCard } from './ConnectionCard'
-import { useConnections, useProviders } from './llmApi'
+import { useConnections, useProviders, type Connection } from './llmApi'
 
 export function SettingsScreen() {
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Connection | undefined>()
   const connections = useConnections()
   const providers = useProviders()
   const labels = Object.fromEntries((providers.data ?? []).map((p) => [p.id, p.label]))
@@ -41,7 +42,8 @@ export function SettingsScreen() {
             </EmptyState>
           )}
           {items.map((c) => (
-            <ConnectionCard key={c.id} conn={c} active={c.id === connections.data?.active} providerLabel={labels[c.preset] ?? c.preset} />
+            <ConnectionCard key={c.id} conn={c} active={c.id === connections.data?.active} providerLabel={labels[c.preset] ?? c.preset}
+              onEdit={setEditing} />
           ))}
           {items.length > 0 && addButton}
         </Tabs.Content>
@@ -50,7 +52,8 @@ export function SettingsScreen() {
         </Tabs.Content>
       </Tabs.Root>
       {providers.data && (
-        <AddConnectionDialog open={adding} onClose={() => setAdding(false)} providers={providers.data} />
+        <AddConnectionDialog open={adding || !!editing} conn={editing} providers={providers.data}
+          onClose={() => { setAdding(false); setEditing(undefined) }} />
       )}
     </>
   )

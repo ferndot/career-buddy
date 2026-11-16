@@ -1,10 +1,10 @@
 import { Badge, Box, Button, Text } from '@chakra-ui/react'
-import { LuCheck, LuPlugZap, LuTrash2 } from 'react-icons/lu'
+import { LuCheck, LuPencil, LuPlugZap, LuTrash2 } from 'react-icons/lu'
 import { errorMessage, useDeleteConnection, useSetActive, useTestConnection, type Connection } from './llmApi'
 
-type Props = { conn: Connection; active: boolean; providerLabel: string }
+type Props = { conn: Connection; active: boolean; providerLabel: string; onEdit: (conn: Connection) => void }
 
-export function ConnectionCard({ conn, active, providerLabel }: Props) {
+export function ConnectionCard({ conn, active, providerLabel, onEdit }: Props) {
   const test = useTestConnection()
   const del = useDeleteConnection()
   const setActive = useSetActive()
@@ -36,6 +36,12 @@ export function ConnectionCard({ conn, active, providerLabel }: Props) {
           <Button size="sm" variant="outline" borderColor="app.borderStrong" color="app.text" loading={setActive.isPending}
             onClick={() => setActive.mutate(conn.id)}>
             Set active
+          </Button>
+        )}
+        {!conn.read_only && (
+          <Button size="sm" variant="outline" borderColor="app.borderStrong" color="app.text" onClick={() => onEdit(conn)}
+            aria-label={`Edit ${conn.label}`}>
+            <LuPencil /> Edit
           </Button>
         )}
         {!conn.read_only && (

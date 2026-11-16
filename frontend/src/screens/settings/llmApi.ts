@@ -25,7 +25,7 @@ export type Connection = {
 }
 
 export type Listing = { active: string | null; connections: Connection[] }
-export type TestResult = { ok: boolean; message: string }
+export type TestResult = { ok: boolean; message: string; models: string[] }
 export type NewConnection = {
   preset: string
   label?: string
@@ -33,6 +33,10 @@ export type NewConnection = {
   model: string
   api_key?: string
 }
+
+export type ConnectionEdit = Partial<Omit<NewConnection, 'preset'>>
+/** What to ask the server for its model list: a saved connection by id, or a draft (the key goes out, never back). */
+export type ModelRequest = { id: string } | { preset: string; base_url?: string; api_key?: string }
 
 const KEY = ['llm', 'connections'] as const
 
@@ -49,12 +53,18 @@ function useChange<V>(fn: (v: V) => Promise<unknown>) {
 
 export const useCreateConnection = () =>
   useChange((body: NewConnection) => apiFetch(endpoints.llm.connections(), { method: 'POST', body }))
+export const useUpdateConnection = () =>
+  useChange(({ id, ...body }: ConnectionEdit & { id: string }) =>
+    apiFetch(endpoints.llm.connection(id), { method: 'PATCH', body }))
 export const useDeleteConnection = () =>
   useChange((id: string) => apiFetch(endpoints.llm.connection(id), { method: 'DELETE' }))
 export const useSetActive = () =>
   useChange((id: string | null) => apiFetch(endpoints.llm.active(), { method: 'PUT', body: { id } }))
 export const useTestConnection = () =>
   useMutation({ mutationFn: (id: string) => apiFetch<TestResult>(endpoints.llm.test(), { method: 'POST', body: { id } }) })
+
+export const useModelList = () =>
+  useMutation({ mutationFn: (req: ModelRequest) => apiFetch<TestResult>(endpoints.llm.test(), { method: 'POST', body: req }) })
 
 /** Plain-words message from a FastAPI error body ({detail: string}), else a generic one. */
 export function errorMessage(err: unknown): string {

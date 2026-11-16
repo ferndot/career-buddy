@@ -116,6 +116,47 @@ def test_changing_the_url_clears_the_key_but_changing_the_model_keeps_it(server:
     assert again["key_hint"] == "fre...9999"
 
 
+def test_editing_with_a_blank_key_keeps_the_stored_key_and_a_new_key_replaces_it(server: Server) -> None:
+    conn_id = server.add()["id"]
+    blank = server.client.patch(f"/api/llm/connections/{conn_id}", json={"label": "Edited", "model": "m2", "api_key": ""}).json()
+    assert blank["key_hint"] == "sk-...a1f2" and blank["label"] == "Edited" and blank["model"] == "m2"
+    server.client.post("/api/llm/test", json={"id": conn_id})
+    assert server.seen[-1].headers["authorization"] == f"Bearer {FAKE_KEY}"
+    replaced = server.client.patch(f"/api/llm/connections/{conn_id}", json={"api_key": "fresh-key-0000-9999"}).json()
+    assert replaced["key_hint"] == "fre...9999"
+    server.client.post("/api/llm/test", json={"id": conn_id})
+    assert server.seen[-1].headers["authorization"] == "Bearer fresh-key-0000-9999"
+    assert "fresh-key-0000-9999" not in (server.data_dir / "llm-settings.json").read_text()
+
+
+def test_the_model_list_for_a_draft_comes_from_the_server_and_the_key_stays_out_of_the_answer(server: Server) -> None:
+    res = server.client.post("/api/llm/test", json={"preset": "custom", "base_url": "http://llm.test/v1", "api_key": FAKE_KEY})
+    assert res.status_code == 200 and res.json()["models"] == ["model-a", "model-b"]
+    assert FAKE_KEY not in res.text and server.seen[-1].headers["authorization"] == f"Bearer {FAKE_KEY}"
+    assert server.listing()["connections"] == []  # asking for models saves nothing
+
+
+def test_editing_the_active_connection_keeps_it_active(server: Server) -> None:
+    conn_id, other = server.add()["id"], server.add(label="Second")["id"]
+    server.client.put("/api/llm/active", json={"id": conn_id})
+    res = server.client.patch(f"/api/llm/connections/{conn_id}", json={"label": "Renamed", "base_url": "http://moved.test/v1"})
+    assert res.status_code == 200
+    listing = server.listing()
+    assert listing["active"] == conn_id and {c["id"] for c in listing["connections"]} == {conn_id, other}
+
+
+def test_invalid_edits_get_the_same_errors_as_adding(server: Server) -> None:
+    conn_id = server.add()["id"]
+    patch = lambda **f: server.client.patch(f"/api/llm/connections/{conn_id}", json=f)  # noqa: E731
+    assert patch(model="  ").status_code == 422
+    assert patch(base_url="ftp://llm.test/v1").status_code == 422
+    assert patch(base_url="http://user:pw@llm.test/v1").status_code == 422
+    assert patch(base_url="http://192.168.1.5/v1").status_code == 422
+    assert patch(preset="anthropic").status_code == 422
+    assert server.client.patch("/api/llm/connections/missing", json={"label": "x"}).status_code == 404
+    assert server.listing()["connections"][0]["base_url"] == "http://llm.test/v1"
+
+
 def test_delete_removes_the_connection_its_key_and_the_active_choice(server: Server) -> None:
     conn_id = server.add()["id"]
     assert server.client.put("/api/llm/active", json={"id": conn_id}).json() == {"active": conn_id}
