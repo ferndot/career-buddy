@@ -9,7 +9,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { EditFactDialog } from './EditFactDialog'
 import { EntryCard } from './EntryCard'
 import { AddLink, UnlinkButton, addRule, ruleFor, singleNoun } from './LinkControls'
-import { dates, isHidden } from './model'
+import { isHidden } from './model'
 import { type Explorer, type Kind, KIND_LABEL, KINDS, explore, groupPositions, groupSkills, subtitle } from './explore'
 import type { Bullet, Career, Entry } from './model'
 
@@ -63,7 +63,7 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
               )}
               {g.items.map((f) => {
                 const on = current?.id === f.id
-                const line = kind === 'Position' ? dates(f.attributes) : subtitle(f, ex)
+                const line = subtitle(f, ex)
                 return (
                   <Flex key={f.id} align="center" borderRadius="0 8px 8px 0" borderLeftWidth="2px"
                     borderLeftColor={on ? 'app.primary' : 'transparent'} bg={on ? 'app.surface' : undefined} _hover={{ bg: 'app.hover' }}>
@@ -87,7 +87,7 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
         {current ? <Detail fact={current} ex={ex} career={career} onOpen={open} /> : <Text color="app.muted">Pick an item.</Text>}
       </Box>
     </Grid>
-    <EditFactDialog key={editing?.id} fact={editing} candidates={editing ? ex.list(editing.kind as Kind).filter((c) => c.id !== editing.id) : []}
+    <EditFactDialog key={editing?.id} fact={editing} label={(c) => (c.kind === 'Position' ? withOrg(c, ex) : c.title)} candidates={editing ? ex.list(editing.kind as Kind).filter((c) => c.id !== editing.id) : []}
       onClose={() => setEditing(null)} />
     <AddPositionDialog open={adding === 'Position' || adding === 'Organization'} onClose={() => setAdding(null)} personId={career.personId} />
     <AddEducationDialog open={adding === 'Education'} onClose={() => setAdding(null)} personId={career.personId} />
@@ -96,6 +96,9 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
     </>
   )
 }
+
+/** "Title - Employer" for a position, so same-titled roles can be told apart. */
+const withOrg = (p: Fact, ex: Explorer) => [p.title, ex.neighbors(p.id).Organization?.[0]?.title].filter(Boolean).join(' - ')
 
 /** Organizations have no entry of their own: an employer is named on a position, so that tab adds a position. */
 const ADD_LABEL: Record<Kind, string> = {

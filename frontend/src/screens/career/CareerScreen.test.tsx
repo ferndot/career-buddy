@@ -34,7 +34,8 @@ it('opens on the explorer with bullet visibility toggles, the duplicates banner 
   renderApp(<CareerScreen />)
   expect((await screen.findAllByText('Senior Engineer')).length).toBeGreaterThanOrEqual(1) // list item and card
   expect(screen.getByRole('tab', { name: 'Positions (1)' })).toBeInTheDocument()
-  expect(screen.getByText('Acme, Mar 2019 - Present')).toBeInTheDocument()
+  expect(screen.getByText('Acme, Mar 2019 - Present')).toBeInTheDocument() // the card
+  expect(screen.getByText('Acme · Mar 2019 - Present')).toBeInTheDocument() // the list row names the employer
   expect(screen.getByRole('button', { name: 'Hide: Cut build times by 60%' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Show: Ran design reviews' })).toBeInTheDocument()
   expect(await screen.findByText('1 possible duplicate')).toBeInTheDocument()
@@ -198,4 +199,16 @@ it('links and unlinks skills on an achievement', async () => {
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' })))
   const call = fetchMock.mock.calls.find(([, i]) => i?.method === 'POST')
   expect(JSON.parse(String(call?.[1]?.body))).toEqual({ source_id: 'a1', target_id: 'sk2', kind: 'USES_SKILL' })
+})
+
+it('names the employer on each position in the merge dropdown', async () => {
+  const r: Record<string, unknown> = {
+    ...routes,
+    '/api/facts': [...facts, f('pos2', 'Position', 'Tech Lead', { period: '2015 - 2018' }), f('org2', 'Organization', 'Beta')],
+    '/api/graph': { nodes: [], edges: [...edges, { source: 'p', target: 'pos2', kind: 'HAS_POSITION' }, { source: 'pos2', target: 'org2', kind: 'AT' }] },
+  }
+  vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(r[url]), { status: 200 }))
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit: Senior Engineer' }))
+  expect(screen.getByRole('option', { name: 'Tech Lead - Beta' })).toBeInTheDocument()
 })

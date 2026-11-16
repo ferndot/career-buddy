@@ -61,7 +61,7 @@ export function subtitle(fact: Fact, ex: Explorer): string {
   const near = ex.neighbors(fact.id)
   const parts: string[] = []
   if (fact.kind === 'Position') {
-    parts.push(near.Organization?.[0]?.title ?? '', fact.attributes.period ?? '')
+    parts.push(near.Organization?.[0]?.title ?? '', dates(fact.attributes))
   } else if (fact.kind === 'Achievement') {
     parts.push(near.Position?.[0]?.title ?? '')
   } else if (fact.kind === 'Education') {
@@ -94,7 +94,7 @@ function span(fact: Fact): [number, number] {
 
 export type PositionGroup = { org: string; years: string; items: Fact[] }
 
-/** Positions grouped by employer: groups by latest role, roles newest first, org-less ones last as "Other". Pure. */
+/** Positions as one headerless group, newest first: end date (present is newest), then start date, then title. The employer shows on each row's subtitle. Pure. */
 export function groupPositions(positions: Fact[], ex: Explorer): PositionGroup[] {
   const byOrg = new Map<string, Fact[]>()
   for (const p of positions) {

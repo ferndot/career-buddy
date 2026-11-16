@@ -36,32 +36,32 @@ it('groups neighbors by kind from either edge direction, leaving out the person'
 
 it('writes a one-line subtitle per kind', () => {
   expect(subtitle(ex.byId.get('pos')!, ex)).toBe('Acme · 2019 - Present')
+  expect(subtitle(f('x', 'Position', 'X', { started: '2010', finished: '2012' }), ex)).toBe('2010 to 2012')
   expect(subtitle(ex.byId.get('a')!, ex)).toBe('Senior Engineer')
   expect(subtitle(ex.byId.get('org')!, ex)).toBe('1 linked')
   expect(subtitle(ex.byId.get('sk')!, ex)).toBe('')
 })
 
-it('groups positions by employer, newest role first, org-less last as Other', () => {
-  const pos = [
-    f('o1', 'Position', 'Intern', { period: '2012–2013' }),
-    f('o2', 'Position', 'Lead', { period: 'Mar 2019 - Present' }),
-    f('o3', 'Position', 'Junior', { period: '2016 to 2018' }),
-    f('o4', 'Position', 'Senior', { period: 'Mar 2019 - Present' }),
-    f('o5', 'Position', 'Freelancer', { period: '2020' }),
-    f('o6', 'Position', 'Founder', { period: '2014 - 2017' }),
+it('groups positions by employer, groups and their positions newest first', () => {
+  const facts = [
+    f('acme', 'Organization', 'Acme'),
+    f('beta', 'Organization', 'Beta'),
+    f('lead', 'Position', 'Lead', { period: 'Mar 2019 - Present' }),
+    f('junior', 'Position', 'Junior', { period: '2016 to 2018' }),
+    f('founder', 'Position', 'Founder', { period: '2014 - 2018' }),
+    f('intern', 'Position', 'Intern', { period: '2012-2013' }),
   ]
-  const orgs = [f('A', 'Organization', 'Acme'), f('B', 'Organization', 'Beta'), f('C', 'Organization', 'Core')]
-  const at = (p: string, o: string) => ({ source: p, target: o, kind: 'AT' })
-  const grouped = groupPositions(
-    pos,
-    explore([...pos, ...orgs], [at('o1', 'B'), at('o3', 'B'), at('o2', 'A'), at('o4', 'A'), at('o6', 'C')]),
-  )
-  expect(grouped.map((g) => [g.org, g.years, g.items.map((x) => x.title)])).toEqual([
-    ['Acme', '2019 – now', ['Lead', 'Senior']], // same period: title order
-    ['Beta', '2012 – 2018', ['Junior', 'Intern']],
-    ['Core', '2014 – 2017', ['Founder']],
-    ['Other', '2020', ['Freelancer']],
-  ])
+  const edges = [
+    { source: 'lead', target: 'acme', kind: 'AT' },
+    { source: 'junior', target: 'acme', kind: 'AT' },
+    { source: 'founder', target: 'beta', kind: 'AT' },
+    { source: 'intern', target: 'beta', kind: 'AT' },
+  ]
+  const grouped = groupPositions(facts.filter((x) => x.kind === 'Position'), explore(facts, edges))
+  expect(grouped.map((g) => g.org)).toEqual(['Acme', 'Beta'])
+  expect(grouped.map((g) => g.years)).toEqual(['2016 – now', '2012 – 2018'])
+  expect(grouped[0].items.map((x) => x.title)).toEqual(['Lead', 'Junior'])
+  expect(grouped[1].items.map((x) => x.title)).toEqual(['Founder', 'Intern'])
 })
 
 it('gives the edge kind and direction per neighbor', () => {
