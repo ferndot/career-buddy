@@ -87,10 +87,13 @@ function Picker({ label, options, onPick }: { label: string; options: Fact[]; on
  * Links `fact` to one more fact of `kind`; hidden when none is left. A group that holds one organization shows Change,
  * which links the new one first and only then removes the old, so a failure never leaves the fact without it.
  */
-export function AddLink({ fact, kind, current, options }: { fact: Fact; kind: Kind; current: Fact[]; options: Fact[] }) {
+export function AddLink({ fact, kind, current, options, onNew }: {
+  fact: Fact; kind: Kind; current: Fact[]; options: Fact[]; onNew?: () => void
+}) {
   const add = useAddLink()
   const remove = useRemoveLink()
   const [changing, setChanging] = useState(false)
+  const [linking, setLinking] = useState(false)
   const [error, setError] = useState('')
   const rule = addRule(fact, kind)!
   const noun = singleNoun(fact, kind)
@@ -112,10 +115,23 @@ export function AddLink({ fact, kind, current, options }: { fact: Fact; kind: Ki
       }
     }
     setChanging(false)
+    setLinking(false)
     say(noun ? `Moved to ${f.title}` : `Added ${f.title}`)
   }
 
   const label = noun ? `${current.length ? 'Change' : 'Set'} ${noun}` : `Add ${kind.toLowerCase()}`
+  if (onNew) {
+    // Two explicit buttons instead of a dropdown: create a new one, or pick an existing one.
+    return (
+      <Flex gap="2" align="center" wrap="wrap">
+        <Button size="xs" variant="outline" onClick={onNew}>New {kind.toLowerCase()}</Button>
+        {options.length > 0 && (linking
+          ? <Picker label={`Link ${kind.toLowerCase()}`} options={options} onPick={pick} />
+          : <Button size="xs" variant="outline" onClick={() => setLinking(true)}>Link existing {kind.toLowerCase()}</Button>)}
+        {error && <Text role="alert" fontSize="xs" color="app.missText">{error}</Text>}
+      </Flex>
+    )
+  }
   const control = !options.length ? null : noun && current.length && !changing && !error ? (
     <Button size="xs" variant="ghost" onClick={() => setChanging(true)}>Change</Button>
   ) : (

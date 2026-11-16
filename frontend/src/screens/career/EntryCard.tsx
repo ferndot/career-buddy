@@ -1,13 +1,11 @@
-import { Box, Button, Flex, Heading, IconButton, Text } from '@chakra-ui/react'
+import { Box, Flex, Heading, IconButton, Text } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
 import { LuArrowDown, LuArrowUp, LuEye, LuEyeOff, LuPencil } from 'react-icons/lu'
 import { useReorder, useReviseFact } from './api'
 import type { Bullet, Entry } from './model'
 
 /** One position or education entry; each bullet can be shown or hidden, moved up or down, and edited. */
-export function EntryCard({ entry, children, onEditBullet, onAddBullet }: {
-  entry: Entry; children?: ReactNode; onEditBullet?: (b: Bullet) => void; onAddBullet?: () => void
-}) {
+export function EntryCard({ entry, children, onEditBullet }: { entry: Entry; children?: ReactNode; onEditBullet?: (b: Bullet) => void }) {
   const revise = useReviseFact()
   const reorder = useReorder()
 
@@ -54,9 +52,6 @@ export function EntryCard({ entry, children, onEditBullet, onAddBullet }: {
           </IconButton>
         </Flex>
       ))}
-      {onAddBullet && (
-        <Button size="xs" variant="outline" mt="2" onClick={onAddBullet}>Add achievement</Button>
-      )}
       {children}
     </Box>
   )

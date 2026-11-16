@@ -112,15 +112,14 @@ const ADD_LABEL: Record<Kind, string> = {
 function Detail({ fact, ex, career, onOpen }: { fact: Fact; ex: Explorer; career: Career; onOpen: (f: Fact) => void }) {
   const [editingBullet, setEditingBullet] = useState<Fact | null>(null)
   const entry = findEntry(career, fact.id)
-  const links = <Links fact={fact} ex={ex} shown={new Set(entry?.bullets.map((b) => b.id))} onOpen={onOpen} />
+  const [addingBullet, setAddingBullet] = useState(false)
+  const links = <Links fact={fact} ex={ex} shown={new Set(entry?.bullets.map((b) => b.id))} onOpen={onOpen}
+    onNewAchievement={fact.kind === 'Position' ? () => setAddingBullet(true) : undefined} />
   // A bullet is an achievement fact, so it is edited with the same dialog, merging among achievements.
   const editBullet = (b: Bullet) => setEditingBullet({ id: b.id, kind: 'Achievement', title: b.title, attributes: b.attributes, source: '' })
-  const [addingBullet, setAddingBullet] = useState(false)
   return (
     <>
-      {entry
-        ? <EntryCard entry={entry} onEditBullet={editBullet} onAddBullet={fact.kind === 'Position' ? () => setAddingBullet(true) : undefined}>{links}</EntryCard>
-        : <Generic fact={fact}>{links}</Generic>}
+      {entry ? <EntryCard entry={entry} onEditBullet={editBullet}>{links}</EntryCard> : <Generic fact={fact}>{links}</Generic>}
       {fact.kind === 'Position' && (
         <AddAchievementDialog open={addingBullet} onClose={() => setAddingBullet(false)} positions={[fact]} />
       )}
@@ -174,10 +173,12 @@ function findEntry(career: Career, id: string): Entry | undefined {
 }
 
 /** Linked items grouped by kind, below a divider; each chip opens that item. Achievements already shown as bullets are skipped. */
-function Links({ fact, ex, shown, onOpen }: { fact: Fact; ex: Explorer; shown: Set<string>; onOpen: (f: Fact) => void }) {
+function Links({ fact, ex, shown, onOpen, onNewAchievement }: {
+  fact: Fact; ex: Explorer; shown: Set<string>; onOpen: (f: Fact) => void; onNewAchievement?: () => void
+}) {
   const all = ex.edgesOf(fact.id).filter((l) => !shown.has(l.fact.id))
   const rows = KINDS.map((k) => [k, all.filter((l) => l.fact.kind === k).sort((a, b) => a.fact.title.localeCompare(b.fact.title))] as const)
-    .filter(([k, list]) => list.length || (addRule(fact, k) && ex.list(k).length))
+    .filter(([k, list]) => list.length || (k === 'Achievement' && onNewAchievement) || (addRule(fact, k) && ex.list(k).length))
   if (!rows.length) return null
   return (
     <Grid templateColumns={{ base: 'minmax(0, 1fr)', md: 'max-content minmax(0, 1fr)' }} columnGap="3" rowGap="2" alignItems="baseline"
@@ -196,7 +197,8 @@ function Links({ fact, ex, shown, onOpen }: { fact: Fact; ex: Explorer; shown: S
             ))}
             {addRule(fact, k) && (
               <AddLink fact={fact} kind={k} current={list.map((l) => l.fact)}
-                options={ex.list(k).filter((o) => !list.some((l) => l.fact.id === o.id))} />
+                options={ex.list(k).filter((o) => !list.some((l) => l.fact.id === o.id))}
+                onNew={k === 'Achievement' ? onNewAchievement : undefined} />
             )}
           </Flex>
         </Fragment>
