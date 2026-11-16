@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Heading, Link as ChakraLink } from '@chakra-ui/react'
+import { Button, Flex, Link as ChakraLink } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState, PageHeader } from '../../components'
@@ -6,12 +6,13 @@ import { useFacts, useGraph } from './api'
 import { AddEducationDialog, AddPositionDialog } from './AddEntryDialogs'
 import { CareerGraph } from './CareerGraph'
 import { DuplicatesBanner } from './DuplicatesBanner'
-import { EntryCard } from './EntryCard'
+import { CareerExplorer } from './CareerExplorer'
 import { buildCareer } from './model'
 
 export function CareerScreen() {
   const facts = useFacts()
   const graph = useGraph()
+  const [view, setView] = useState<'explore' | 'map'>('explore')
   const [adding, setAdding] = useState<'position' | 'education' | null>(null)
   const career = useMemo(
     () => (facts.data && graph.data ? buildCareer(facts.data, graph.data.edges) : null),
@@ -21,7 +22,7 @@ export function CareerScreen() {
   const header = (
     <PageHeader
       title="Career"
-      subtitle="Your facts as a graph. Tick the bullets you want to keep; untick to hide them."
+      subtitle="Browse your facts and follow the links between them. Tick the bullets you want to keep; untick to hide them."
       actions={
         <Button asChild bg="app.primary" color="app.onPrimary">
           <Link to="/documents/new">Continue to Generator</Link>
@@ -54,27 +55,26 @@ export function CareerScreen() {
     <>
       {header}
       <DuplicatesBanner />
-      <Flex gap="6" wrap="wrap" align="flex-start">
-        <Box flex="1 1 520px" minW="0">
-          <CareerGraph facts={facts.data ?? []} edges={graph.data?.edges ?? []} />
-        </Box>
-        <Box flex="1 1 380px" minW="0">
-          <Heading as="h2" size="sm" mb="2">Positions</Heading>
-          {career.positions.map((e) => (
-            <EntryCard key={e.id} entry={e} />
-          ))}
-          <Heading as="h2" size="sm" mb="2" mt="4">Education</Heading>
-          {career.education.map((e) => (
-            <EntryCard key={e.id} entry={e} />
-          ))}
-          <Button {...ghost} onClick={() => setAdding('position')}>
-            Add position
+      <Flex gap="1" mb="4" wrap="wrap" align="center">
+        {(['explore', 'map'] as const).map((v) => (
+          <Button key={v} size="xs" aria-pressed={view === v} variant={view === v ? 'solid' : 'outline'}
+            bg={view === v ? 'app.primary' : undefined} color={view === v ? 'app.onPrimary' : 'app.text2'}
+            onClick={() => setView(v)}>
+            {v === 'explore' ? 'Explore' : 'Map'}
           </Button>
-          <Button {...ghost} onClick={() => setAdding('education')}>
-            Add education
-          </Button>
-        </Box>
+        ))}
+        <Button {...ghost} onClick={() => setAdding('position')}>
+          Add position
+        </Button>
+        <Button {...ghost} onClick={() => setAdding('education')}>
+          Add education
+        </Button>
       </Flex>
+      {view === 'explore' ? (
+        <CareerExplorer facts={facts.data ?? []} edges={graph.data?.edges ?? []} career={career} />
+      ) : (
+        <CareerGraph facts={facts.data ?? []} edges={graph.data?.edges ?? []} />
+      )}
       <AddPositionDialog open={adding === 'position'} onClose={() => setAdding(null)} personId={career.personId} />
       <AddEducationDialog open={adding === 'education'} onClose={() => setAdding(null)} personId={career.personId} />
     </>

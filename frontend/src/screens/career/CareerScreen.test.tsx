@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
@@ -29,16 +29,25 @@ afterEach(() => {
   queryClient.clear() // the app shares one client across renders
 })
 
-it('renders positions with bullet checkboxes, the duplicates banner and add buttons', async () => {
+it('opens on the explorer with bullet checkboxes, the duplicates banner and add buttons', async () => {
   vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(routes[url]), { status: 200 }))
   renderApp(<CareerScreen />)
-  expect((await screen.findAllByText('Senior Engineer')).length).toBeGreaterThanOrEqual(1) // list card and graph node
+  expect((await screen.findAllByText('Senior Engineer')).length).toBeGreaterThanOrEqual(1) // list item and card
+  expect(screen.getByRole('tab', { name: 'Positions (1)' })).toBeInTheDocument()
   expect(screen.getByText('Acme, Mar 2019 - Present')).toBeInTheDocument()
   expect(screen.getByRole('checkbox', { name: 'Cut build times by 60%' })).toBeChecked()
   expect(screen.getByRole('checkbox', { name: 'Ran design reviews' })).not.toBeChecked()
   expect(await screen.findByText('1 possible duplicate')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Add position' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Add education' })).toBeInTheDocument()
+})
+
+it('switches to the map view', async () => {
+  vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(routes[url]), { status: 200 }))
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Map' }))
+  expect(screen.queryByRole('tab', { name: 'Positions (1)' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Map' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 it('shows the empty state when there is no person yet', async () => {
