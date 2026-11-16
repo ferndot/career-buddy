@@ -1,4 +1,4 @@
-# Contributing to CareerGraph Documentation
+# Contributing to CareerBuddy Documentation
 
 We adhere strictly to the **Diataxis documentation framework**:
 

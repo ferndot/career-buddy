@@ -2,7 +2,13 @@
 data
 tests
 docs
+frontend/node_modules
+frontend/dist
+src/career_buddy/web/static
 .git
+.claude
+.worktrees
 .pytest_cache
+.hypothesis
 __pycache__
 *.pyc

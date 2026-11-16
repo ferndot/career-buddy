@@ -1,10 +1,11 @@
-import { Badge, Box, Button, Heading, Progress, Text } from '@chakra-ui/react'
+import { Box, Button, Heading, Progress, Text } from '@chakra-ui/react'
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { LuX } from 'react-icons/lu'
 import { useSourceLog, type LogLine } from './sourceLogApi'
 import { displayName } from './sourceDisplay'
 import { isBusy, type Source } from './sourcesApi'
 import { MIN_WIDTH, useResizableWidth } from './useResizableWidth'
+import { StatusBadge } from './StatusBadge'
 
 const NEAR_BOTTOM = 24
 const levelColor = (level: string) =>
@@ -43,8 +44,6 @@ export function SourceLogSidebar({ source, onClose }: { source: Source; onClose:
     const el = box.current
     if (el) pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM
   }
-  const failed = status === 'failed'
-  const ready = status === 'ready'
 
   return (
     // The wrapper keeps the panel's room in the page flow; the panel itself is fixed on wide screens.
@@ -92,14 +91,7 @@ export function SourceLogSidebar({ source, onClose }: { source: Source; onClose:
           <Heading as="h2" size="sm" flex="1" minW="0" color="app.text" truncate>
             {name}
           </Heading>
-          <Badge
-            bg={failed ? 'app.missBg' : ready ? 'app.okBg' : 'app.warnBg'}
-            color={failed ? 'app.missText' : ready ? 'app.okText' : 'app.warnText'}
-            borderRadius="full"
-            px="2"
-          >
-            {ready ? 'Done' : failed ? 'Failed' : status === 'queued' ? 'Queued' : `${progress}%`}
-          </Badge>
+          <StatusBadge status={status} />
           <Button size="xs" variant="ghost" color="app.link" onClick={onClose} aria-label="Close log">
             <LuX />
           </Button>

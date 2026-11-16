@@ -26,16 +26,16 @@ describe('SourceLogSidebar', () => {
     renderApp(<SourceLogSidebar source={source()} onClose={() => {}} />)
     expect(await screen.findByText(/chunk 1: asking the model/)).toBeInTheDocument()
     expect(screen.getByText('Extracting positions')).toBeInTheDocument()
-    expect(screen.getByText('30%')).toBeInTheDocument()
+    expect(screen.getByText('Working')).toBeInTheDocument()
     expect(screen.getByText(/the model listed no entities/).closest('[data-level]')).toHaveAttribute('data-level', 'WARNING')
     expect(screen.queryByText('No activity yet')).not.toBeInTheDocument()
   })
 
   it('says so when nothing has been logged', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => reply([], { status: 'ready', progress: 100, step: 'Done' })))
-    renderApp(<SourceLogSidebar source={source({ status: 'ready', progress: 100, step: 'Done' })} onClose={() => {}} />)
+    vi.stubGlobal('fetch', vi.fn(async () => reply([], { status: 'ready', progress: 100, step: 'Parsed' })))
+    renderApp(<SourceLogSidebar source={source({ status: 'ready', progress: 100, step: 'Parsed' })} onClose={() => {}} />)
     expect(await screen.findByText('No activity yet')).toBeInTheDocument()
-    expect(screen.getByText('Done', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('Parsed', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('polls with the cursor while processing and stops once the log says it is done', async () => {
@@ -47,7 +47,7 @@ describe('SourceLogSidebar', () => {
       calls += 1
       return calls === 1
         ? reply([line(1, 'first')])
-        : reply([line(2, 'second')], { status: 'ready', progress: 100, step: 'Done' })
+        : reply([line(2, 'second')], { status: 'ready', progress: 100, step: 'Parsed' })
     }))
     renderApp(<SourceLogSidebar source={source()} onClose={() => {}} />)
     expect(await screen.findByText(/first/)).toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('SourceLogSidebar', () => {
 
   it('does not poll a source that is already finished', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const fetchMock = vi.fn(async () => reply([line(1, 'old run')], { status: 'ready', progress: 100, step: 'Done' }))
+    const fetchMock = vi.fn(async () => reply([line(1, 'old run')], { status: 'ready', progress: 100, step: 'Parsed' }))
     vi.stubGlobal('fetch', fetchMock)
     renderApp(<SourceLogSidebar source={source({ status: 'ready', progress: 100 })} onClose={() => {}} />)
     expect(await screen.findByText(/old run/)).toBeInTheDocument()

@@ -10,7 +10,7 @@ export type SourceLog = {
   /** Changes when a new run starts: the lines held from the earlier run are dropped. */
   run: number
   status: SourceStatus
-  progress: number
+  progress: number | null
   step: string
   error: string | null
 }

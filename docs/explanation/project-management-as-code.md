@@ -1,6 +1,6 @@
 # Project Management as Code (PMaC)
 
-CareerGraph uses SpecOps to version-lock all project specifications directly in git.
+CareerBuddy uses SpecOps to version-lock all project specifications directly in git.
 
 ## Why Specification as Code?
 1. **Zero Context Drift**: Specifications, user stories, and tasks live in the exact same git commit history as implementation code.

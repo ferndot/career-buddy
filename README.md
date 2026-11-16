@@ -1,50 +1,22 @@
 # career-buddy
 
-Import your career data (LinkedIn export, resume text), keep it as a graph of facts
+Import your career data (resume file, pasted text), keep it as a graph of facts
 (positions, achievements, skills, education), and generate resumes and cover letters from that graph.
 
 ## Run it
 
-### With Docker (easiest)
-
-Requires Docker. Chromium for PDF output is already in the image.
+Requires [Docker](https://docs.docker.com/get-docker/). From the project folder:
 
 ```bash
-docker compose up --build
+make
 ```
 
-The container serves the API on http://127.0.0.1:8080 (interactive docs at `/docs`). The web UI is the separate React app in `frontend/`. Your data lives in `./data` on the host, so it survives rebuilds. Port 8080 is
-used because 8000 is often taken; change it in `docker-compose.yml`.
+`make` builds the image and starts it in the background. Then open http://localhost:8080. `make stop` shuts it down, and `make logs` follows the log. `make dev` is for development: it runs in the foreground with the API auto-reloading and the UI under hot reload at http://localhost:5173 (Ctrl+C stops it). Without `make`, run `docker compose up --build -d` instead. One container serves the web app and the API; interactive API docs are at `/docs`.
+Your data lives in `./data` on the host, so it survives rebuilds and restarts. Port 8080 is used because 8000 is often
+taken; change it in `docker-compose.yml`. Chromium for PDF output is already in the image.
 
 To use a model, add a connection in Settings (see [LLM connections](#llm-connections)). In the container, `localhost` is
 the container itself, so reach Ollama or LM Studio on your computer at `http://host.docker.internal:11434/v1` (Ollama) or `:1234` (LM Studio).
-
-### Without Docker
-
-Requires [uv](https://docs.astral.sh/uv/) (it installs Python 3.13 for you).
-
-```bash
-uv sync
-uv run career-buddy
-
-Dev mode with hot reload (API restarts on changes under `src/career_buddy/`; run `pnpm dev` in `frontend/` for the web UI, which reloads in place):
-
-```bash
-RELOAD=1 uv run career-buddy
-```
-```
-
-PDF output prints a page with Chromium through [Playwright](https://playwright.dev/python/). Install the browser once
-(about 150 MB, stored outside the project):
-
-```bash
-uv run playwright install chromium
-```
-
-Without it everything else works. A PDF request returns HTTP 503 with this instruction, and the PDF tests are
-skipped with the same message.
-
-The API listens on http://127.0.0.1:8000 (or the port set by `PORT`; interactive docs at `/docs`). Data is stored in `./data/events.jsonl` (override with `CAREER_BUDDY_DATA`).
 
 ## LLM connections
 
@@ -106,7 +78,6 @@ instead, leave the profile off and set `CAREER_BUDDY_S3_ENDPOINT`.
 
 ## Import sources
 
-- **LinkedIn**: request your data export from LinkedIn (Settings → Data privacy → Get a copy of your data), then upload the ZIP or the individual CSVs (`Profile.csv`, `Positions.csv`, `Skills.csv`, `Education.csv`).
 - **Resume text**: paste plain text or Markdown. Headings such as *Experience*, *Skills* and *Education* help the heuristic extractor. Position lines look like `Title at Organization, 2019 - 2023`, or three lines in a row: organization, title, dates. Bullets can be `-`, `*`, `•`, `●`, `▪`, `■` or `◦`.
 
 - **Resume file**: `POST /api/import/file` takes a PDF, DOCX, TXT or MD (up to 10 MB). It reads the text, then extracts facts the same way as pasted text. Errors: 413 over 10 MB, 415 unknown type, 422 for a corrupt file or a PDF with no text layer (scans need OCR, which is not supported). Two-column PDFs are read column by column. DOCX tables, text boxes and the header (contact info) are included.
@@ -131,7 +102,7 @@ src/career_buddy/
   domain/          pure: Fact/Link model, profile assembly, Document model, templates, ATS check, events
   application/     ports (protocols) and services: ImportService, CareerQueries, DocumentService
   adapters/
-    sources/       LinkedInExportParser             (structured export -> facts)
+    sources/       job link fetcher
     inference/     HeuristicExtractor, OpenAICompatibleExtractor, AnthropicExtractor  (text -> facts), LLMConnections
     storage/       JsonlEventLog                    (append-only event log, the source of truth)
                    KeyStore                         (API keys: OS keychain, or a private file)
@@ -139,7 +110,7 @@ src/career_buddy/
     graph/         MemoryFactGraph                  (plain in-memory projection)
     outputs/       Markdown, HTML, TXT, DOCX (python-docx), PDF (Playwright) renderers
     readers/       PDF (pdfminer.six), DOCX (python-docx), Markdown/TXT/HTML text readers
-  web/             FastAPI HTTP adapter (the UI is the separate app in `frontend/`)
+  web/             FastAPI HTTP adapter; serves the React UI (source in `frontend/`, built into `web/static`)
   composition.py   the only place that picks concrete adapters
 ```
 
@@ -165,7 +136,6 @@ follows [SpecOps](https://github.com/sanmak/specops)-style specs under `docs/pro
   `POST /api/merges`); the full template list is at `GET /api/templates` (see `docs/project/product/plan-v2.md`).
 - The ATS check is our own round trip, not a test against real applicant tracking systems.
 - The heuristic extractor has not been measured on a set of real resumes yet.
-- The LinkedIn CSV headers follow the export format as I know it. Verify them against your own export.
 
 ## License
 

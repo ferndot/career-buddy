@@ -1,6 +1,6 @@
-# CareerGraph Documentation
+# CareerBuddy Documentation
 
-Welcome to **CareerGraph**, managed via **SpecOps**—the autonomous Project Management as Code (PMaC) engine.
+Welcome to **CareerBuddy**, managed via **SpecOps**—the autonomous Project Management as Code (PMaC) engine.
 
 This documentation follows the 4-quadrant **Diataxis framework**:
 

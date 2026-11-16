@@ -1,0 +1,28 @@
+# Development overrides (used by `make dev`): the API reloads on source changes and the UI runs under Vite hot reload.
+services:
+  career-buddy:
+    environment:
+      - RELOAD=1
+      - PYTHONPATH=/app/src        # run the mounted source instead of the copy installed in the image
+      - CAREER_BUDDY_ALLOWED_HOSTS=career-buddy   # the UI proxy sends this name as Host
+    volumes:
+      - ./src:/app/src
+    ports: !reset []
+
+  ui:
+    image: node:22-alpine
+    working_dir: /app/frontend
+    command: sh -c "corepack enable && corepack prepare pnpm@12.16.1 --activate && pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0"
+    environment:
+      - API_TARGET=http://career-buddy:8000
+      - CHOKIDAR_USEPOLLING=1      # file watching over the Windows/macOS bind mount
+    volumes:
+      - ./frontend:/app/frontend
+      - ui-node-modules:/app/frontend/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"     # open http://localhost:5173
+    depends_on:
+      - career-buddy
+
+volumes:
+  ui-node-modules:

@@ -1,4 +1,4 @@
-name: CI Quality Gate (CareerGraph)
+name: CI Quality Gate (CareerBuddy)
 
 on:
   push:

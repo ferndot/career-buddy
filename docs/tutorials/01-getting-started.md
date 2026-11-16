@@ -1,6 +1,6 @@
-# Getting Started with CareerGraph
+# Getting Started with CareerBuddy
 
-Welcome to CareerGraph! This tutorial guides you through setting up your environment and running your first autonomous feature cycle.
+Welcome to CareerBuddy! This tutorial guides you through setting up your environment and running your first autonomous feature cycle.
 
 ## Prerequisites
 - Python 3.11+

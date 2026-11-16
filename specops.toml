@@ -1,5 +1,5 @@
 [project]
-name = "CareerGraph"
+name = "CareerBuddy"
 repo = ""
 docs_dir = "docs/project"
 site_output = "dist/site"

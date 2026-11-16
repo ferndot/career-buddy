@@ -1,6 +1,6 @@
-# CareerGraph Agent Operating Manual
+# CareerBuddy Agent Operating Manual
 
-Welcome to **CareerGraph**, managed via **SpecOps**—the opinionated, autonomous Project Management as Code (PMaC) engine for human architects and AI coding assistants.
+Welcome to **CareerBuddy**, managed via **SpecOps**—the opinionated, autonomous Project Management as Code (PMaC) engine for human architects and AI coding assistants.
 
 All specifications, user stories, tasks, and architectural decisions are version-locked directly in git alongside implementation code.
 

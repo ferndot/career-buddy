@@ -1,4 +1,4 @@
-name: Deploy Documentation & Living Visualizer to GitHub Pages (CareerGraph)
+name: Deploy Documentation & Living Visualizer to GitHub Pages (CareerBuddy)
 
 on:
   push:
