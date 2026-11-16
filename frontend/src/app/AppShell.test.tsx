@@ -15,6 +15,11 @@ describe('AppShell', () => {
     ])
   })
 
+  it('has no color mode toggle in the header', () => {
+    renderApp(<AppRoutes />, '/sources')
+    expect(screen.queryByRole('button', { name: /switch to (dark|light) mode/i })).not.toBeInTheDocument()
+  })
+
   it('redirects / to Sources and marks it as current', () => {
     renderApp(<AppRoutes />, '/')
     expect(screen.getByRole('heading', { level: 1, name: 'Sources' })).toBeInTheDocument()
