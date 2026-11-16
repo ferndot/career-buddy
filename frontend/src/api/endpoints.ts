@@ -1,4 +1,4 @@
-// Typed path builders for the existing FastAPI routes (src/career_graph/web/app.py, llm_routes.py).
+// Typed path builders for the existing FastAPI routes (src/career_buddy/web/app.py, llm_routes.py).
 // Paths only: no fetching here. Each comment names the HTTP method(s) the route accepts.
 const e = encodeURIComponent
 type Id = string | number
@@ -7,6 +7,7 @@ export const endpoints = {
   sources: {
     list: () => '/api/sources', // GET
     remove: (source: string) => `/api/sources/${e(source)}`, // DELETE (204)
+    log: (source: string) => `/api/sources/${e(source)}/log`, // GET ?since=<cursor>
   },
   imports: {
     linkedin: () => '/api/import/linkedin', // POST

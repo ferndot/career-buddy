@@ -1,11 +1,11 @@
 ---
-title: career-graph v2 plan
+title: career-buddy v2 plan
 status: Shaped
 created: 2026-11-14
 extends: prd-0001
 ---
 
-# career-graph v2 plan
+# career-buddy v2 plan
 
 ## Goals
 

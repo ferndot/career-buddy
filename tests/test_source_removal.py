@@ -2,10 +2,10 @@
 
 import asyncio
 
-from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
-from career_graph.application.projector import Projector
-from career_graph.domain.builder import BatchBuilder
-from career_graph.domain.events import FactsImported, SourceRemoved
+from career_buddy.adapters.graph.redstring_graph import RedstringFactGraph
+from career_buddy.application.projector import Projector
+from career_buddy.domain.builder import BatchBuilder
+from career_buddy.domain.events import FactsImported, SourceRemoved
 
 
 def _batch(source: str, *titles: str):
@@ -44,7 +44,7 @@ def test_reimporting_a_removed_source_brings_it_back() -> None:
 def test_api_graph_and_source_removal(tmp_path) -> None:
     from fastapi.testclient import TestClient
 
-    from career_graph.web.app import create_app
+    from career_buddy.web.app import create_app
 
     text = "Ada Lovelace\n\nExperience\nAnalyst at Analytical Society, 2010 - 2015\n- Wrote the first published algorithm\n"
     with TestClient(create_app(tmp_path)) as client:

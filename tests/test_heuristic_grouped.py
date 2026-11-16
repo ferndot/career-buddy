@@ -2,9 +2,9 @@
 
 import asyncio
 
-from career_graph.adapters.inference.heuristic import HeuristicExtractor
-from career_graph.adapters.readers.pdf_text import PdfTextReader
-from career_graph.domain.model import FactBatch
+from career_buddy.adapters.inference.heuristic import HeuristicExtractor
+from career_buddy.adapters.readers.pdf_text import PdfTextReader
+from career_buddy.domain.model import FactBatch
 from layouts import pdf
 from resume_fixtures import FFFD, resume_html, resume_text
 

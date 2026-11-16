@@ -6,8 +6,8 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from career_graph.adapters.storage.local_object_store import LocalObjectStore
-from career_graph.application.ports import ObjectNotFound
+from career_buddy.adapters.storage.local_object_store import LocalObjectStore
+from career_buddy.application.ports import ObjectNotFound
 
 
 @pytest.fixture

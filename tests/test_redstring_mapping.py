@@ -5,11 +5,11 @@ import json
 
 import httpx
 
-from career_graph.adapters.consolidation.redstring_candidates import skill_candidates
-from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
-from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
-from career_graph.domain.model import Fact, FactBatch, FactKind, LinkKind
-from career_graph.domain.profile import assemble_profile
+from career_buddy.adapters.consolidation.redstring_candidates import skill_candidates
+from career_buddy.adapters.inference.redstring_extractor import RedstringExtractor
+from career_buddy.adapters.inference.structured_openai import StructuredOpenAIProvider
+from career_buddy.domain.model import Fact, FactBatch, FactKind, LinkKind
+from career_buddy.domain.profile import assemble_profile
 
 
 class FixedProvider:

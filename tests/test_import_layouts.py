@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 from layouts import TWO_COLUMNS, pdf, resume_docx
 
 

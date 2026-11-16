@@ -2,8 +2,8 @@
 
 import pytest
 
-from career_graph.domain.manual import manual_fact
-from career_graph.domain.model import Fact, FactBatch, FactKind, InvalidFact, Link, LinkKind, fact_id
+from career_buddy.domain.manual import manual_fact
+from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact, Link, LinkKind, fact_id
 
 PERSON = Fact("person-1", FactKind.PERSON, "Ada")
 JOB = Fact("job-1", FactKind.POSITION, "Engineer")

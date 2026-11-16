@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.adapters.outputs.render_text import TextRenderer
-from career_graph.application.ports import RendererUnavailable
-from career_graph.domain.document import Document, Style
-from career_graph.web.app import create_app
+from career_buddy.adapters.outputs.render_text import TextRenderer
+from career_buddy.application.ports import RendererUnavailable
+from career_buddy.domain.document import Document, Style
+from career_buddy.web.app import create_app
 from test_api import linkedin_zip
 
 BODY = {"template": "resume-classic", "format": "markdown"}

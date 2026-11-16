@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.domain.model import FactKind, fact_id
-from career_graph.web.app import create_app
+from career_buddy.domain.model import FactKind, fact_id
+from career_buddy.web.app import create_app
 from test_api import linkedin_zip
 
 PDF_TEXT = b"Jane Doe\n\nExperience\nPlatform Lead at Acme, 2020 - 2021\n- Ran the platform team\n"

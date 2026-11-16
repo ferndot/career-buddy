@@ -2,8 +2,8 @@
 
 from hypothesis import given, strategies as st
 
-from career_graph.domain.document import Document, Entry, Line, Origin, Section
-from career_graph.domain.markers import clean, clean_document
+from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.markers import clean, clean_document
 
 USER, LLM = Origin.USER, Origin.SUGGESTION
 

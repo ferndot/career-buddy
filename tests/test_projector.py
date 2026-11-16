@@ -5,10 +5,10 @@ import random
 
 from hypothesis import given, strategies as st
 
-from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
-from career_graph.application.projector import Projector
-from career_graph.domain.events import FactRevised, FactsImported, FactsMerged
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
+from career_buddy.adapters.graph.redstring_graph import RedstringFactGraph
+from career_buddy.application.projector import Projector
+from career_buddy.domain.events import FactRevised, FactsImported, FactsMerged
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 ACME_CORP, ACME, POS, PERSON = (Fact(i, k, t) for i, k, t in (
     ("o1", FactKind.ORGANIZATION, "Acme Corp"), ("o2", FactKind.ORGANIZATION, "Acme"),

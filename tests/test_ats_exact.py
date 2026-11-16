@@ -1,7 +1,7 @@
 """ats.check, pinned to its exact issues and messages."""
 
-from career_graph.domain.ats import Extracted, Issue, check
-from career_graph.domain.document import Document, Entry, Line, Section
+from career_buddy.domain.ats import Extracted, Issue, check
+from career_buddy.domain.document import Document, Entry, Line, Section
 
 LINES = ["Ann Lee", "Experience", "Built A", "Built B"]
 DOC = Document(Line("Ann Lee"), (), (Section("Experience", (Entry(bullets=(Line("Built A"), Line("Built B"))),)),))

@@ -3,7 +3,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from career_graph.domain.periods import Period, period_of
+from career_buddy.domain.periods import Period, period_of
 
 
 def test_a_year_range_open_range_and_end_only_range() -> None:

@@ -4,12 +4,12 @@ import os
 
 import pytest
 
-from career_graph.adapters.outputs.render_pdf import INSTALL_HINT
+from career_buddy.adapters.outputs.render_pdf import INSTALL_HINT
 
 # moto's in-process S3 only answers AWS hostnames unless told about others, and it reads this once, on import.
 os.environ.setdefault("MOTO_S3_CUSTOM_ENDPOINTS", "http://minio.test:9000")
 # Tests never touch the real OS keychain: API keys go to a file in each test's own data folder.
-os.environ["CAREER_GRAPH_KEY_STORE"] = "file"
+os.environ["CAREER_BUDDY_KEY_STORE"] = "file"
 
 
 @pytest.fixture(scope="session")

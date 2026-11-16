@@ -1,6 +1,6 @@
 # Saved documents API
 
-A saved document is a rendered file plus a small record, kept in the object store (an S3 server with `CAREER_GRAPH_STORAGE=s3`, such as SeaweedFS,
+A saved document is a rendered file plus a small record, kept in the object store (an S3 server with `CAREER_BUDDY_STORAGE=s3`, such as SeaweedFS,
 otherwise `<data dir>/objects`). Keys are `documents/<id>/file.<ext>` and `documents/<id>/meta.json`. The `id` is 32 lowercase
 hex characters; any other id answers `404`.
 

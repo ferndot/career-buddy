@@ -1,9 +1,9 @@
 """Markdown, HTML and TXT renderers (stdlib only)."""
 
-from career_graph.adapters.outputs.render_html import HtmlRenderer
-from career_graph.adapters.outputs.render_markdown import MarkdownRenderer
-from career_graph.adapters.outputs.render_text import TextRenderer
-from career_graph.domain.document import Document, Entry, Line, Section, Style
+from career_buddy.adapters.outputs.render_html import HtmlRenderer
+from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
+from career_buddy.adapters.outputs.render_text import TextRenderer
+from career_buddy.domain.document import Document, Entry, Line, Section, Style
 from samples import sample_document
 
 STYLE = Style()

@@ -1,14 +1,14 @@
 services:
-  # The React app. The browser talks only to this container; nginx forwards /api to career-graph.
+  # The React app. The browser talks only to this container; nginx forwards /api to career-buddy.
   frontend:
     build: ./frontend
     ports:
       - "127.0.0.1:8080:80"       # open http://localhost:8080
     depends_on:
-      - career-graph
+      - career-buddy
     restart: unless-stopped
 
-  career-graph:
+  career-buddy:
     build: .
     # The API is reached through the frontend. Expose it only if you want to call it directly.
     expose:
@@ -19,15 +19,15 @@ services:
       - "host.docker.internal:host-gateway"   # lets the app reach Ollama or LM Studio on this computer, also on Linux
     environment:
       # Optional: an OpenAI-compatible server for model-based extraction.
-      - CAREER_GRAPH_LLM_BASE_URL=${CAREER_GRAPH_LLM_BASE_URL:-}
-      - CAREER_GRAPH_LLM_MODEL=${CAREER_GRAPH_LLM_MODEL:-}
-      - CAREER_GRAPH_LLM_API_KEY=${CAREER_GRAPH_LLM_API_KEY:-}
+      - CAREER_BUDDY_LLM_BASE_URL=${CAREER_BUDDY_LLM_BASE_URL:-}
+      - CAREER_BUDDY_LLM_MODEL=${CAREER_BUDDY_LLM_MODEL:-}
+      - CAREER_BUDDY_LLM_API_KEY=${CAREER_BUDDY_LLM_API_KEY:-}
       # Where originals and generated documents go: "local" (default, under ./data/objects) or "s3" (see the "storage" profile below).
-      - CAREER_GRAPH_STORAGE=${CAREER_GRAPH_STORAGE:-local}
-      - CAREER_GRAPH_S3_ENDPOINT=${CAREER_GRAPH_S3_ENDPOINT:-http://s3:8333}
-      - CAREER_GRAPH_S3_BUCKET=${CAREER_GRAPH_S3_BUCKET:-careers}
-      - CAREER_GRAPH_S3_ACCESS_KEY=${CAREER_GRAPH_S3_ACCESS_KEY:-careergraph}
-      - CAREER_GRAPH_S3_SECRET_KEY=${CAREER_GRAPH_S3_SECRET_KEY:-change-me-please}
+      - CAREER_BUDDY_STORAGE=${CAREER_BUDDY_STORAGE:-local}
+      - CAREER_BUDDY_S3_ENDPOINT=${CAREER_BUDDY_S3_ENDPOINT:-http://s3:8333}
+      - CAREER_BUDDY_S3_BUCKET=${CAREER_BUDDY_S3_BUCKET:-careers}
+      - CAREER_BUDDY_S3_ACCESS_KEY=${CAREER_BUDDY_S3_ACCESS_KEY:-careergraph}
+      - CAREER_BUDDY_S3_SECRET_KEY=${CAREER_BUDDY_S3_SECRET_KEY:-change-me-please}
     depends_on:
       s3:
         condition: service_started
@@ -44,8 +44,8 @@ services:
       - "127.0.0.1:8333:8333"     # S3 API, reachable only from this machine
     environment:
       # shortcut: default dev credentials, set your own in .env before storing anything you care about.
-      - AWS_ACCESS_KEY_ID=${CAREER_GRAPH_S3_ACCESS_KEY:-careergraph}
-      - AWS_SECRET_ACCESS_KEY=${CAREER_GRAPH_S3_SECRET_KEY:-change-me-please}
+      - AWS_ACCESS_KEY_ID=${CAREER_BUDDY_S3_ACCESS_KEY:-careergraph}
+      - AWS_SECRET_ACCESS_KEY=${CAREER_BUDDY_S3_SECRET_KEY:-change-me-please}
     volumes:
       - s3-data:/data
     restart: unless-stopped

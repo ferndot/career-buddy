@@ -1,5 +1,5 @@
 [project]
-name = "career-graph"
+name = "career-buddy"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-career-graph = "career_graph:main"
+career-buddy = "career_buddy:main"
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
@@ -36,10 +36,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-markers = ["live: calls a real LLM provider, only when CAREER_GRAPH_LIVE_<PROVIDER>_KEY is set"]
+markers = ["live: calls a real LLM provider, only when CAREER_BUDDY_LIVE_<PROVIDER>_KEY is set"]
 
 [tool.mutmut]
-source_paths = ["src/career_graph/domain/"]
+source_paths = ["src/career_buddy/domain/"]
 pytest_add_cli_args_test_selection = ["tests/"]
 pytest_add_cli_args = ["-p", "no:cacheprovider"]
-also_copy = ["src/career_graph/adapters", "src/career_graph/application", "src/career_graph/web", "src/career_graph/__init__.py", "src/career_graph/composition.py"]
+also_copy = ["src/career_buddy/adapters", "src/career_buddy/application", "src/career_buddy/web", "src/career_buddy/__init__.py", "src/career_buddy/composition.py"]

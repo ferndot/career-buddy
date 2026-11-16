@@ -31,9 +31,9 @@ Each preset has `id, label, base_url, url_editable, needs_key, off_device, hint`
 ## L3. Key storage
 
 - **Primary: OS keychain** (`keyring`, MIT). It encrypts keys at rest.
-- **Fallback: `<data>/secrets.json`, mode 0600.** Used when `CAREER_GRAPH_KEY_STORE=file` or there is no keychain.
+- **Fallback: `<data>/secrets.json`, mode 0600.** Used when `CAREER_BUDDY_KEY_STORE=file` or there is no keychain.
 - **Plain text:** `<data>/llm-settings.json` holds the connections and active id. The fallback file holds keys in plain text, and the UI says so.
-- **Env vars:** `CAREER_GRAPH_LLM_*` shows up as a read-only connection, so the existing setup keeps working.
+- **Env vars:** `CAREER_BUDDY_LLM_*` shows up as a read-only connection, so the existing setup keeps working.
 
 ## L4. Security
 
@@ -67,10 +67,10 @@ One active connection or none, with an "Active" label. With none, the heuristic 
 
 - One `httpx.MockTransport` test per adapter, covering URL, headers, body and error mapping.
 - `create_app(llm_client=)` becomes `llm_transport=`, so `conftest.py` and `test_tailoring_api.py` change too.
-- Tests use `CAREER_GRAPH_KEY_STORE=file` in `tmp_path`.
-- `@pytest.mark.live` tests are skipped unless `CAREER_GRAPH_LIVE_<PROVIDER>_KEY` is set.
+- Tests use `CAREER_BUDDY_KEY_STORE=file` in `tmp_path`.
+- `@pytest.mark.live` tests are skipped unless `CAREER_BUDDY_LIVE_<PROVIDER>_KEY` is set.
 
 ## L8. Docker
 
-- The image sets `CAREER_GRAPH_KEY_STORE=file`. Settings and keys live in `/data` (`./data` on the host).
+- The image sets `CAREER_BUDDY_KEY_STORE=file`. Settings and keys live in `/data` (`./data` on the host).
 - The local hints suggest `host.docker.internal`, and compose adds `extra_hosts: host-gateway` so it works on Linux.

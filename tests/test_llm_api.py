@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from hypothesis import given, settings, strategies as st
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 from llm_support import connect_mock
 from test_api import linkedin_zip
 
@@ -53,7 +53,7 @@ class Server:
 @pytest.fixture
 def server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     for name in ("BASE_URL", "MODEL", "API_KEY"):
-        monkeypatch.delenv(f"CAREER_GRAPH_LLM_{name}", raising=False)
+        monkeypatch.delenv(f"CAREER_BUDDY_LLM_{name}", raising=False)
     with Server(tmp_path) as s:
         yield s
 
@@ -178,7 +178,7 @@ def test_only_one_connection_is_active_and_none_is_allowed(server: Server) -> No
 
 
 def test_the_active_connection_is_the_one_the_app_uses_and_anthropic_gets_native_calls(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL", raising=False)
 
     def reply(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps({"text": "Cut build times by 60 percent"})}]}) if request.method == "POST" else httpx.Response(200, json={"data": []})
@@ -243,9 +243,9 @@ def test_private_addresses_need_a_confirmed_warning_and_metadata_addresses_are_r
 
 
 def test_environment_variables_show_up_as_a_read_only_connection_that_is_active_by_default(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("CAREER_GRAPH_LLM_BASE_URL", "http://env.test/v1")
-    monkeypatch.setenv("CAREER_GRAPH_LLM_MODEL", "env-model")
-    monkeypatch.setenv("CAREER_GRAPH_LLM_API_KEY", FAKE_KEY)
+    monkeypatch.setenv("CAREER_BUDDY_LLM_BASE_URL", "http://env.test/v1")
+    monkeypatch.setenv("CAREER_BUDDY_LLM_MODEL", "env-model")
+    monkeypatch.setenv("CAREER_BUDDY_LLM_API_KEY", FAKE_KEY)
     with Server(tmp_path) as server:
         listing = server.listing()
         (env,) = listing["connections"]

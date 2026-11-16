@@ -2,9 +2,9 @@
 
 import pytest
 
-from career_graph.domain.profile import PositionView, Profile
-from career_graph.domain.tailoring import is_tech, job_terms, stem, tailor
-from career_graph.domain.templates import RESUME_CLASSIC, TemplateSpec
+from career_buddy.domain.profile import PositionView, Profile
+from career_buddy.domain.tailoring import is_tech, job_terms, stem, tailor
+from career_buddy.domain.templates import RESUME_CLASSIC, TemplateSpec
 
 
 @pytest.mark.parametrize(

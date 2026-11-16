@@ -7,7 +7,7 @@ import keyring
 import pytest
 from keyring.backend import KeyringBackend
 
-from career_graph.adapters.storage.key_store import KeyStore
+from career_buddy.adapters.storage.key_store import KeyStore
 
 
 class MemoryKeychain(KeyringBackend):
@@ -31,7 +31,7 @@ def keychain(monkeypatch: pytest.MonkeyPatch):
     previous = keyring.get_keyring()
     fake = MemoryKeychain()
     keyring.set_keyring(fake)
-    monkeypatch.delenv("CAREER_GRAPH_KEY_STORE", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_KEY_STORE", raising=False)
     yield fake
     keyring.set_keyring(previous)
 
@@ -47,7 +47,7 @@ def test_keys_go_to_the_os_keychain_when_there_is_one_and_never_to_disk(tmp_path
 
 
 def test_the_file_store_is_used_when_asked_for_and_deleting_removes_the_key(tmp_path: Path, keychain: MemoryKeychain, monkeypatch) -> None:
-    monkeypatch.setenv("CAREER_GRAPH_KEY_STORE", "file")
+    monkeypatch.setenv("CAREER_BUDDY_KEY_STORE", "file")
     store = KeyStore(tmp_path)
     assert store.kind == "file"
     store.set("abc", "fake-key-1")
@@ -63,7 +63,7 @@ def test_the_file_store_is_the_fallback_when_no_keychain_works(tmp_path: Path, m
 
     previous = keyring.get_keyring()
     keyring.set_keyring(NoKeychain())
-    monkeypatch.delenv("CAREER_GRAPH_KEY_STORE", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_KEY_STORE", raising=False)
     try:
         assert KeyStore(tmp_path).kind == "file"
     finally:

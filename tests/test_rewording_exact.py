@@ -1,6 +1,6 @@
 """verify_rewording: the exact reasons it gives, including how it lists several offenders."""
 
-from career_graph.domain.rewording import verify_rewording
+from career_buddy.domain.rewording import verify_rewording
 
 SOURCE = "Cut build times by 60% across the services we ran"
 

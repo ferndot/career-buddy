@@ -8,10 +8,10 @@ from docx import Document as DocxDocument
 from docx.oxml import parse_xml
 from docx.shared import Inches
 
-from career_graph.adapters.outputs.render_docx import DocxRenderer
-from career_graph.adapters.readers.docx_text import DocxTextReader
-from career_graph.application.ports import UnreadableDocument
-from career_graph.domain.document import Style
+from career_buddy.adapters.outputs.render_docx import DocxRenderer
+from career_buddy.adapters.readers.docx_text import DocxTextReader
+from career_buddy.application.ports import UnreadableDocument
+from career_buddy.domain.document import Style
 from samples import sample_document
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"

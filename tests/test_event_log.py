@@ -4,9 +4,9 @@ import json
 import shutil
 from pathlib import Path
 
-from career_graph.adapters.storage.jsonl_event_log import JsonlEventLog
-from career_graph.domain.events import FactRevised, FactsImported, FactsMerged
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
+from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
+from career_buddy.domain.events import FactRevised, FactsImported, FactsMerged
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 V1_LOG = Path(__file__).parent / "fixtures" / "events-v1.jsonl"
 

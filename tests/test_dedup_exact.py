@@ -2,8 +2,8 @@
 
 import pytest
 
-from career_graph.domain.dedup import merge_candidates
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
+from career_buddy.domain.dedup import merge_candidates
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 
 def org(id: str, name: str) -> Fact:

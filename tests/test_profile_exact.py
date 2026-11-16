@@ -1,7 +1,7 @@
 """assemble_profile: the exact read model for a full graph, a loose one and a person-less one."""
 
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
-from career_graph.domain.profile import EducationView, PositionView, Profile, assemble_profile
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
+from career_buddy.domain.profile import EducationView, PositionView, Profile, assemble_profile
 
 K = FactKind
 

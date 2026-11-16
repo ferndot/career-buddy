@@ -1,7 +1,7 @@
 """Small pure helpers: bullet splitting, text normalising and fact ids."""
 
-from career_graph.domain.model import FactKind, fact_id, normalize
-from career_graph.domain.text import split_bullets
+from career_buddy.domain.model import FactKind, fact_id, normalize
+from career_buddy.domain.text import split_bullets
 
 
 def test_prose_lines_are_joined_with_single_spaces() -> None:

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 from layouts import IMAGE_ONLY, TWO_COLUMNS, pdf
 
 TEXT = b"Ada Lovelace\n\nExperience\nAnalyst at Analytical Society, 2010 - 2015\n- Wrote the first algorithm\n"

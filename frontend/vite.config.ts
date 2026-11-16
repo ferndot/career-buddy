@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     proxy: { '/api': 'http://127.0.0.1:8000' },
   },
-  build: { outDir: 'dist' },
+  // The built UI ships inside the Python package and is served by the API at /.
+  build: { outDir: '../src/career_buddy/web/static', emptyOutDir: true },
   test: {
     environment: 'jsdom',
     globals: true,

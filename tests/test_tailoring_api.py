@@ -7,7 +7,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 from llm_support import connect_mock
 from test_api import linkedin_zip
 
@@ -26,7 +26,7 @@ def source_of(request: httpx.Request) -> str:
 
 @pytest.fixture(autouse=True)
 def no_env_llm(monkeypatch) -> None:
-    monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL", raising=False)
 
 
 def open_client(tmp_path: Path, handler=None) -> TestClient:

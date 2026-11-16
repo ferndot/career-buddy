@@ -10,7 +10,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 from llm_support import connect_mock
 from test_api import linkedin_zip
 
@@ -60,7 +60,7 @@ def model() -> FakeModel:
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: FakeModel):
-    monkeypatch.delenv("CAREER_GRAPH_LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL", raising=False)
     with TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(model))) as c:
         yield c
 
@@ -94,7 +94,7 @@ def test_cors_preflight_from_the_frontend_origin_is_allowed_and_other_origins_ar
 
 
 def test_cors_origins_come_from_the_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CAREER_GRAPH_CORS_ORIGINS", "https://app.test, https://other.test")
+    monkeypatch.setenv("CAREER_BUDDY_CORS_ORIGINS", "https://app.test, https://other.test")
     with TestClient(create_app(tmp_path)) as c:
         assert c.get("/api/sources", headers={"Origin": "https://other.test"}).headers["access-control-allow-origin"] == "https://other.test"
         assert "access-control-allow-origin" not in c.get("/api/sources", headers={"Origin": FRONTEND}).headers

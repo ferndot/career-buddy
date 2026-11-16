@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 
 FIXTURES = Path(__file__).parent / "fixtures" / "linkedin"
 

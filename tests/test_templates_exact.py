@@ -1,8 +1,8 @@
 """Template specs and the resume document, pinned exactly."""
 
-from career_graph.domain.document import Entry, Line
-from career_graph.domain.profile import EducationView, PositionView, Profile
-from career_graph.domain.templates import TemplateSpec, build_document, get_template
+from career_buddy.domain.document import Entry, Line
+from career_buddy.domain.profile import EducationView, PositionView, Profile
+from career_buddy.domain.templates import TemplateSpec, build_document, get_template
 
 JOB = ("company", "role")
 

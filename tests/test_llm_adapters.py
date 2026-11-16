@@ -6,13 +6,13 @@ import json
 import httpx
 import pytest
 
-from career_graph.adapters.inference.openai_compatible import openai_client
-from career_graph.adapters.inference.probe import probe_anthropic, probe_openai
-from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
-from career_graph.adapters.inference.rewriter import ProviderRewriter
-from career_graph.adapters.inference.structured_anthropic import ANTHROPIC_URL, StructuredAnthropicProvider, anthropic_client
-from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
-from career_graph.application.ports import LLMUnavailable
+from career_buddy.adapters.inference.openai_compatible import openai_client
+from career_buddy.adapters.inference.probe import probe_anthropic, probe_openai
+from career_buddy.adapters.inference.redstring_extractor import RedstringExtractor
+from career_buddy.adapters.inference.rewriter import ProviderRewriter
+from career_buddy.adapters.inference.structured_anthropic import ANTHROPIC_URL, StructuredAnthropicProvider, anthropic_client
+from career_buddy.adapters.inference.structured_openai import StructuredOpenAIProvider
+from career_buddy.application.ports import LLMUnavailable
 
 FAKE_KEY = "sk-ant-fake-0000000000000000"
 CAREER_JSON = {"name": "Ada Lovelace", "skills": ["Math"], "positions": [

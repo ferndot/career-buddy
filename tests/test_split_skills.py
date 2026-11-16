@@ -2,7 +2,7 @@
 
 from hypothesis import given, strategies as st
 
-from career_graph.domain.text import SKILL_SEPARATORS, split_skills
+from career_buddy.domain.text import SKILL_SEPARATORS, split_skills
 
 
 def test_commas_semicolons_pipes_bullets_and_pdf_glyphs_all_separate_skills() -> None:

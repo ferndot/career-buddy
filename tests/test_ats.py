@@ -3,7 +3,7 @@
 from dataclasses import replace
 from itertools import zip_longest
 
-from career_graph.domain.ats import Extracted, check
+from career_buddy.domain.ats import Extracted, check
 from samples import sample_document
 
 DOC = sample_document()

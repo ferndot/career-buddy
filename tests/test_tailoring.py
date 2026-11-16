@@ -4,10 +4,10 @@ from dataclasses import replace
 
 from hypothesis import given, strategies as st
 
-from career_graph.domain.document import Document, Entry, Line, Origin, Section
-from career_graph.domain.profile import EducationView, PositionView, Profile
-from career_graph.domain.tailoring import apply_overrides, job_terms, tailor
-from career_graph.domain.templates import build_document, get_template
+from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.profile import EducationView, PositionView, Profile
+from career_buddy.domain.tailoring import apply_overrides, job_terms, tailor
+from career_buddy.domain.templates import build_document, get_template
 
 CLASSIC, COMPACT = get_template("resume-classic"), get_template("resume-compact")
 

@@ -1,16 +1,16 @@
 import { Badge, Box, Button, Text } from '@chakra-ui/react'
-import { LuRefreshCw, LuTrash2 } from 'react-icons/lu'
+import { LuRefreshCw, LuScrollText, LuTrash2 } from 'react-icons/lu'
 import { displayName, factsLabel } from './sourceDisplay'
 import { canReindex, type Source } from './sourcesApi'
 
-type Props = { source: Source; onReindex: () => void; onRemove: () => void }
+type Props = { source: Source; selected: boolean; onLog: () => void; onReindex: () => void; onRemove: () => void }
 
-export function SourceCard({ source: s, onReindex, onRemove }: Props) {
+export function SourceCard({ source: s, selected, onLog, onReindex, onRemove }: Props) {
   const name = displayName(s.source)
   const failed = s.status === 'failed'
   const verb = failed ? 'Retry' : 'Reindex'
   return (
-    <Box bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" px="5" py="4" mb="3">
+    <Box bg="app.surface" borderWidth="1px" borderColor={selected ? 'app.primary' : 'app.border'} borderRadius="lg" px="5" py="4" mb="3">
       <Box display="flex" alignItems="center" gap="3" flexWrap="wrap">
         <Box flex="1" minW="0">
           <Text fontWeight="semibold" fontSize="sm" color="app.text" truncate>
@@ -28,6 +28,9 @@ export function SourceCard({ source: s, onReindex, onRemove }: Props) {
         >
           {failed ? 'Failed' : 'Parsed'}
         </Badge>
+        <Button size="sm" variant="ghost" color="app.link" onClick={onLog} aria-label={`Show log of ${name}`} aria-pressed={selected}>
+          <LuScrollText /> Log
+        </Button>
         {canReindex(s) && (
           <Button size="sm" variant="ghost" color="app.link" onClick={onReindex} aria-label={`${verb} ${name}`}>
             <LuRefreshCw /> {verb}

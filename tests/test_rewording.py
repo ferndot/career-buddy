@@ -2,7 +2,7 @@
 
 import pytest
 
-from career_graph.domain.rewording import verify_rewording
+from career_buddy.domain.rewording import verify_rewording
 
 SOURCE = "Cut build times by 60% across 12 services"
 

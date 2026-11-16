@@ -2,9 +2,9 @@
 
 import pytest
 
-from career_graph.domain.document import Document, Entry, Line, Origin, Section
-from career_graph.domain.profile import PositionView, Profile
-from career_graph.domain.templates import build_document, get_template
+from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.profile import PositionView, Profile
+from career_buddy.domain.templates import build_document, get_template
 from samples import PROFILE
 
 def test_document_lines_are_in_reading_order() -> None:

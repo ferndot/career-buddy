@@ -1,7 +1,7 @@
 """AI-marker cleaning: the exact changes it reports and what clean_document touches."""
 
-from career_graph.domain.document import Document, Entry, Line, Origin, Section
-from career_graph.domain.markers import Change, clean, clean_document
+from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.markers import Change, clean, clean_document
 
 
 def test_a_swap_reports_what_was_found_and_what_replaced_it() -> None:

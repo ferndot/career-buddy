@@ -7,13 +7,13 @@ import logging
 import httpx
 import pytest
 
-from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
-from career_graph.adapters.inference.structured_anthropic import StructuredAnthropicProvider, anthropic_client
-from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
-from career_graph.application.ports import LLMUnavailable
-from career_graph.domain.model import FactKind
+from career_buddy.adapters.inference.redstring_extractor import RedstringExtractor
+from career_buddy.adapters.inference.structured_anthropic import StructuredAnthropicProvider, anthropic_client
+from career_buddy.adapters.inference.structured_openai import StructuredOpenAIProvider
+from career_buddy.application.ports import LLMUnavailable
+from career_buddy.domain.model import FactKind
 
-LOG = "career_graph.extraction"
+LOG = "career_buddy.extraction"
 RESUME = "Ada Lovelace\n" + "Engineer at Acme 2019-2021. Built things.\n" * 150  # long enough for several chunks
 
 

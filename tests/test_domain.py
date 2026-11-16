@@ -2,10 +2,10 @@
 
 import asyncio
 
-from career_graph.adapters.inference.heuristic import HeuristicExtractor
-from career_graph.domain.model import FactKind
-from career_graph.domain.profile import PositionView, Profile, assemble_profile, rank_for_job
-from career_graph.domain.text import split_bullets
+from career_buddy.adapters.inference.heuristic import HeuristicExtractor
+from career_buddy.domain.model import FactKind
+from career_buddy.domain.profile import PositionView, Profile, assemble_profile, rank_for_job
+from career_buddy.domain.text import split_bullets
 
 
 def test_split_bullets_separates_prose_from_bullets() -> None:
@@ -44,8 +44,8 @@ def test_redstring_adapter_maps_model_json_to_a_profile() -> None:
     import httpx
     import json
 
-    from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
-    from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
+    from career_buddy.adapters.inference.redstring_extractor import RedstringExtractor
+    from career_buddy.adapters.inference.structured_openai import StructuredOpenAIProvider
 
     reply = {
         "entities": [

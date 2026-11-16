@@ -6,8 +6,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from career_graph.adapters.sources.job_link import MAX_BYTES, JobLinkError, JobLinkFetcher
-from career_graph.web.app import create_app
+from career_buddy.adapters.sources.job_link import MAX_BYTES, JobLinkError, JobLinkFetcher
+from career_buddy.web.app import create_app
 
 PAGE = b"<html><head><title>x</title><style>p{}</style></head><body><h1>Engineer</h1>\n\n<p>Requirements:</p><ul><li>Python</li></ul></body></html>"
 HOSTS = {"jobs.test": ["93.184.216.34"], "evil.test": ["10.0.0.1"], "mixed.test": ["93.184.216.34", "127.0.0.1"], "cdn.test": ["93.184.216.35"]}
@@ -134,7 +134,7 @@ def test_a_timeout_is_a_gateway_timeout() -> None:
 
 
 def test_the_whole_fetch_has_a_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("career_graph.adapters.sources.job_link.TIMEOUT", 0.05)
+    monkeypatch.setattr("career_buddy.adapters.sources.job_link.TIMEOUT", 0.05)
 
     async def handler(request: httpx.Request) -> httpx.Response:
         await asyncio.sleep(1)

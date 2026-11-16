@@ -4,8 +4,8 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from career_graph.adapters.storage.s3_object_store import S3ObjectStore
-from career_graph.application.ports import ObjectNotFound
+from career_buddy.adapters.storage.s3_object_store import S3ObjectStore
+from career_buddy.application.ports import ObjectNotFound
 
 CONFIG = dict(endpoint_url="http://minio.test:9000", access_key="k", secret_key="s", region="us-east-1")
 

@@ -2,8 +2,8 @@
 
 import asyncio
 
-from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
+from career_buddy.adapters.graph.redstring_graph import RedstringFactGraph
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 
 def test_apply_then_snapshot_round_trips_facts_and_links() -> None:

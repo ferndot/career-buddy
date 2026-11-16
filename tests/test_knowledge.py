@@ -1,7 +1,7 @@
 """What is known about an achievement: its title, details, and the wording of every source that stated it."""
 
-from career_graph.domain.knowledge import details, knowledge
-from career_graph.domain.model import Fact, FactKind
+from career_buddy.domain.knowledge import details, knowledge
+from career_buddy.domain.model import Fact, FactKind
 
 
 def achievement(id: str, title: str, **attrs: str) -> Fact:

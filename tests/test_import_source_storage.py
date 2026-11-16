@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from moto import mock_aws
 
-from career_graph.web.app import create_app
+from career_buddy.web.app import create_app
 
 TEXT = b"Ada Lovelace\n\nExperience\nAnalyst at Analytical Society, 2010 - 2015\n- Wrote the first algorithm\n"
 KEY = f"sources/{hashlib.sha256(TEXT).hexdigest()}.txt"
@@ -27,7 +27,7 @@ def logged_keys(data_dir: Path) -> list[str]:
 
 @pytest.fixture
 def local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("CAREER_GRAPH_STORAGE", raising=False)
+    monkeypatch.delenv("CAREER_BUDDY_STORAGE", raising=False)
     with TestClient(create_app(tmp_path)) as client:
         yield client
 
@@ -36,8 +36,8 @@ def local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def s3(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     for name, value in {"STORAGE": "s3", "S3_ENDPOINT": ENDPOINT, "S3_BUCKET": "careers",
                         "S3_ACCESS_KEY": "k", "S3_SECRET_KEY": "s"}.items():
-        monkeypatch.setenv(f"CAREER_GRAPH_{name}", value)
-    monkeypatch.delenv("CAREER_GRAPH_S3_REGION", raising=False)
+        monkeypatch.setenv(f"CAREER_BUDDY_{name}", value)
+    monkeypatch.delenv("CAREER_BUDDY_S3_REGION", raising=False)
     with mock_aws(), TestClient(create_app(tmp_path)) as client:
         yield client
 
@@ -92,13 +92,13 @@ def test_s3_uploading_the_same_file_twice_does_not_duplicate_or_rewrite_the_obje
 
 
 def test_unknown_storage_kind_fails_at_startup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CAREER_GRAPH_STORAGE", "floppy")
-    with pytest.raises(ValueError, match="CAREER_GRAPH_STORAGE"), TestClient(create_app(tmp_path)):
+    monkeypatch.setenv("CAREER_BUDDY_STORAGE", "floppy")
+    with pytest.raises(ValueError, match="CAREER_BUDDY_STORAGE"), TestClient(create_app(tmp_path)):
         pass
 
 
 def test_s3_storage_without_its_settings_names_the_missing_variable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CAREER_GRAPH_STORAGE", "s3")
-    monkeypatch.delenv("CAREER_GRAPH_S3_ENDPOINT", raising=False)
-    with pytest.raises(KeyError, match="CAREER_GRAPH_S3_ENDPOINT"), TestClient(create_app(tmp_path)):
+    monkeypatch.setenv("CAREER_BUDDY_STORAGE", "s3")
+    monkeypatch.delenv("CAREER_BUDDY_S3_ENDPOINT", raising=False)
+    with pytest.raises(KeyError, match="CAREER_BUDDY_S3_ENDPOINT"), TestClient(create_app(tmp_path)):
         pass

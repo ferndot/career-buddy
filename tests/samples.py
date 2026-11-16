@@ -1,8 +1,8 @@
 """Shared sample data for the document tests."""
 
-from career_graph.domain.document import Document
-from career_graph.domain.profile import EducationView, PositionView, Profile
-from career_graph.domain.templates import build_document, get_template
+from career_buddy.domain.document import Document
+from career_buddy.domain.profile import EducationView, PositionView, Profile
+from career_buddy.domain.templates import build_document, get_template
 
 PROFILE = Profile(
     name="Jane Doe",

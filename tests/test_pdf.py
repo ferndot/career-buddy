@@ -10,10 +10,10 @@ import re
 import pytest
 from pdfminer.high_level import extract_pages
 
-from career_graph.adapters.outputs.render_pdf import PdfRenderer
-from career_graph.adapters.readers.pdf_text import PdfTextReader
-from career_graph.application.ports import NoTextLayer, RendererUnavailable, UnreadableDocument
-from career_graph.domain.document import Document, Entry, Line, Section, Style
+from career_buddy.adapters.outputs.render_pdf import PdfRenderer
+from career_buddy.adapters.readers.pdf_text import PdfTextReader
+from career_buddy.application.ports import NoTextLayer, RendererUnavailable, UnreadableDocument
+from career_buddy.domain.document import Document, Entry, Line, Section, Style
 from samples import sample_document
 
 LONG = (

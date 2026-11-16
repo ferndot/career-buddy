@@ -1,10 +1,10 @@
 """Readers for the text formats: they undo the markup so the ATS check can compare lines."""
 
-from career_graph.adapters.outputs.render_html import HtmlRenderer
-from career_graph.adapters.outputs.render_markdown import MarkdownRenderer
-from career_graph.adapters.outputs.render_text import TextRenderer
-from career_graph.adapters.readers.markup_text import HtmlTextReader, PlainTextReader
-from career_graph.domain.document import Style
+from career_buddy.adapters.outputs.render_html import HtmlRenderer
+from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
+from career_buddy.adapters.outputs.render_text import TextRenderer
+from career_buddy.adapters.readers.markup_text import HtmlTextReader, PlainTextReader
+from career_buddy.domain.document import Style
 from samples import sample_document
 
 DOC = sample_document()

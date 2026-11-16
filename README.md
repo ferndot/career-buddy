@@ -1,4 +1,4 @@
-# career-graph
+# career-buddy
 
 Import your career data (LinkedIn export, resume text), keep it as a graph of facts
 (positions, achievements, skills, education), and generate resumes and cover letters from that graph.
@@ -25,12 +25,12 @@ Requires [uv](https://docs.astral.sh/uv/) (it installs Python 3.13 for you).
 
 ```bash
 uv sync
-uv run career-graph
+uv run career-buddy
 
-Dev mode with hot reload (API restarts on changes under `src/career_graph/`; run `pnpm dev` in `frontend/` for the web UI, which reloads in place):
+Dev mode with hot reload (API restarts on changes under `src/career_buddy/`; run `pnpm dev` in `frontend/` for the web UI, which reloads in place):
 
 ```bash
-RELOAD=1 uv run career-graph
+RELOAD=1 uv run career-buddy
 ```
 ```
 
@@ -44,7 +44,7 @@ uv run playwright install chromium
 Without it everything else works. A PDF request returns HTTP 503 with this instruction, and the PDF tests are
 skipped with the same message.
 
-The API listens on http://127.0.0.1:8000 (or the port set by `PORT`; interactive docs at `/docs`). Data is stored in `./data/events.jsonl` (override with `CAREER_GRAPH_DATA`).
+The API listens on http://127.0.0.1:8000 (or the port set by `PORT`; interactive docs at `/docs`). Data is stored in `./data/events.jsonl` (override with `CAREER_BUDDY_DATA`).
 
 ## LLM connections
 
@@ -61,27 +61,27 @@ Only one connection is active at a time, or none.
 | llama.cpp | `http://localhost:9931/v1` (its Docker image uses 8080) | optional |
 | Custom URL | any OpenAI-compatible server | optional |
 
-- **Where keys go:** the OS keychain (via `keyring`). With no keychain, or with `CAREER_GRAPH_KEY_STORE=file` (the Docker
+- **Where keys go:** the OS keychain (via `keyring`). With no keychain, or with `CAREER_BUDDY_KEY_STORE=file` (the Docker
   image sets it), keys go to `secrets.json` in the data folder, mode 0600 but plain text. Settings (without keys) are in
   `llm-settings.json`. The page and API only ever show a masked key such as `sk-...a1f2`, and keys are never logged.
 - **Changing an address removes its saved key**, so a key cannot be sent to a new host. Cloud addresses cannot be edited.
 - **Private addresses** (such as `192.168.x.x`) show a warning and must be confirmed. Link-local and metadata addresses are refused.
-- **Environment variables still work.** `CAREER_GRAPH_LLM_BASE_URL`, `CAREER_GRAPH_LLM_MODEL` and `CAREER_GRAPH_LLM_API_KEY`
+- **Environment variables still work.** `CAREER_BUDDY_LLM_BASE_URL`, `CAREER_BUDDY_LLM_MODEL` and `CAREER_BUDDY_LLM_API_KEY`
   show up as a read-only "From environment variables" connection, active until you choose another or turn it off.
-- **Local use only:** requests with another `Host` header are refused. Add names in `CAREER_GRAPH_ALLOWED_HOSTS` (comma separated) if you put it behind a proxy.
-- **Live tests** (`tests/test_llm_live.py`) only list models, and run when `CAREER_GRAPH_LIVE_ANTHROPIC_KEY` or `CAREER_GRAPH_LIVE_GEMINI_KEY` is set.
+- **Local use only:** requests with another `Host` header are refused. Add names in `CAREER_BUDDY_ALLOWED_HOSTS` (comma separated) if you put it behind a proxy.
+- **Live tests** (`tests/test_llm_live.py`) only list models, and run when `CAREER_BUDDY_LIVE_ANTHROPIC_KEY` or `CAREER_BUDDY_LIVE_GEMINI_KEY` is set.
 
 API: `GET /api/llm/providers`, `GET|POST /api/llm/connections`, `PATCH|DELETE /api/llm/connections/{id}`, `PUT /api/llm/active`, `POST /api/llm/test`.
 
 ## Storage for uploaded originals
 
 `POST /api/import/file` keeps the original bytes as `sources/<sha256>.<ext>` and records that key in the import event
-(`source_key` in `events.jsonl`). The same file is stored once. Choose where with `CAREER_GRAPH_STORAGE`:
+(`source_key` in `events.jsonl`). The same file is stored once. Choose where with `CAREER_BUDDY_STORAGE`:
 
-- `local` (default): files under `${CAREER_GRAPH_DATA}/objects`.
+- `local` (default): files under `${CAREER_BUDDY_DATA}/objects`.
 - `s3`: any S3 API, such as the bundled SeaweedFS container or your own [MinIO](https://min.io) (reached over the S3 API only).
-  Set `CAREER_GRAPH_S3_ENDPOINT`, `CAREER_GRAPH_S3_BUCKET`, `CAREER_GRAPH_S3_ACCESS_KEY`, `CAREER_GRAPH_S3_SECRET_KEY`
-  and optionally `CAREER_GRAPH_S3_REGION` (default `us-east-1`). The bucket is created on startup if missing.
+  Set `CAREER_BUDDY_S3_ENDPOINT`, `CAREER_BUDDY_S3_BUCKET`, `CAREER_BUDDY_S3_ACCESS_KEY`, `CAREER_BUDDY_S3_SECRET_KEY`
+  and optionally `CAREER_BUDDY_S3_REGION` (default `us-east-1`). The bucket is created on startup if missing.
 
 To run an S3 server next to the app, use the optional `storage` compose profile. It starts
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) (Apache-2.0, pinned to `chrislusf/seaweedfs:4.51`) as a separate,
@@ -89,9 +89,9 @@ unmodified container, because MinIO no longer publishes community images. Plain 
 
 ```bash
 # .env next to docker-compose.yml (the defaults are dev-only placeholders)
-CAREER_GRAPH_STORAGE=s3
-CAREER_GRAPH_S3_ACCESS_KEY=pick-a-key
-CAREER_GRAPH_S3_SECRET_KEY=pick-a-long-secret
+CAREER_BUDDY_STORAGE=s3
+CAREER_BUDDY_S3_ACCESS_KEY=pick-a-key
+CAREER_BUDDY_S3_SECRET_KEY=pick-a-long-secret
 ```
 
 ```bash
@@ -100,9 +100,9 @@ docker compose --profile storage up --build
 
 The app reaches the server at `http://s3:8333` (bucket `careers`); the S3 API is also on `127.0.0.1:8333` for the
 integration test. Objects live in the `s3-data` Docker volume, not in `./data`. To use your own MinIO or another S3
-instead, leave the profile off and set `CAREER_GRAPH_S3_ENDPOINT`.
+instead, leave the profile off and set `CAREER_BUDDY_S3_ENDPOINT`.
 
-`tests/test_s3_minio_integration.py` runs against a real S3 server (MinIO, SeaweedFS, ...) when `CAREER_GRAPH_S3_ENDPOINT` and the other `S3` variables are set; otherwise it is skipped.
+`tests/test_s3_minio_integration.py` runs against a real S3 server (MinIO, SeaweedFS, ...) when `CAREER_BUDDY_S3_ENDPOINT` and the other `S3` variables are set; otherwise it is skipped.
 
 ## Import sources
 
@@ -127,7 +127,7 @@ In the Generator step, paste a job posting link and press *Fetch posting*; the t
 Ports and adapters, with CQRS split between writes and reads. Layers depend inward only.
 
 ```
-src/career_graph/
+src/career_buddy/
   domain/          pure: Fact/Link model, profile assembly, Document model, templates, ATS check, events
   application/     ports (protocols) and services: ImportService, CareerQueries, DocumentService
   adapters/

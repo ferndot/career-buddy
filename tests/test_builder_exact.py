@@ -1,8 +1,8 @@
 """BatchBuilder: the exact facts and links each call produces."""
 
-from career_graph.domain.builder import BatchBuilder
-from career_graph.domain.document import Document, Entry, Line, Section
-from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind, fact_id
+from career_buddy.domain.builder import BatchBuilder
+from career_buddy.domain.document import Document, Entry, Line, Section
+from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind, fact_id
 
 K, L = FactKind, LinkKind
 
