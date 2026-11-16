@@ -93,5 +93,5 @@ async def build_app(
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
     documents = DocumentService(projector, renderers, readers, rewriter, merged=projector)
-    return App(imports, EditService(log, projector, jobs), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
+    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
                SavedDocuments(store, documents), llm)

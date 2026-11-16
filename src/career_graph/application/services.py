@@ -26,6 +26,7 @@ from career_graph.application.projector import Projector
 from career_graph.domain.dedup import merge_candidates
 from career_graph.domain.events import DuplicateDismissed, FactRevised, FactsImported, FactsMerged, SourceRemoved
 from career_graph.domain.manual import manual_fact
+from career_graph.domain.text import BULLETS
 from career_graph.domain.model import Fact, FactBatch, FactKind, InvalidFact
 from career_graph.domain.letter import write_letter
 from career_graph.domain.profile import Profile, assemble_profile, rank_for_job
@@ -155,10 +156,11 @@ def fact_json(f: Fact) -> dict[str, object]:
 class EditService:
     """Write side for the user's own changes: revise, add by hand, merge. Each is logged, then projected."""
 
-    def __init__(self, log: EventLog, projector: Projector, jobs: SourceJobs) -> None:
+    def __init__(self, log: EventLog, projector: Projector, jobs: SourceJobs, extractor: FactExtractor | None = None) -> None:
         self._log = log
         self._projector = projector
         self._jobs = jobs
+        self._extractor = extractor  # reads a position's description into achievements
 
     async def _find(self, fact_id: str) -> Fact:
         facts = {f.id: f for f in (await self._projector.snapshot()).facts}
@@ -202,10 +204,25 @@ class EditService:
             await self._record(SourceRemoved(source, _now()))
 
     async def add_fact(self, kind: FactKind, title: str, parent_id: str | None, attributes: dict[str, str]) -> str:
+        """A position's description is read into achievements, by the model when one is configured, else line by line."""
         parent = await self._find(parent_id) if parent_id else None
         batch = manual_fact(kind, title, parent, attributes)
+        achievements = await self._achievements(attributes.get("description", "")) if kind == FactKind.POSITION else []
         await self._record(FactsImported(batch))
-        return batch.facts[0].id
+        position = batch.facts[0]
+        for text in achievements:
+            await self._record(FactsImported(manual_fact(FactKind.ACHIEVEMENT, text, position, {})))
+        return position.id
+
+    async def _achievements(self, description: str) -> list[str]:
+        """Read first, so a failed model call adds nothing rather than a half-entered position."""
+        if not description.strip():
+            return []
+        if self._extractor is not None:
+            batch = await self._extractor.extract(description, "manual")
+            if found := [f.title for f in batch.facts if f.kind == FactKind.ACHIEVEMENT and f.title.strip()]:
+                return found
+        return [line.strip().lstrip("".join(BULLETS)).strip() for line in description.splitlines() if line.strip().lstrip("".join(BULLETS)).strip()]
 
     async def merge(self, alias_id: str, canonical_id: str, undo: bool) -> None:
         if alias_id == canonical_id:

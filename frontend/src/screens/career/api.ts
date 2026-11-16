@@ -51,17 +51,9 @@ export const useDismiss = () =>
 export function useAddEntry() {
   const create = useCreateFact()
   return useMutation({
-    mutationFn: async (v: {
-      kind: 'Position' | 'Education'
-      title: string
-      parent_id: string
-      attributes: Record<string, string>
-      bullets?: string[]
-    }) => {
-      const { bullets = [], ...entry } = v
-      const { id } = await create.mutateAsync(entry)
-      for (const [i, title] of bullets.entries())
-        await create.mutateAsync({ kind: 'Achievement', title, parent_id: id, attributes: { order: String(i) } })
+    // The server reads a position's description into its achievements.
+    mutationFn: async (v: { kind: 'Position' | 'Education'; title: string; parent_id: string; attributes: Record<string, string> }) => {
+      await create.mutateAsync(v)
     },
   })
 }

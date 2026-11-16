@@ -221,3 +221,13 @@ def test_similar_skill_names_are_proposed_and_a_dismissed_pair_is_not_proposed_a
     assert {pair["a"]["title"], pair["b"]["title"]} == {"Postgres", "PostgreSQL"}
     client.post("/api/duplicates/dismiss", json={"a_id": pair["a"]["id"], "b_id": pair["b"]["id"]})
     assert pairs() == []
+
+
+def test_a_position_description_becomes_its_achievements_whether_or_not_it_has_bullets(client) -> None:
+    person = client.get("/api/profile").json()["id"]
+    res = client.post("/api/facts", json={"kind": "Position", "title": "Staff Engineer", "parent_id": person,
+                                          "attributes": {"organization": "Initech", "description":
+                                                         "- Cut build times by 60%\n\nMigrated 40 services to Kubernetes"}})
+    assert res.status_code == 201
+    staff = position(client, "Staff Engineer")
+    assert staff["achievements"] == ["Cut build times by 60%", "Migrated 40 services to Kubernetes"]

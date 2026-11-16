@@ -47,11 +47,7 @@ export function AddPositionDialog({ open, onClose, personId }: Props) {
               kind: 'Position',
               title,
               parent_id: personId,
-              attributes: { organization: org, period: when },
-              bullets: bullets
-                .split('\n')
-                .map((b) => b.trim())
-                .filter(Boolean),
+              attributes: { organization: org, period: when, description: bullets },
             },
             { onSuccess: done },
           ),
@@ -61,8 +57,8 @@ export function AddPositionDialog({ open, onClose, personId }: Props) {
       {field('Organization', { value: org, onChange: set(1) })}
       {field('Dates', { value: when, onChange: set(2), placeholder: 'Mar 2019 - Present' })}
       <Field.Root>
-        <Field.Label color="app.text2">Bullets (one per line)</Field.Label>
-        <Textarea rows={4} bg="app.surface" borderColor="app.borderStrong" value={bullets} onChange={set(3)} />
+        <Field.Label color="app.text2">Description</Field.Label>
+        <Textarea rows={4} placeholder="What you did and what it achieved. Bullets or prose both work." bg="app.surface" borderColor="app.borderStrong" value={bullets} onChange={set(3)} />
       </Field.Root>
       {add.isError && <Field.ErrorText>Could not add the position.</Field.ErrorText>}
     </FormDialog>
