@@ -115,9 +115,15 @@ function Detail({ fact, ex, career, onOpen }: { fact: Fact; ex: Explorer; career
   const links = <Links fact={fact} ex={ex} shown={new Set(entry?.bullets.map((b) => b.id))} onOpen={onOpen} />
   // A bullet is an achievement fact, so it is edited with the same dialog, merging among achievements.
   const editBullet = (b: Bullet) => setEditingBullet({ id: b.id, kind: 'Achievement', title: b.title, attributes: b.attributes, source: '' })
+  const [addingBullet, setAddingBullet] = useState(false)
   return (
     <>
-      {entry ? <EntryCard entry={entry} onEditBullet={editBullet}>{links}</EntryCard> : <Generic fact={fact}>{links}</Generic>}
+      {entry
+        ? <EntryCard entry={entry} onEditBullet={editBullet} onAddBullet={fact.kind === 'Position' ? () => setAddingBullet(true) : undefined}>{links}</EntryCard>
+        : <Generic fact={fact}>{links}</Generic>}
+      {fact.kind === 'Position' && (
+        <AddAchievementDialog open={addingBullet} onClose={() => setAddingBullet(false)} positions={[fact]} />
+      )}
       <EditFactDialog key={editingBullet?.id} fact={editingBullet}
         candidates={ex.list('Achievement').filter((c) => c.id !== editingBullet?.id)} onClose={() => setEditingBullet(null)} />
     </>
