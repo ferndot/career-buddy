@@ -15,7 +15,6 @@ export function SourcesScreen() {
   const busy = sources.filter(isBusy)
   const idle = sources.filter((s) => !isBusy(s))
   const reindexable = idle.filter(canReindex)
-  const facts = sources.reduce((n, s) => n + s.facts, 0)
   const addButton = (
     <Button bg="app.primary" color="app.onPrimary" onClick={() => setAdding(true)}>
       <LuPlus /> Add a source
@@ -42,12 +41,6 @@ export function SourcesScreen() {
           </Button>
           {sources.length > 0 && addButton}
         </Box>
-        {sources.length > 0 && (
-          <Text role="status" color="app.muted" fontSize="sm" mb="4">
-            {idle.length} {idle.length === 1 ? 'source' : 'sources'} indexed, {busy.length} processing. {facts} facts so
-            far.
-          </Text>
-        )}
         {isError && (
           <Text role="alert" color="app.missText" fontSize="sm" mb="3">
             Could not load sources.
