@@ -7,13 +7,28 @@ import httpx
 import pytest
 
 from career_graph.adapters.inference.anthropic import ANTHROPIC_URL, AnthropicExtractor, AnthropicRewriter, anthropic_client
-from career_graph.adapters.inference.openai_compatible import OpenAICompatibleExtractor, openai_client
+from career_graph.adapters.inference.openai_compatible import openai_client
 from career_graph.adapters.inference.openai_rewriter import OpenAICompatibleRewriter
 from career_graph.adapters.inference.probe import probe_anthropic, probe_openai
+from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
+from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
 from career_graph.application.ports import LLMUnavailable
 
 FAKE_KEY = "sk-ant-fake-0000000000000000"
-EXTRACTED = {"name": "Ada Lovelace", "skills": ["Math"], "positions": [{"title": "Analyst", "organization": "Royal Society", "achievements": ["Wrote the first algorithm"]}]}
+CAREER_JSON = {"name": "Ada Lovelace", "skills": ["Math"], "positions": [
+    {"title": "Analyst", "organization": "Royal Society", "achievements": ["Wrote the first algorithm"]}]}  # native Anthropic path
+# redstring's extraction shape: entities and relationships by name, typed by the career schema.
+EXTRACTED = {
+    "entities": [
+        {"name": "Ada Lovelace", "entity_type": "Person"},
+        {"name": "Analyst", "entity_type": "Position"},
+        {"name": "Royal Society", "entity_type": "Organization"},
+    ],
+    "relationships": [
+        {"source_name": "Ada Lovelace", "target_name": "Analyst", "relationship_type": "HAS_POSITION"},
+        {"source_name": "Analyst", "target_name": "Royal Society", "relationship_type": "AT"},
+    ],
+}
 
 
 def run(coro):
@@ -38,7 +53,7 @@ def anthropic_reply(text: str) -> httpx.Response:
 
 
 def test_anthropic_extractor_posts_to_messages_with_native_headers_and_no_temperature() -> None:
-    seen, transport = seen_by(lambda r: anthropic_reply("```json\n" + json.dumps(EXTRACTED) + "\n```"))
+    seen, transport = seen_by(lambda r: anthropic_reply("```json\n" + json.dumps(CAREER_JSON) + "\n```"))
     extractor = AnthropicExtractor(anthropic_client(FAKE_KEY, transport), "claude-test")
     batch = run(extractor.extract("my resume", "pasted"))
     (request,) = seen
@@ -79,7 +94,7 @@ def test_openai_extractor_posts_to_chat_completions_with_bearer_and_maps_errors(
     reply = lambda r: httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(EXTRACTED)}}]})  # noqa: E731
     seen, transport = seen_by(reply)
     client = openai_client("http://llm.test/v1/", FAKE_KEY, transport)
-    batch = run(OpenAICompatibleExtractor("http://llm.test/v1/", "m", FAKE_KEY, client).extract("my resume", "pasted"))
+    batch = run(RedstringExtractor(StructuredOpenAIProvider(client, "m")).extract("my resume", "pasted"))
     (request,) = seen
     assert str(request.url) == "http://llm.test/v1/chat/completions"
     assert request.headers["authorization"] == f"Bearer {FAKE_KEY}"
@@ -88,7 +103,7 @@ def test_openai_extractor_posts_to_chat_completions_with_bearer_and_maps_errors(
 
     _, failing = seen_by(lambda r: httpx.Response(500, text=f"boom {FAKE_KEY}"))
     with pytest.raises(LLMUnavailable) as raised:
-        run(OpenAICompatibleExtractor("http://llm.test/v1", "m", FAKE_KEY, openai_client("http://llm.test/v1", FAKE_KEY, failing)).extract("x", "s"))
+        run(RedstringExtractor(StructuredOpenAIProvider(openai_client("http://llm.test/v1", FAKE_KEY, failing), "m")).extract("x", "s"))
     assert "500" in str(raised.value) and FAKE_KEY not in str(raised.value)
 
 

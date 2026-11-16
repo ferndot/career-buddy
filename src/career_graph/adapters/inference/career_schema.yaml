@@ -1,0 +1,68 @@
+domain_id: career
+display_name: Career history
+description: A person's career history from a resume, profile or job-related text.
+entity_types:
+  - id: Person
+    description: The person whose career this is.
+    properties:
+      - name: headline
+        type: string
+        description: Short professional headline, if stated.
+  - id: Organization
+    description: An employer or a school.
+  - id: Position
+    description: A job held at an organization. Name it as its title followed by ' at ' and the organization, for example 'Senior Engineer at Acme', so the same title at two employers stays two positions. Use the same full name in its relationships.
+    properties:
+      - name: period
+        type: string
+        description: Dates as written, for example "2019 - 2021" or "Jan 2020 - Present".
+  - id: Achievement
+    description: A concrete accomplishment at a position. Duties are not achievements.
+  - id: Skill
+    description: A professional skill or tool, named as the text names it.
+  - id: Education
+    description: A degree, certificate or course at a school.
+    properties:
+      - name: period
+        type: string
+        description: Dates as written.
+relationship_types:
+  - id: HAS_POSITION
+    description: The person held this position.
+    valid_source_types: [Person]
+    valid_target_types: [Position]
+  - id: HAS_EDUCATION
+    description: The person has this education.
+    valid_source_types: [Person]
+    valid_target_types: [Education]
+  - id: HAS_SKILL
+    description: The person has this skill.
+    valid_source_types: [Person]
+    valid_target_types: [Skill]
+  - id: AT
+    description: The position is at this employer.
+    valid_source_types: [Position]
+    valid_target_types: [Organization]
+  - id: ACHIEVED
+    description: The position included this achievement.
+    valid_source_types: [Position]
+    valid_target_types: [Achievement]
+  - id: USES_SKILL
+    description: The position used this skill.
+    valid_source_types: [Position]
+    valid_target_types: [Skill]
+  - id: ATTENDED
+    description: The education was at this school.
+    valid_source_types: [Education]
+    valid_target_types: [Organization]
+extraction_prompt_template: |
+  You extract a career history from a person's own text (a resume, a profile, or notes about a job).
+
+  Extract the following types of entities:
+  {entity_descriptions}
+
+  Extract the following types of relationships:
+  {relationship_descriptions}
+
+  Use only facts the text states. Use each name exactly as the text spells it.
+  Achievements are concrete accomplishments, not duties. Put dates as written in the period property.

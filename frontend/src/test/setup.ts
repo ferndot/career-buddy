@@ -14,3 +14,12 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: () => false,
   }),
 })
+
+// React Flow measures nodes with ResizeObserver, which jsdom does not provide.
+if (!('ResizeObserver' in globalThis)) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}

@@ -16,6 +16,7 @@ dependencies = [
     "playwright>=1.65.2",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.33",
+    "redstring>=0.13,<0.14",
     "uvicorn>=0.54.0",
 ]
 

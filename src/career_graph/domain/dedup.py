@@ -8,12 +8,10 @@ from difflib import SequenceMatcher
 from itertools import combinations
 
 from career_graph.domain.model import Fact, FactBatch, FactKind, LinkKind, is_hidden, normalize
+from career_graph.domain.periods import period_of
 
 THRESHOLD = 0.90
 _LEGAL = {"inc", "corp", "corporation", "co", "ltd", "llc", "plc", "gmbh", "sa", "ag"}
-_YEAR = re.compile(r"\d{4}")
-_OPEN = re.compile(r"[-–—]|present|current", re.I)
-_DASH_FIRST = re.compile(r"\s*[-–—]")
 
 
 def normalize_org(name: str) -> str:
@@ -27,22 +25,9 @@ def _ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, x, y, autojunk=False).ratio()
 
 
-def _span(attrs: dict[str, str]) -> tuple[float, float] | None:
-    """(first year, last year) of a position; open-ended ranges run to infinity. Year precision only."""
-    text = attrs.get("period") or f"{attrs.get('started', '')} - {attrs.get('finished', '')}"
-    years = [int(y) for y in _YEAR.findall(text)]
-    if not years:
-        return None
-    if len(years) > 1:
-        return years[0], years[1]
-    if _DASH_FIRST.match(text):  # only an end year: the start is unknown, the stint is over
-        return float("-inf"), years[0]
-    return years[0], float("inf") if _OPEN.search(text) else years[0]
-
-
 def _overlap(a: dict[str, str], b: dict[str, str]) -> bool:
-    spans = _span(a), _span(b)
-    return None in spans or (spans[0][0] <= spans[1][1] and spans[1][0] <= spans[0][1])  # unknown dates: may overlap
+    pa, pb = period_of(a), period_of(b)
+    return pa is None or pb is None or pa.overlaps(pb)  # unknown dates: may overlap
 
 
 def merge_candidates(batch: FactBatch) -> list[tuple[str, str, float]]:

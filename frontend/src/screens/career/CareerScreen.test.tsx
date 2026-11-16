@@ -32,7 +32,7 @@ afterEach(() => {
 it('renders positions with bullet checkboxes, the duplicates banner and add buttons', async () => {
   vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(routes[url]), { status: 200 }))
   renderApp(<CareerScreen />)
-  expect(await screen.findByText('Senior Engineer')).toBeInTheDocument()
+  expect((await screen.findAllByText('Senior Engineer')).length).toBeGreaterThanOrEqual(1) // list card and graph node
   expect(screen.getByText('Acme, Mar 2019 - Present')).toBeInTheDocument()
   expect(screen.getByRole('checkbox', { name: 'Cut build times by 60%' })).toBeChecked()
   expect(screen.getByRole('checkbox', { name: 'Ran design reviews' })).not.toBeChecked()

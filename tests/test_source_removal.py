@@ -2,7 +2,7 @@
 
 import asyncio
 
-from career_graph.adapters.graph.memory_graph import MemoryFactGraph
+from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
 from career_graph.application.projector import Projector
 from career_graph.domain.builder import BatchBuilder
 from career_graph.domain.events import FactsImported, SourceRemoved
@@ -18,7 +18,7 @@ def _batch(source: str, *titles: str):
 
 def test_removed_source_hides_its_facts_but_keeps_shared_ones() -> None:
     async def run():
-        p = Projector(MemoryFactGraph())
+        p = Projector(RedstringFactGraph())
         await p.project(FactsImported(_batch("a.txt", "Engineer")))
         await p.project(FactsImported(_batch("b.txt", "Analyst")))
         await p.project(SourceRemoved("a.txt"))
@@ -32,7 +32,7 @@ def test_removed_source_hides_its_facts_but_keeps_shared_ones() -> None:
 
 def test_reimporting_a_removed_source_brings_it_back() -> None:
     async def run():
-        p = Projector(MemoryFactGraph())
+        p = Projector(RedstringFactGraph())
         await p.project(FactsImported(_batch("a.txt", "Engineer")))
         await p.project(SourceRemoved("a.txt"))
         await p.project(FactsImported(_batch("a.txt", "Engineer")))

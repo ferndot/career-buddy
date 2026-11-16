@@ -224,3 +224,13 @@ def test_dismiss_validation(client) -> None:
     post = lambda a, b: client.post("/api/duplicates/dismiss", json={"a_id": a, "b_id": b}).status_code
     assert post("nope", ids["Acme"]) == 404
     assert post(ids["Acme"], ids["Acme"]) == 422
+
+
+def test_similar_skill_names_are_proposed_and_a_dismissed_pair_is_not_proposed_again(client) -> None:
+    client.post("/api/import/text", json={"text": "Jane Doe\n\nSkills\nPostgres, Python\n"})
+    client.post("/api/import/text", json={"text": "Jane Doe\n\nSkills\nPostgreSQL\n"})
+    pairs = lambda: [d for d in client.get("/api/duplicates").json() if d["kind"] == "Skill"]
+    (pair,) = pairs()
+    assert {pair["a"]["title"], pair["b"]["title"]} == {"Postgres", "PostgreSQL"}
+    client.post("/api/duplicates/dismiss", json={"a_id": pair["a"]["id"], "b_id": pair["b"]["id"]})
+    assert pairs() == []

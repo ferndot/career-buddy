@@ -29,6 +29,7 @@ from career_graph.domain.manual import manual_fact
 from career_graph.domain.model import Fact, FactBatch, FactKind, InvalidFact
 from career_graph.domain.letter import write_letter
 from career_graph.domain.profile import Profile, assemble_profile, rank_for_job
+from collections.abc import Awaitable, Callable
 
 
 class ImportService:
@@ -208,9 +209,11 @@ class EditService:
 class CareerQueries:
     """Read side. Assembles views from the projection; never writes."""
 
-    def __init__(self, graph: Projector, jobs: SourceJobs) -> None:
+    def __init__(self, graph: Projector, jobs: SourceJobs,
+                 skill_matcher: Callable[[FactBatch], Awaitable[list[tuple[str, str, float]]]] | None = None) -> None:
         self._graph = graph
         self._jobs = jobs
+        self._skill_matcher = skill_matcher  # finds skill duplicates; none means only organizations and positions
 
     async def profile(self) -> Profile:
         return assemble_profile(await self._graph.snapshot())
@@ -245,10 +248,13 @@ class CareerQueries:
     async def duplicates(self) -> list[dict[str, object]]:
         batch = await self._graph.snapshot()
         by_id = {f.id: f for f in batch.facts}
+        found = merge_candidates(batch)
+        if self._skill_matcher:
+            found = sorted(found + await self._skill_matcher(batch), key=lambda c: (-c[2], c[0], c[1]))
         return [
             {"kind": by_id[a].kind, "a": {"id": a, "title": by_id[a].title}, "b": {"id": b, "title": by_id[b].title},
              "score": round(score, 3)}
-            for a, b, score in merge_candidates(batch)
+            for a, b, score in found
             if frozenset((a, b)) not in self._graph.dismissed
         ]
 

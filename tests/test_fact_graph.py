@@ -2,12 +2,12 @@
 
 import asyncio
 
-from career_graph.adapters.graph.memory_graph import MemoryFactGraph
+from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
 from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 
 def test_apply_then_snapshot_round_trips_facts_and_links() -> None:
-    graph = MemoryFactGraph()
+    graph = RedstringFactGraph()
     batch = FactBatch(
         (Fact("a", FactKind.PERSON, "Ada"), Fact("b", FactKind.SKILL, "Python")),
         (Link("a", "b", LinkKind.HAS_SKILL),),
@@ -19,10 +19,11 @@ def test_apply_then_snapshot_round_trips_facts_and_links() -> None:
 
 
 def test_apply_twice_does_not_duplicate_and_later_fact_wins() -> None:
-    graph = MemoryFactGraph()
+    graph = RedstringFactGraph()
     link = Link("a", "b", LinkKind.HAS_SKILL)
-    asyncio.run(graph.apply(FactBatch((Fact("a", FactKind.PERSON, "Ada"),), (link,))))
+    skill = Fact("b", FactKind.SKILL, "Python")
+    asyncio.run(graph.apply(FactBatch((Fact("a", FactKind.PERSON, "Ada"), skill), (link,))))
     asyncio.run(graph.apply(FactBatch((Fact("a", FactKind.PERSON, "Ada L"),), (link,))))
     snapshot = asyncio.run(graph.snapshot())
-    assert [f.title for f in snapshot.facts] == ["Ada L"]
+    assert [f.title for f in snapshot.facts] == ["Ada L", "Python"]
     assert snapshot.links == (link,)

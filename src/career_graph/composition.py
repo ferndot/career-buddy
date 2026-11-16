@@ -9,7 +9,8 @@ from pathlib import Path
 
 import httpx
 
-from career_graph.adapters.graph.memory_graph import MemoryFactGraph
+from career_graph.adapters.consolidation.redstring_candidates import skill_candidates
+from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
 from career_graph.adapters.inference.heuristic import HeuristicExtractor
 from career_graph.adapters.inference.connections import LLMConnections
 from career_graph.adapters.jobs.memory_jobs import InMemoryJobStore
@@ -66,7 +67,7 @@ async def build_app(
     extra_renderers: Sequence[DocumentRenderer] = (),
 ) -> App:
     log = JsonlEventLog(data_dir / "events.jsonl")
-    projector = Projector(MemoryFactGraph())
+    projector = Projector(RedstringFactGraph())
 
     # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
     llm = LLMConnections(data_dir, llm_transport)
@@ -92,5 +93,5 @@ async def build_app(
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
     documents = DocumentService(projector, renderers, readers, rewriter)
-    return App(imports, EditService(log, projector, jobs), CareerQueries(projector, jobs), documents,
+    return App(imports, EditService(log, projector, jobs), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
                SavedDocuments(store, documents), llm)

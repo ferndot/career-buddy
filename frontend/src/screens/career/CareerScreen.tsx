@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Link as ChakraLink } from '@chakra-ui/react'
+import { Box, Button, Flex, Heading, Link as ChakraLink } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState, PageHeader } from '../../components'
@@ -56,10 +56,15 @@ export function CareerScreen() {
       <DuplicatesBanner />
       <Flex gap="6" wrap="wrap" align="flex-start">
         <Box flex="1 1 520px" minW="0">
-          <CareerGraph career={career} />
+          <CareerGraph facts={facts.data ?? []} edges={graph.data?.edges ?? []} />
         </Box>
         <Box flex="1 1 380px" minW="0">
-          {[...career.positions, ...career.education].map((e) => (
+          <Heading as="h2" size="sm" mb="2">Positions</Heading>
+          {career.positions.map((e) => (
+            <EntryCard key={e.id} entry={e} />
+          ))}
+          <Heading as="h2" size="sm" mb="2" mt="4">Education</Heading>
+          {career.education.map((e) => (
             <EntryCard key={e.id} entry={e} />
           ))}
           <Button {...ghost} onClick={() => setAdding('position')}>

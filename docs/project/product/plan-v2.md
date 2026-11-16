@@ -27,7 +27,7 @@ extends: prd-0001
 | D4 | **Tailoring is deterministic: select and reorder.** Rewording is optional, comes from an LLM, is verified, and the user accepts or rejects each change. | It is explainable and testable, and it cannot invent facts. |
 | D5 | **AI markers: strip safe swaps automatically, flag ambiguous words, never change stored facts.** | See "AI-marker policy". |
 | D6 | **Reuse the import readers for the ATS check.** | The pdfminer and python-docx readers built for import also extract our own output back. |
-| D7 | **Drop redstring. Use a plain in-memory store behind the existing `FactGraph` port, and stdlib `difflib` for duplicate-employer detection.** | See "Graph store decision". |
+| D7 | ~~Drop redstring.~~ **Superseded by ADR-0008: redstring is reintroduced for extraction and the graph store.** | See "Graph store decision". |
 
 ## Graph store decision (D7)
 

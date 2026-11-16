@@ -40,21 +40,35 @@ def test_heuristic_extracts_positions_bullets_and_skills() -> None:
     assert any(f.kind == FactKind.POSITION for f in batch.facts)
 
 
-def test_openai_compatible_adapter_maps_model_json_to_facts() -> None:
+def test_redstring_adapter_maps_model_json_to_a_profile() -> None:
     import httpx
     import json
 
-    from career_graph.adapters.inference.openai_compatible import OpenAICompatibleExtractor
+    from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
+    from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
 
-    reply = {"name": "Alan Turing", "skills": ["Cryptanalysis"], "positions": [
-        {"title": "Lecturer", "organization": "Manchester", "achievements": ["Designed the Turing machine model"]}]}
+    reply = {
+        "entities": [
+            {"name": "Alan Turing", "entity_type": "Person"},
+            {"name": "Lecturer", "entity_type": "Position"},
+            {"name": "Manchester", "entity_type": "Organization"},
+            {"name": "Designed the Turing machine model", "entity_type": "Achievement"},
+            {"name": "Cryptanalysis", "entity_type": "Skill"},
+        ],
+        "relationships": [
+            {"source_name": "Alan Turing", "target_name": "Lecturer", "relationship_type": "HAS_POSITION"},
+            {"source_name": "Lecturer", "target_name": "Manchester", "relationship_type": "AT"},
+            {"source_name": "Lecturer", "target_name": "Designed the Turing machine model", "relationship_type": "ACHIEVED"},
+            {"source_name": "Alan Turing", "target_name": "Cryptanalysis", "relationship_type": "HAS_SKILL"},
+        ],
+    }
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(reply)}}]})
 
-    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    extractor = OpenAICompatibleExtractor("http://model.test/v1", "m", client=client)
+    client = httpx.AsyncClient(base_url="http://model.test/v1/", transport=httpx.MockTransport(handler))
+    extractor = RedstringExtractor(StructuredOpenAIProvider(client, "m"))
     profile = assemble_profile(asyncio.run(extractor.extract("text", "t")))
     assert profile.name == "Alan Turing"
     assert profile.positions[0].achievements == ("Designed the Turing machine model",)

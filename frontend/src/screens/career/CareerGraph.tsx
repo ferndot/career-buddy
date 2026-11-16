@@ -1,60 +1,85 @@
-import { Box, chakra } from '@chakra-ui/react'
-import type { Career } from './model'
+import { Box } from '@chakra-ui/react'
+import { Background, Controls, ReactFlow, type Edge as FlowEdge, type Node } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import { useMemo } from 'react'
+import { useTheme } from 'next-themes'
+import type { Edge, Fact } from './api'
+import { layoutGraph, NODE_H, NODE_W } from './graphLayout'
+import { palette } from '../../theme/tokens'
 
-type Tone = { fill: string; stroke: string; text: string }
-type Node = { label: string; sub: string; tone: Tone }
+type Pair = readonly [string, string]
+const TONES: Record<string, { fill: Pair; stroke: Pair; text: Pair }> = {
+  Person: { fill: palette.primary, stroke: palette.primary, text: palette.surface },
+  Position: { fill: palette.nodeFill, stroke: palette.nodeStroke, text: palette.nodeText },
+  Education: { fill: palette.okBg, stroke: palette.done, text: palette.okText },
+  Organization: { fill: palette.surface, stroke: palette.muted, text: palette.nodeText },
+  Skill: { fill: palette.missBg, stroke: palette.missText, text: palette.missText },
+}
+const EDGE_COLOR: Pair = palette.muted
 
-const W = 640
-const H = 420
-const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
+/** The stored career graph: visible facts and links, laid out left to right. Achievements show as a count on their position. */
+export function CareerGraph({ facts, edges }: { facts: Fact[]; edges: Edge[] }) {
+  const { resolvedTheme } = useTheme()
+  const mode = resolvedTheme === 'dark' ? 1 : 0
+  const layout = useMemo(() => layoutGraph(facts, edges), [facts, edges])
 
-const TONES = {
-  pos: { fill: 'app.nodeFill', stroke: 'app.nodeStroke', text: 'app.nodeText' },
-  edu: { fill: 'app.okBg', stroke: 'app.done', text: 'app.okText' },
-  skill: { fill: 'app.missBg', stroke: 'app.missText', text: 'app.missText' },
-} satisfies Record<string, Tone>
+  const nodes: Node[] = layout.nodes.map((n) => {
+    const tone = TONES[n.kind]
+    const badge = layout.badges[n.id]
+    return {
+      id: n.id,
+      position: { x: n.x, y: n.y },
+      data: {
+        label: (
+          <div style={{ lineHeight: 1.25 }}>
+            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.title}>
+              {n.title}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.85 }}>
+              {n.kind}
+              {badge ? ` · ${badge} ${badge === 1 ? 'achievement' : 'achievements'}` : ''}
+            </div>
+          </div>
+        ),
+      },
+      style: {
+        width: NODE_W,
+        height: NODE_H,
+        padding: '6px 10px',
+        borderRadius: 8,
+        border: `1.5px solid ${tone.stroke[mode]}`,
+        background: tone.fill[mode],
+        color: tone.text[mode],
+        fontSize: 12,
+      },
+      selectable: false,
+    }
+  })
+  const flowEdges: FlowEdge[] = layout.edges.map((e) => ({
+    id: `${e.kind}:${e.source}:${e.target}`,
+    source: e.source,
+    target: e.target,
+    style: { stroke: EDGE_COLOR[mode], strokeWidth: 1.5 },
+    selectable: false,
+  }))
 
-/** Person in the middle; positions, schools and one skills node on an ellipse around them. */
-export function CareerGraph({ career }: { career: Career }) {
-  const nodes: Node[] = [
-    ...career.positions.map((p) => ({ label: cut(p.org || p.title, 12), sub: cut(p.title, 14), tone: TONES.pos })),
-    ...career.education.map((e) => ({ label: cut(e.org || e.title, 12), sub: cut(e.title, 14), tone: TONES.edu })),
-    ...(career.skills.length ? [{ label: 'Skills', sub: cut(career.skills.slice(0, 2).join(', '), 14), tone: TONES.skill }] : []),
-  ]
-  const r = nodes.length > 6 ? 30 : 40
-  const cx = W / 2
-  const cy = H / 2
-  const at = (i: number) => {
-    const a = (2 * Math.PI * i) / nodes.length - Math.PI * 0.75
-    return { x: cx + 230 * Math.cos(a), y: cy + 140 * Math.sin(a) }
-  }
-  const summary = `Career graph: ${career.name} connected to ${career.positions.length} positions, ${career.education.length} education entries and ${career.skills.length} skills`
-
+  const summary = `Career graph: ${layout.nodes.length} facts and ${layout.edges.length} links`
   return (
-    <Box as="section" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" h="420px" overflow="hidden">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" role="img" aria-label={summary}>
-        {nodes.map((_, i) => (
-          <chakra.line key={i} x1={cx} y1={cy} x2={at(i).x} y2={at(i).y} stroke="app.muted" strokeWidth="2" />
-        ))}
-        <chakra.circle cx={cx} cy={cy} r="48" fill="app.primary" />
-        <chakra.text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="app.onPrimary">
-          {cut(career.name, 14)}
-        </chakra.text>
-        {nodes.map((n, i) => {
-          const { x, y } = at(i)
-          return (
-            <g key={i}>
-              <chakra.circle cx={x} cy={y} r={r} fill={n.tone.fill} stroke={n.tone.stroke} strokeWidth="1.5" />
-              <chakra.text x={x} y={y - 4} textAnchor="middle" fontSize="12" fill={n.tone.text}>
-                {n.label}
-              </chakra.text>
-              <chakra.text x={x} y={y + 12} textAnchor="middle" fontSize="11" fill={n.tone.text}>
-                {n.sub}
-              </chakra.text>
-            </g>
-          )
-        })}
-      </svg>
+    <Box as="section" aria-label={summary} h="480px" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflow="hidden">
+      <ReactFlow
+        nodes={nodes}
+        edges={flowEdges}
+        fitView
+        fitViewOptions={{ padding: 0.12 }}
+        minZoom={0.2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background />
+        <Controls showInteractive={false} />
+      </ReactFlow>
     </Box>
   )
 }

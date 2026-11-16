@@ -14,10 +14,12 @@ from urllib.parse import urlsplit
 import httpx
 
 from career_graph.adapters.inference.anthropic import AnthropicExtractor, AnthropicRewriter, anthropic_client
-from career_graph.adapters.inference.openai_compatible import OpenAICompatibleExtractor, openai_client
+from career_graph.adapters.inference.openai_compatible import openai_client
 from career_graph.adapters.inference.openai_rewriter import OpenAICompatibleRewriter
 from career_graph.adapters.inference.presets import BY_ID, PRESETS, Preset
 from career_graph.adapters.inference.probe import probe_anthropic, probe_openai
+from career_graph.adapters.inference.redstring_extractor import RedstringExtractor
+from career_graph.adapters.inference.structured_openai import StructuredOpenAIProvider
 from career_graph.adapters.storage.key_store import KeyStore
 
 ENV_ID = "env"
@@ -219,7 +221,7 @@ class LLMConnections:
         client = self._client(conn, key)
         if conn.preset == "anthropic":
             return AnthropicExtractor(client, conn.model), AnthropicRewriter(client, conn.model)
-        return OpenAICompatibleExtractor(conn.base_url, conn.model, key or "", client), OpenAICompatibleRewriter(client, conn.model)
+        return RedstringExtractor(StructuredOpenAIProvider(client, conn.model)), OpenAICompatibleRewriter(client, conn.model)
 
     async def test(self, conn_id: str | None, draft: dict[str, Any]) -> dict[str, Any]:
         """Ask the server for its model list. No resume text is sent and nothing is billed."""

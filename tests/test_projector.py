@@ -5,7 +5,7 @@ import random
 
 from hypothesis import given, strategies as st
 
-from career_graph.adapters.graph.memory_graph import MemoryFactGraph
+from career_graph.adapters.graph.redstring_graph import RedstringFactGraph
 from career_graph.application.projector import Projector
 from career_graph.domain.events import FactRevised, FactsImported, FactsMerged
 from career_graph.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
@@ -19,7 +19,7 @@ IMPORT = FactsImported(FactBatch((ACME_CORP, ACME, POS, PERSON), (
 
 def run(events) -> FactBatch:
     async def go() -> FactBatch:
-        projector = Projector(MemoryFactGraph())
+        projector = Projector(RedstringFactGraph())
         for event in events:
             await projector.project(event)
         return await projector.snapshot()

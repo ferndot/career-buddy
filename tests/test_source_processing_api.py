@@ -19,8 +19,21 @@ FRONTEND = "http://localhost:5173"
 
 
 def extraction(title: str) -> dict:
-    position = {"title": title, "organization": "Analytical Society", "period": "2010 - 2015", "achievements": ["Wrote the first algorithm"], "skills": []}
-    return {"choices": [{"message": {"content": json.dumps({"name": "Ada Lovelace", "headline": "", "skills": [], "positions": [position], "education": []})}}]}
+    """The model's answer in redstring's entity and relationship shape."""
+    content = {
+        "entities": [
+            {"name": "Ada Lovelace", "entity_type": "Person"},
+            {"name": title, "entity_type": "Position", "properties": {"period": "2010 - 2015"}},
+            {"name": "Analytical Society", "entity_type": "Organization"},
+            {"name": "Wrote the first algorithm", "entity_type": "Achievement"},
+        ],
+        "relationships": [
+            {"source_name": "Ada Lovelace", "target_name": title, "relationship_type": "HAS_POSITION"},
+            {"source_name": title, "target_name": "Analytical Society", "relationship_type": "AT"},
+            {"source_name": title, "target_name": "Wrote the first algorithm", "relationship_type": "ACHIEVED"},
+        ],
+    }
+    return {"choices": [{"message": {"content": json.dumps(content)}}]}
 
 
 class FakeModel:
