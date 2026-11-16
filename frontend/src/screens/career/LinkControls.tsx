@@ -6,13 +6,15 @@ import type { Kind } from './explore'
 
 /**
  * Links the UI can edit: edge kind, and the fact kinds at its source and target. `reverse` lets the target side add too
- * (a skill adds positions; an organization does not, a position moves from its own Employer row). ACHIEVED stays bullets.
+ * (a skill adds positions; an organization does not, a position moves from its own Employer row). An achievement adds
+ * the positions it belongs to; a position still gets its bullets from its own card.
  */
 const RULES = [
   { edge: 'AT', from: 'Position', to: 'Organization', reverse: false },
   { edge: 'ATTENDED', from: 'Education', to: 'Organization', reverse: false },
   { edge: 'USES_SKILL', from: 'Position', to: 'Skill', reverse: true },
   { edge: 'USES_SKILL', from: 'Achievement', to: 'Skill', reverse: false },
+  { edge: 'ACHIEVED', from: 'Position', to: 'Achievement', reverse: true },
 ] as const
 
 /** The rule behind an existing link of `fact`, seen from `fact`'s side. */
