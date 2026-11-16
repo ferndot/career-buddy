@@ -18,7 +18,7 @@ def split_bullets(text: str) -> tuple[tuple[str, ...], str]:
     return tuple(b for b in bullets if b), " ".join(prose)
 
 
-SKILL_SEPARATORS = frozenset(",;|•·\u2022\ufffd")  # a comma, semicolon, pipe, bullet or middle dot, or a PDF glyph
+SKILL_SEPARATORS = frozenset(",;|*•·•�")
 
 
 def split_skills(line: str) -> list[str]:
