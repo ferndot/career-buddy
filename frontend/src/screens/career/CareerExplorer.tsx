@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type { Edge, Fact } from './api'
 import { useReviseFact } from './api'
 import { EntryCard } from './EntryCard'
+import { isHidden } from './model'
 import { type Explorer, type Kind, KIND_LABEL, KINDS, explore, subtitle } from './explore'
 import type { Career, Entry } from './model'
 
@@ -42,8 +43,8 @@ export function CareerExplorer({ facts, edges, career }: { facts: Fact[]; edges:
             <Button key={f.id} variant={current?.id === f.id ? 'subtle' : 'ghost'} justifyContent="flex-start" w="100%"
               h="auto" py="2" mb="1" whiteSpace="normal" textAlign="left" onClick={() => setPicked(f.id)}>
               <Box>
-                <Text fontSize="sm" color="app.text" fontWeight="medium">{f.title}</Text>
-                <Text fontSize="xs" color="app.muted">{subtitle(f, ex)}</Text>
+                <Text fontSize="sm" color={isHidden(f) ? "app.muted" : "app.text"} fontWeight="medium">{f.title}</Text>
+                <Text fontSize="xs" color="app.muted">{[subtitle(f, ex), isHidden(f) ? "hidden on documents" : ""].filter(Boolean).join(" · ")}</Text>
               </Box>
             </Button>
           ))}

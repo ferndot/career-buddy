@@ -20,15 +20,15 @@ const edges = [
 ]
 const ex = explore(facts, edges)
 
-it('lists visible facts of a kind by title, without hidden facts or the person', () => {
-  expect(ex.list('Achievement').map((x) => x.title)).toEqual(['A bullet', 'B bullet'])
+it('lists facts of a kind by title, hidden ones included, but never the person', () => {
+  expect(ex.list('Achievement').map((x) => x.title)).toEqual(['A bullet', 'B bullet', 'Hidden bullet'])
   expect(ex.byId.has('p')).toBe(false)
 })
 
-it('groups neighbors by kind from either edge direction, leaving out the person and hidden facts', () => {
+it('groups neighbors by kind from either edge direction, leaving out the person', () => {
   const near = ex.neighbors('pos')
   expect(near.Organization?.map((x) => x.id)).toEqual(['org'])
-  expect(near.Achievement?.map((x) => x.title)).toEqual(['A bullet', 'B bullet'])
+  expect(near.Achievement?.map((x) => x.title)).toEqual(['A bullet', 'B bullet', 'Hidden bullet'])
   expect(Object.keys(near).sort()).toEqual(['Achievement', 'Organization'])
   expect(ex.neighbors('org').Position?.[0]?.id).toBe('pos')
   expect(ex.neighbors('sk')).toEqual({})

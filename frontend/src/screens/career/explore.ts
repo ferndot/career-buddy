@@ -1,5 +1,4 @@
 import type { Edge, Fact } from './api'
-import { isHidden } from './model'
 
 /** The kinds the explorer browses, in the order its sections show them. */
 export const KINDS = ['Position', 'Organization', 'Education', 'Achievement', 'Skill'] as const
@@ -15,17 +14,17 @@ export const KIND_LABEL: Record<Kind, string> = {
 
 export type Explorer = {
   byId: Map<string, Fact>
-  /** Visible facts of one kind, by title. */
+  /** Facts of one kind, by title. Hidden ones stay in, so they can be shown again. */
   list: (kind: Kind) => Fact[]
-  /** Visible facts linked to `id`, grouped by kind. Links to the person are left out. */
+  /** Facts linked to `id`, grouped by kind. Links to the person are left out. */
   neighbors: (id: string) => Partial<Record<Kind, Fact[]>>
 }
 
 const isKind = (kind: string): kind is Kind => (KINDS as readonly string[]).includes(kind)
 
-/** Indexes the visible facts and the links between them. Pure. */
+/** Indexes the facts and the links between them. Pure. */
 export function explore(facts: Fact[], edges: Edge[]): Explorer {
-  const visible = facts.filter((f) => isKind(f.kind) && !isHidden(f))
+  const visible = facts.filter((f) => isKind(f.kind))
   const byId = new Map(visible.map((f) => [f.id, f]))
   const links = new Map<string, Fact[]>()
   for (const e of edges) {
