@@ -13,12 +13,14 @@ export type Wizard = {
   bullets: string[] // selected bullet fact ids
   education: string[] // selected education fact ids
   prefilled: boolean // the AI suggestion has been applied once
+  noJob: boolean // the user chose to write without a job posting
 }
 
 export const initialWizard: Wizard = {
   step: 1,
   jobText: '',
   jobUrl: '',
+  noJob: false,
   kind: 'resume',
   templateId: '',
   inputs: {},

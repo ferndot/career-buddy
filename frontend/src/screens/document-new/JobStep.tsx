@@ -37,7 +37,7 @@ export function JobStep({ w, set }: Props) {
   }
   const onUrl = (value: string, immediate = false) => {
     const url = value.trim()
-    set({ jobUrl: value })
+    set({ jobUrl: value, noJob: false })
     window.clearTimeout(timer.current)
     if (url === latest.current) return // already fetched or fetching (paste fires paste, then change)
     latest.current = url
@@ -78,6 +78,11 @@ export function JobStep({ w, set }: Props) {
       {!showText && (
         <Link as="button" fontSize="sm" color="app.link" onClick={() => setPasteOpen(true)}>
           Paste the job text instead
+        </Link>
+      )}
+      {!w.jobText.trim() && !w.noJob && (
+        <Link as="button" fontSize="sm" color="app.muted" onClick={() => set({ noJob: true })}>
+          Continue without a job posting
         </Link>
       )}
       {showText && (

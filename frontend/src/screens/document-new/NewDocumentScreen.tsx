@@ -46,7 +46,7 @@ export function NewDocumentScreen() {
   }, [onDetails, profile.data, fit.data, fitSettled, w.prefilled])
 
   const missingInput = template?.required.some((f) => !w.inputs[f]?.trim()) ?? true
-  const canNext = w.step === 1 ? hasJob : w.step === 2 ? !missingInput : w.step === 3 ? w.prefilled : true
+  const canNext = w.step === 1 ? hasJob || w.noJob : w.step === 2 ? !missingInput : w.step === 3 ? w.prefilled : true
   const go = (step: Wizard['step']) => set({ step })
 
   const save = useMutation({
