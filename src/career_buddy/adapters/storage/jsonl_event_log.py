@@ -7,7 +7,18 @@ import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-from career_buddy.domain.events import DuplicateDismissed, Event, FactRevised, FactsImported, FactsMerged, SourceRemoved
+from career_buddy.domain.events import (
+    DuplicateDismissed,
+    Event,
+    FactDeleted,
+    FactRevised,
+    FactsImported,
+    FactsMerged,
+    LinkAdded,
+    LinkRemoved,
+    SourceRegistered,
+    SourceRemoved,
+)
 from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 log = logging.getLogger(__name__)
@@ -32,8 +43,15 @@ def _encode(event: Event) -> dict[str, object]:
                     "at": event.at, "undo": event.undo}
         case DuplicateDismissed():
             return {"type": "DuplicateDismissed", "a_id": event.a_id, "b_id": event.b_id, "at": event.at}
+        case SourceRegistered():
+            return {"type": "SourceRegistered", "source": event.source, "source_key": event.source_key, "at": event.at}
         case SourceRemoved():
             return {"type": "SourceRemoved", "source": event.source, "at": event.at}
+        case FactDeleted():
+            return {"type": "FactDeleted", "fact_id": event.fact_id, "at": event.at}
+        case LinkAdded() | LinkRemoved():
+            return {"type": type(event).__name__, "source_id": event.source_id, "target_id": event.target_id,
+                    "kind": event.kind, "at": event.at}
 
 
 def _decode(record: dict[str, object]) -> Event | None:
@@ -50,8 +68,15 @@ def _decode(record: dict[str, object]) -> Event | None:
             return FactsMerged(record["alias_id"], record["canonical_id"], record.get("undo", False), record.get("at", ""))
         case "DuplicateDismissed":
             return DuplicateDismissed(record["a_id"], record["b_id"], record.get("at", ""))
+        case "SourceRegistered":
+            return SourceRegistered(record["source"], record["source_key"], record.get("at", ""))
         case "SourceRemoved":
             return SourceRemoved(record["source"], record.get("at", ""))
+        case "FactDeleted":
+            return FactDeleted(record["fact_id"], record.get("at", ""))
+        case "LinkAdded" | "LinkRemoved":
+            cls = LinkAdded if record["type"] == "LinkAdded" else LinkRemoved
+            return cls(record["source_id"], record["target_id"], record["kind"], record.get("at", ""))
     log.warning("Skipping unknown event type %r", record["type"])
     return None
 

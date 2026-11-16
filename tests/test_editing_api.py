@@ -7,13 +7,9 @@ from fastapi.testclient import TestClient
 
 from career_buddy.domain.model import FactKind, fact_id
 from career_buddy.web.app import create_app
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 PDF_TEXT = b"Jane Doe\n\nExperience\nPlatform Lead at Acme, 2020 - 2021\n- Ran the platform team\n"
-
-
-def import_linkedin(client: TestClient) -> None:
-    client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
 
 
 def import_resume_file(client: TestClient) -> None:
@@ -35,7 +31,7 @@ def orgs(client: TestClient) -> dict[str, str]:
 @pytest.fixture
 def client(tmp_path: Path):
     with TestClient(create_app(tmp_path)) as c:
-        import_linkedin(c)
+        seed_jane(c)
         yield c
 
 
@@ -61,7 +57,7 @@ def test_an_edit_survives_restart_and_reimport(client, tmp_path: Path) -> None:
     assert res.json()["attributes"] == senior["attributes"]  # omitted fields are kept
     assert "### Staff Engineer, Acme Corp" in resume(client)
 
-    import_linkedin(client)
+    seed_jane(client)
     assert "### Staff Engineer, Acme Corp" in resume(client)
     with TestClient(create_app(tmp_path)) as restarted:
         assert "### Staff Engineer, Acme Corp" in resume(restarted)

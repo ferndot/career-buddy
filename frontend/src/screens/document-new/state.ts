@@ -34,13 +34,10 @@ export const initialWizard: Wizard = {
 
 const DRAFT_KEY = 'careerbuddy.documentDraft.v2'
 
+/** Every visit starts the wizard over: the previous run's entries are discarded, not restored. */
 export function loadDraft(): Wizard {
-  try {
-    const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as Partial<Wizard> | null
-    return raw ? { ...initialWizard, ...raw } : initialWizard
-  } catch {
-    return initialWizard
-  }
+  clearDraft()
+  return initialWizard
 }
 
 export function saveDraft(w: Wizard): void {

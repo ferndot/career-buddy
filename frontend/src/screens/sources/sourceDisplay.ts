@@ -1,5 +1,4 @@
 const NAMES: Record<string, string> = {
-  'linkedin-export': 'LinkedIn export',
   'resume-text': 'Pasted text',
 }
 

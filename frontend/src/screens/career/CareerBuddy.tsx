@@ -4,7 +4,6 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d'
 import type { Edge, Fact } from './api'
 import { graphView, type GraphNode } from './graphLayout'
-import { columnPositions } from './graphPositions'
 import { palette } from '../../theme/tokens'
 
 type Pair = readonly [string, string]
@@ -21,21 +20,33 @@ const LINK: Pair = palette.muted
 const RADIUS = 9
 const FIT_MS = 400
 const FIT_PADDING = 48
+const CHARGE = -220
+const LINK_DISTANCE = 70
+/** Skills are the crowd (dozens of nodes): their labels wait for zoom or hover. */
+const SKILL_LABEL_SCALE = 1.5
 
 /** The stored career graph as a force-directed drawing: visible facts and links. Achievements show as a count on their position. */
-export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: Fact[]; edges: Edge[] }) {
+export const CareerBuddy = memo(function CareerBuddy({ facts, edges }: { facts: Fact[]; edges: Edge[] }) {
   const { resolvedTheme } = useTheme()
   const mode = resolvedTheme === 'dark' ? 1 : 0
   const view = useMemo(() => graphView(facts, edges), [facts, edges])
   // Memoised on the view: the simulation reheats whenever this object changes identity, and typing elsewhere must not shake the graph.
   const data = useMemo(() => {
-    const at = columnPositions(view.nodes, view.links)
-    return { nodes: view.nodes.map((n) => ({ ...n, ...at.get(n.id), fx: at.get(n.id)?.x, fy: at.get(n.id)?.y })), links: view.links.map((l) => ({ ...l })) }
+    return { nodes: view.nodes.map((n) => ({ ...n })), links: view.links.map((l) => ({ ...l })) }
   }, [view])
 
   const ref = useRef<HTMLDivElement>(null)
   const graph = useRef<ForceGraphMethods>(undefined)
+  const fitted = useRef(false)
+  const [hover, setHover] = useState<string | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const mounted = size.width > 0
+  useEffect(() => {
+    if (!mounted) return
+    graph.current?.d3Force('charge')?.strength(CHARGE)
+    graph.current?.d3Force('link')?.distance(LINK_DISTANCE)
+    graph.current?.d3ReheatSimulation()
+  }, [mounted])
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -60,9 +71,12 @@ export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: 
           nodeLabel={(n) => `${(n as GraphNode).title} (${(n as GraphNode).kind})`}
           linkColor={() => LINK[mode]}
           linkWidth={1.5}
-          enableNodeDrag={false}
-          cooldownTicks={0}  // positions are fixed by columnPositions; the force layout is off
-          onEngineStop={() => graph.current?.zoomToFit(FIT_MS, FIT_PADDING)}
+          onNodeHover={(n) => setHover(n ? String((n as GraphNode).id) : null)}
+          onEngineStop={() => {
+            if (fitted.current) return
+            fitted.current = true  // fit on the first settle only, not after every drag
+            graph.current?.zoomToFit(FIT_MS, FIT_PADDING)
+          }}
           nodeCanvasObject={(node, ctx, scale) => {
             const n = node as GraphNode & { x: number; y: number }
             const color = KIND_COLOR[n.kind] ?? KIND_COLOR.Organization
@@ -73,6 +87,7 @@ export const CareerGraph = memo(function CareerGraph({ facts, edges }: { facts: 
             ctx.lineWidth = 1.5 / scale
             ctx.strokeStyle = color.ring[mode]
             ctx.stroke()
+            if (n.kind === 'Skill' && scale < SKILL_LABEL_SCALE && hover !== n.id) return
             const size = 11 / scale
             ctx.font = `${size}px Inter, sans-serif`
             ctx.textAlign = 'center'

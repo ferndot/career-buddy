@@ -31,15 +31,25 @@ export const useCreateFact = () =>
     send<{ id: string }>(endpoints.facts.create(), 'POST', b),
   )
 
+/** Replaces the title and/or attributes; an omitted title keeps the current one. */
 export const useReviseFact = () =>
-  useEdit((v: { id: string; attributes: Record<string, string> }) =>
-    send(endpoints.facts.update(v.id), 'PATCH', { attributes: v.attributes }),
+  useEdit((v: { id: string; title?: string; attributes: Record<string, string> }) =>
+    send(endpoints.facts.update(v.id), 'PATCH', { title: v.title, attributes: v.attributes }),
   )
+
+export const useDeleteFact = () => useEdit((id: string) => send(endpoints.facts.remove(id), 'DELETE', undefined))
 
 export const useReorder = () =>
   useEdit((moves: { id: string; order: number }[]) =>
     Promise.all(moves.map((m) => send(endpoints.facts.reorder(m.id), 'PATCH', { order: m.order }))),
   )
+
+export type LinkRef = { source_id: string; target_id: string; kind: string }
+
+export const useAddLink = () => useEdit((v: LinkRef) => send(endpoints.links.add(), 'POST', v))
+
+export const useRemoveLink = () =>
+  useEdit((v: LinkRef) => send(endpoints.links.remove(v.source_id, v.target_id, v.kind), 'DELETE', undefined))
 
 export const useMerge = () =>
   useEdit((v: { alias_id: string; canonical_id: string }) => send(endpoints.duplicates.merge(), 'POST', v))

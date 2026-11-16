@@ -10,17 +10,20 @@ from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
 
-UI_DIR = Path(__file__).resolve().parent.parent / "static"
+UI_DIR = Path(__file__).resolve().parent / "static"
 
 
 class SpaFiles(StaticFiles):
     """Unknown paths load index.html so the React router handles them. Unknown /api paths stay 404."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
+        if scope["method"] not in ("GET", "HEAD") or path.replace("\\", "/").lstrip("/").split("/")[0] == "api":
+            raise StarletteHTTPException(status_code=404)
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as error:
-            if error.status_code != 404 or path.startswith("api/"):
+            # Files that are not there (such as /events.jsonl) stay 404; only app routes get index.html.
+            if error.status_code != 404 or "." in path.rsplit("/", 1)[-1]:
                 raise
             return await super().get_response("index.html", scope)
 

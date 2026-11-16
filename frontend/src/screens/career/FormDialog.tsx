@@ -8,9 +8,11 @@ type Props = {
   children: ReactNode
   /** Omit for a read-only dialog (just a Close button). */
   submit?: { label: string; onSubmit: () => void; busy?: boolean; disabled?: boolean }
+  /** Shown at the left of the footer. */
+  footerStart?: ReactNode
 }
 
-export function FormDialog({ title, open, onClose, children, submit }: Props) {
+export function FormDialog({ title, open, onClose, children, submit, footerStart }: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={(d) => !d.open && onClose()} placement="center" lazyMount unmountOnExit>
       <Portal>
@@ -28,6 +30,7 @@ export function FormDialog({ title, open, onClose, children, submit }: Props) {
               </Dialog.Header>
               <Dialog.Body>{children}</Dialog.Body>
               <Dialog.Footer>
+                {footerStart && <div style={{ marginRight: 'auto' }}>{footerStart}</div>}
                 <Button type="button" variant="ghost" color="app.link" onClick={onClose}>
                   {submit ? 'Cancel' : 'Done'}
                 </Button>

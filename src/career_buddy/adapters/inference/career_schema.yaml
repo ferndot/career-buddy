@@ -22,14 +22,24 @@ entity_types:
       - name: result
         type: string
         description: The outcome as the text states it, with numbers exactly as written. Empty if none is stated.
-      - name: tools
-        type: string
-        description: Technologies, tools or methods used for it, as the text names them. Empty if none.
       - name: project
         type: string
         description: The project or product it was part of, if the text names one.
   - id: Skill
     description: A professional skill or tool, named as the text names it.
+    properties:
+      - name: category
+        type: string
+        description: >-
+          The group the text puts the skill under, as written (for example the heading "Languages" or "Cloud" in a
+          skills list). If the text gives none, choose exactly one of - Languages, Frameworks & libraries, Data & databases,
+          Cloud & infrastructure, Tools & platforms, Practices & methods, Other.
+      - name: years
+        type: string
+        description: Years of experience with it, as the text writes them, for example "5" or "5+". Empty unless the text states a number; never estimate it.
+      - name: level
+        type: string
+        description: Expertise, one of - Beginner, Intermediate, Advanced, Expert. Only when the text's own wording says so (for example "expert in Go"); otherwise empty.
   - id: Education
     description: A degree, certificate or course at a school.
     properties:
@@ -58,8 +68,8 @@ relationship_types:
     valid_source_types: [Position]
     valid_target_types: [Achievement]
   - id: USES_SKILL
-    description: The position used this skill.
-    valid_source_types: [Position]
+    description: The position or achievement used this skill.
+    valid_source_types: [Position, Achievement]
     valid_target_types: [Skill]
   - id: ATTENDED
     description: The education was at this school.
@@ -76,4 +86,10 @@ extraction_prompt_template: |
 
   Use only facts the text states. Use each organization, position, school and skill name exactly as the text spells it.
   Achievements are concrete accomplishments, not duties. Describe each one as a neutral statement of what was done and
-  its result, in your own words; keep its numbers, tools and project. Put dates as written in the period property.
+  its result, in your own words; keep its numbers and project. Put dates as written in the period property.
+  Give each skill a category: the one the text states (a "Languages:" or "Cloud:" heading), otherwise one of Languages,
+  Frameworks & libraries, Data & databases, Cloud & infrastructure, Tools & platforms, Practices & methods, Other.
+  Tools, technologies and methods an achievement names are skills, not part of the achievement: list each as its own Skill
+  (category "Tools & platforms" unless another fits better), linked to that achievement with USES_SKILL (and to its position), and never inside the
+  achievement's text or properties. A tool named both in a skills list and in an achievement is one skill.
+  Fill a skill's years and level only when the text states them; leave them empty otherwise.

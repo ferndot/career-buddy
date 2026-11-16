@@ -41,9 +41,9 @@ class SourceJobs:
         state = self._store.get(source)
         return state is not None and state.status in ACTIVE
 
-    def report(self, source: str, step: str, progress: int) -> None:
+    def report(self, source: str, step: str, progress: int | None = None) -> None:
         self._store.put(source, JobState("processing", progress, step))
-        log.info("%s (%d%%)", step, progress)
+        log.info("%s%s", step, "" if progress is None else f" ({progress}%)")
 
     async def _guarded(self, source: str, work: Callable[[], Awaitable[Any]]) -> Any:
         token = current_source.set(source)  # log lines of this work (and the tasks it starts) belong to the source

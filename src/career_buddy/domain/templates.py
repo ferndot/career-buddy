@@ -17,7 +17,7 @@ class TemplateSpec:
     sections: tuple[tuple[str, str], ...] = ()  # resumes: (section key, fixed ATS heading label)
     bullets: int = 5  # most bullets kept per position
     skills: int = 15  # most skills listed
-    kind: Literal["resume", "letter", "other"] = "resume"
+    kind: Literal["resume", "letter"] = "resume"
     required: tuple[str, ...] = ()  # input names the caller must give
     optional: tuple[str, ...] = ()
 
@@ -30,9 +30,8 @@ RESUME_HYBRID = TemplateSpec("resume-hybrid", "Hybrid resume", (_SUMMARY, _SKILL
 _JOB = ("company", "role")
 
 
-def _letter(id: str, label: str, required: tuple[str, ...] = _JOB, optional: tuple[str, ...] = (),
-            kind: Literal["letter", "other"] = "letter") -> TemplateSpec:
-    return TemplateSpec(id, label, bullets=2, skills=5, kind=kind, required=required, optional=optional)
+def _letter(id: str, label: str, optional: tuple[str, ...] = ()) -> TemplateSpec:
+    return TemplateSpec(id, label, bullets=2, skills=5, kind="letter", required=_JOB, optional=optional)
 
 
 TEMPLATES = (
@@ -41,9 +40,6 @@ TEMPLATES = (
     RESUME_HYBRID,
     _letter("cover-letter", "Cover letter", optional=("recipient",)),
     _letter("cover-letter-email", "Cover letter (email)", optional=("recipient",)),
-    _letter("thank-you", "Thank-you note", (*_JOB, "interviewer", "interview_date")),
-    _letter("follow-up", "Follow-up", (*_JOB, "applied_date"), ("recipient",)),
-    _letter("linkedin-about", "LinkedIn About", (), kind="other"),
 )
 _REGISTRY = {spec.id: spec for spec in TEMPLATES}
 

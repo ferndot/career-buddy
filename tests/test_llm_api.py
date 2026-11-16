@@ -12,7 +12,7 @@ from hypothesis import given, settings, strategies as st
 
 from career_buddy.web.app import create_app
 from llm_support import connect_mock
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 FAKE_KEY = "sk-fake-1234567890abcdef-a1f2"
 CUSTOM = {"preset": "custom", "label": "My server", "base_url": "http://llm.test/v1", "model": "m", "api_key": FAKE_KEY}
@@ -184,7 +184,7 @@ def test_the_active_connection_is_the_one_the_app_uses_and_anthropic_gets_native
         return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps({"text": "Cut build times by 60 percent"})}]}) if request.method == "POST" else httpx.Response(200, json={"data": []})
 
     with Server(tmp_path, reply) as server:
-        server.client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(server.client)
         job = {"template": "resume-classic", "job_text": "Requirements:\n- Terraform"}
         assert server.client.post("/api/documents/suggest", json=job).status_code == 503  # no connection yet
         made = server.add(preset="anthropic", model="claude-x", api_key="sk-ant-fake-0000000000")

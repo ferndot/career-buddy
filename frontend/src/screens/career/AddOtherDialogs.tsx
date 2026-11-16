@@ -1,16 +1,23 @@
-import { Field, Input, NativeSelect } from '@chakra-ui/react'
+import { Field, Input, NativeSelect, Textarea } from '@chakra-ui/react'
 import { useState } from 'react'
 import { useAddEntry } from './api'
+import { SKILL_CATEGORIES, SKILL_LEVELS } from './explore'
 import { FormDialog } from './FormDialog'
+import { OptionSelect } from './OptionSelect'
 import type { Fact } from './api'
 
 type Change = { target: { value: string } }
 
+const NO_SKILL = { category: '', years: '', level: '' }
+
 export function AddSkillDialog({ open, onClose, personId }: { open: boolean; onClose: () => void; personId: string }) {
   const [name, setName] = useState('')
+  const [attrs, setAttrs] = useState(NO_SKILL)
+  const set = (k: keyof typeof NO_SKILL) => (v: string) => setAttrs({ ...attrs, [k]: v })
   const add = useAddEntry()
   const done = () => {
     setName('')
+    setAttrs(NO_SKILL)
     add.reset()
     onClose()
   }
@@ -23,13 +30,26 @@ export function AddSkillDialog({ open, onClose, personId }: { open: boolean; onC
         label: 'Add skill',
         busy: add.isPending,
         disabled: !name.trim(),
-        onSubmit: () => add.mutate({ kind: 'Skill', title: name, parent_id: personId, attributes: {} }, { onSuccess: done }),
+        onSubmit: () => add.mutate({ kind: 'Skill', title: name, parent_id: personId, attributes: attrs }, { onSuccess: done }),
       }}
     >
-      <Field.Root>
+      <Field.Root mb="3">
         <Field.Label color="app.text2">Skill</Field.Label>
         <Input bg="app.surface" borderColor="app.borderStrong" placeholder="TypeScript" value={name}
           onChange={(e: Change) => setName(e.target.value)} />
+      </Field.Root>
+      <Field.Root mb="3">
+        <Field.Label color="app.text2">Category</Field.Label>
+        <OptionSelect value={attrs.category} onChange={set('category')} options={SKILL_CATEGORIES} empty="Uncategorized" />
+      </Field.Root>
+      <Field.Root mb="3">
+        <Field.Label color="app.text2">Level</Field.Label>
+        <OptionSelect value={attrs.level} onChange={set('level')} options={SKILL_LEVELS} empty="Not stated" />
+      </Field.Root>
+      <Field.Root>
+        <Field.Label color="app.text2">Years</Field.Label>
+        <Input bg="app.surface" borderColor="app.borderStrong" placeholder="5" value={attrs.years}
+          onChange={(e: Change) => set('years')(e.target.value)} />
       </Field.Root>
       {add.isError && <Field.ErrorText>Could not add the skill.</Field.ErrorText>}
     </FormDialog>
@@ -40,11 +60,13 @@ export function AddSkillDialog({ open, onClose, personId }: { open: boolean; onC
 export function AddAchievementDialog({ open, onClose, positions }: { open: boolean; onClose: () => void; positions: Fact[] }) {
   const [positionId, setPositionId] = useState('')
   const [text, setText] = useState('')
+  const [result, setResult] = useState('')
   const add = useAddEntry()
   const chosen = positionId || positions[0]?.id || ''
   const done = () => {
     setPositionId('')
     setText('')
+    setResult('')
     add.reset()
     onClose()
   }
@@ -58,7 +80,7 @@ export function AddAchievementDialog({ open, onClose, positions }: { open: boole
         busy: add.isPending,
         disabled: !text.trim() || !chosen,
         onSubmit: () =>
-          add.mutate({ kind: 'Achievement', title: text, parent_id: chosen, attributes: {} }, { onSuccess: done }),
+          add.mutate({ kind: 'Achievement', title: text, parent_id: chosen, attributes: { result } }, { onSuccess: done }),
       }}
     >
       <Field.Root mb="3">
@@ -71,10 +93,15 @@ export function AddAchievementDialog({ open, onClose, positions }: { open: boole
           </NativeSelect.Field>
         </NativeSelect.Root>
       </Field.Root>
-      <Field.Root>
+      <Field.Root mb="3">
         <Field.Label color="app.text2">Achievement</Field.Label>
         <Input bg="app.surface" borderColor="app.borderStrong" placeholder="Cut build times by 60%" value={text}
           onChange={(e: Change) => setText(e.target.value)} />
+      </Field.Root>
+      <Field.Root>
+        <Field.Label color="app.text2">Result</Field.Label>
+        <Textarea rows={2} bg="app.surface" borderColor="app.borderStrong" value={result}
+          onChange={(e: Change) => setResult(e.target.value)} />
       </Field.Root>
       {add.isError && <Field.ErrorText>Could not add the achievement.</Field.ErrorText>}
     </FormDialog>

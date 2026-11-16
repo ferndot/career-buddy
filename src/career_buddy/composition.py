@@ -22,7 +22,6 @@ from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.adapters.readers.docx_text import DocxTextReader
 from career_buddy.adapters.readers.markup_text import HtmlTextReader, PlainTextReader
 from career_buddy.adapters.readers.pdf_text import PdfTextReader
-from career_buddy.adapters.sources.linkedin_export import LinkedInExportParser
 from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
 from career_buddy.adapters.storage.local_object_store import LocalObjectStore
 from career_buddy.adapters.storage.s3_object_store import S3ObjectStore
@@ -83,7 +82,7 @@ async def build_app(
     }
     file_readers = {ext: readers[ext] for ext in ("pdf", "docx", "txt")} | {"md": readers["markdown"]}
     store = object_store(data_dir)
-    imports = ImportService(log, projector, {"linkedin": LinkedInExportParser()}, extractor, file_readers, store,
+    imports = ImportService(log, projector, extractor, file_readers, store,
                             jobs, background=model is not None)  # a model call is slow, the heuristic is not
     # Projection rebuild: the log is the truth, the graph is derived from it.
     for event in log.replay():

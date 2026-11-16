@@ -10,7 +10,6 @@ export const endpoints = {
     log: (source: string) => `/api/sources/${e(source)}/log`, // GET ?since=<cursor>
   },
   imports: {
-    linkedin: () => '/api/import/linkedin', // POST
     text: () => '/api/import/text', // POST
     file: () => '/api/import/file', // POST (multipart)
   },
@@ -24,7 +23,13 @@ export const endpoints = {
     list: () => '/api/facts', // GET
     create: () => '/api/facts', // POST (201)
     update: (factId: Id) => `/api/facts/${e(String(factId))}`, // PATCH
+    remove: (factId: Id) => `/api/facts/${e(String(factId))}`, // DELETE (204)
     reorder: (factId: Id) => `/api/facts/${e(String(factId))}/order`, // PATCH
+  },
+  links: {
+    add: () => '/api/links', // POST {source_id, target_id, kind} (201)
+    remove: (sourceId: Id, targetId: Id, kind: string) =>
+      `/api/links?source_id=${e(String(sourceId))}&target_id=${e(String(targetId))}&kind=${e(kind)}`, // DELETE (204)
   },
   duplicates: {
     list: () => '/api/duplicates', // GET

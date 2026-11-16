@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Edge, Fact } from './api'
 import { graphView } from './graphLayout'
-import { columnPositions } from './graphPositions'
 
 const fact = (id: string, kind: string, title: string, attributes: Record<string, string> = {}): Fact => ({
   id, kind, title, attributes, source: 'resume.txt',
@@ -51,27 +50,3 @@ describe('graphView', () => {
   })
 })
 
-describe('columnPositions', () => {
-  const view = graphView(facts, edges)
-  const at = columnPositions(view.nodes, view.links)
-  const point = (id: string) => at.get(id)!
-
-  it('puts each kind in its own column, left to right', () => {
-    const x = (id: string) => point(id).x
-    expect(x('p')).toBeLessThan(x('a'))
-    expect(x('a')).toBeLessThan(x('o'))
-    expect(x('o')).toBeLessThan(x('e'))
-    expect(x('e')).toBe(x('k'))
-  })
-
-  it('places every node at its own spot', () => {
-    const spots = new Set([...at.values()].map((p) => `${p.x},${p.y}`))
-    expect(spots.size).toBe(view.nodes.length)
-  })
-
-  it('keeps linked organizations level with their positions', () => {
-    const [low, high] = [point('a').y, point('b').y].sort((x, y) => x - y)
-    expect(point('o').y).toBeGreaterThanOrEqual(low)
-    expect(point('o').y).toBeLessThanOrEqual(high)
-  })
-})

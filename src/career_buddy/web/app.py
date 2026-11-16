@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import io
 import logging
 import os
-import zipfile
 from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path, PurePosixPath
@@ -78,6 +76,12 @@ class MergeRequest(BaseModel):
     alias_id: str
     canonical_id: str
     undo: bool = False
+
+
+class LinkRequest(BaseModel):
+    source_id: str
+    target_id: str
+    kind: str
 
 
 class OrderPatch(BaseModel):
@@ -165,18 +169,6 @@ def create_app(
     api.include_router(saved_document_router(lambda: app().saved))
     api.include_router(source_log_router(source_log, lambda: app().queries.sources()))
 
-    @api.post("/api/import/linkedin")
-    async def import_linkedin(file: UploadFile) -> dict[str, int]:
-        data = await file.read()
-        if file.filename and file.filename.lower().endswith(".zip"):
-            with zipfile.ZipFile(io.BytesIO(data)) as archive:
-                files = {n: archive.read(n) for n in archive.namelist() if n.lower().endswith(".csv")}
-        else:
-            files = {file.filename or "Profile.csv": data}
-        if not files:
-            raise HTTPException(400, "No CSV files found in upload")
-        return {"facts": await app().imports.import_structured("linkedin", files, "linkedin-export")}
-
     async def started(source: str, facts: int | None) -> Response | dict[str, int]:
         """Done: the fact count. Queued behind a model call: 202 and the source record, to poll in GET /api/sources."""
         if facts is None:
@@ -237,6 +229,11 @@ def create_app(
     async def revise_fact(fact_id: str, body: FactPatch) -> dict[str, object]:
         return fact_json(await app().edits.revise(fact_id, body.title, body.attributes))
 
+    @api.delete("/api/facts/{fact_id}", status_code=204)
+    async def delete_fact(fact_id: str) -> Response:
+        await app().edits.delete(fact_id)
+        return Response(status_code=204)
+
     @api.patch("/api/facts/{fact_id}/order")
     async def order_fact(fact_id: str, body: OrderPatch) -> dict[str, object]:
         return fact_json(await app().edits.set_order(fact_id, body.order))
@@ -244,6 +241,16 @@ def create_app(
     @api.post("/api/facts", status_code=201)
     async def add_fact(body: FactCreate) -> dict[str, str]:
         return {"id": await app().edits.add_fact(body.kind, body.title, body.parent_id, body.attributes)}
+
+    @api.post("/api/links", status_code=201)
+    async def add_link(body: LinkRequest) -> dict[str, str]:
+        await app().edits.add_link(body.source_id, body.target_id, body.kind)
+        return {}
+
+    @api.delete("/api/links", status_code=204)
+    async def remove_link(source_id: str, target_id: str, kind: str) -> Response:
+        await app().edits.remove_link(source_id, target_id, kind)
+        return Response(status_code=204)
 
     @api.get("/api/duplicates")
     async def duplicates() -> list[dict[str, object]]:

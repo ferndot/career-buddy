@@ -19,6 +19,17 @@ test('starts on a single job link box, with Next disabled until a job is availab
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
+test('always reopens on the first step, even after leaving from a later one', () => {
+  const { unmount } = renderApp(<NewDocumentScreen />)
+  fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
+  fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Pasted posting' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 2 of 4 · Type and template')
+  unmount()
+  renderApp(<NewDocumentScreen />)
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 1 of 4 · Job posting')
+})
+
 test('fetches the job once the link is entered and enables Next', async () => {
   const fetchMock = vi.fn(async (_u: string) => new Response(JSON.stringify({ text: 'Senior Engineer at Acme' })))
   vi.stubGlobal('fetch', fetchMock)

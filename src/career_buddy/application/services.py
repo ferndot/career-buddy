@@ -17,17 +17,26 @@ from career_buddy.application.ports import (
     ObjectStore,
     SourceBusy,
     SourceNotFound,
-    SourceParser,
     TextReader,
     UnreadableDocument,
     UnsupportedFileType,
 )
 from career_buddy.application.projector import Projector
 from career_buddy.domain.dedup import merge_candidates
-from career_buddy.domain.events import DuplicateDismissed, FactRevised, FactsImported, FactsMerged, SourceRemoved
+from career_buddy.domain.events import (
+    DuplicateDismissed,
+    FactDeleted,
+    FactRevised,
+    FactsImported,
+    FactsMerged,
+    LinkAdded,
+    LinkRemoved,
+    SourceRegistered,
+    SourceRemoved,
+)
 from career_buddy.domain.manual import manual_fact
 from career_buddy.domain.text import BULLETS
-from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact
+from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact, Link, LinkKind
 from career_buddy.domain.letter import write_letter
 from career_buddy.domain.profile import Profile, assemble_profile, rank_for_job
 from collections.abc import Awaitable, Callable
@@ -43,7 +52,6 @@ class ImportService:
         self,
         log: EventLog,
         projector: Projector,
-        parsers: dict[str, SourceParser],
         extractor: FactExtractor,
         file_readers: dict[str, TextReader],
         store: ObjectStore,
@@ -52,7 +60,6 @@ class ImportService:
     ) -> None:
         self._log = log
         self._projector = projector
-        self._parsers = parsers
         self._extractor = extractor
         self._file_readers = file_readers
         self._store = store
@@ -65,13 +72,10 @@ class ImportService:
         await self._projector.project(event)
         return len(batch.facts)
 
-    async def import_structured(self, kind: str, files: dict[str, bytes], source: str) -> int:
-        return await self._record(self._parsers[kind].parse(files, source))
-
     async def _extract_and_save(self, text: str, source: str, source_key: str, replace: bool) -> int:
-        self._jobs.report(source, "Extracting positions", 30)
+        self._jobs.report(source, "Extracting career facts")
         batch = await self._extractor.extract(text, source)
-        self._jobs.report(source, "Saving facts", 85)
+        self._jobs.report(source, "Saving facts")
         if replace:  # the old facts go first, so the new extraction replaces them instead of adding to them
             event = SourceRemoved(source, _now())
             self._log.append(event)
@@ -95,6 +99,9 @@ class ImportService:
     async def import_text(self, text: str, source: str, source_key: str = "") -> int | None:
         """Facts added, or None when the work was queued."""
         key = source_key or await self._keep_original("txt", text.encode())  # kept so the source can be reindexed
+        event = SourceRegistered(source, key, _now())  # before the job, so a failed first run can still be retried
+        self._log.append(event)
+        await self._projector.project(event)
         return await self._jobs.run(source, lambda: self._extract_and_save(text, source, key, False), self._background)
 
     async def _to_text(self, extension: str, data: bytes) -> str:
@@ -115,7 +122,8 @@ class ImportService:
 
     def _original_key(self, source: str) -> str:
         keys = [e.source_key for e in self._log.replay()
-                if isinstance(e, FactsImported) and e.source_key and any(f.source == source for f in e.batch.facts)]
+                if (isinstance(e, SourceRegistered) and e.source == source)
+                or (isinstance(e, FactsImported) and e.source_key and any(f.source == source for f in e.batch.facts))]
         if not keys:
             raise NoOriginal(source)
         return keys[-1]
@@ -124,12 +132,12 @@ class ImportService:
         """Read the stored original again and replace the source's facts with a fresh extraction. Always in the background."""
         if self._jobs.is_active(source):
             raise SourceBusy(source)
-        if source not in self._projector.sources() and self._jobs.state(source) is None:
+        if source not in self._projector.sources():
             raise SourceNotFound(source)
         key = self._original_key(source)
 
         async def work() -> int:
-            self._jobs.report(source, "Reading file", 10)
+            self._jobs.report(source, "Reading file")
             data = await asyncio.to_thread(self._store.get, key)
             text = await self._to_text(key.rsplit(".", 1)[-1], data)
             return await self._extract_and_save(text, source, key, True)
@@ -143,6 +151,15 @@ class ImportService:
             content_type = mimetypes.guess_type(key)[0] or "application/octet-stream"
             await asyncio.to_thread(self._store.put, key, data, content_type)
         return key
+
+
+# The links the user may add and remove, with the kinds of their (source, target).
+EDITABLE_LINKS = {
+    "AT": ((FactKind.POSITION, FactKind.ORGANIZATION),),
+    "ATTENDED": ((FactKind.EDUCATION, FactKind.ORGANIZATION),),
+    "USES_SKILL": ((FactKind.POSITION, FactKind.SKILL), (FactKind.ACHIEVEMENT, FactKind.SKILL)),
+    "ACHIEVED": ((FactKind.POSITION, FactKind.ACHIEVEMENT),),
+}
 
 
 def _now() -> str:
@@ -168,9 +185,37 @@ class EditService:
             raise FactNotFound(fact_id)
         return fact
 
-    async def _record(self, event: FactRevised | FactsImported | FactsMerged | DuplicateDismissed | SourceRemoved) -> None:
+    async def _record(
+        self, event: FactRevised | FactsImported | FactsMerged | DuplicateDismissed | SourceRemoved | FactDeleted | LinkAdded | LinkRemoved
+    ) -> None:
         self._log.append(event)
         await self._projector.project(event)
+
+    async def delete(self, fact_id: str) -> None:
+        await self._find(fact_id)
+        await self._record(FactDeleted(fact_id, _now()))
+
+    async def _link(self, source_id: str, target_id: str, kind: str) -> tuple[Link, bool]:
+        """The link the user means and whether it is in the graph now. Unknown facts are FactNotFound; other kinds InvalidFact."""
+        allowed = EDITABLE_LINKS.get(kind)
+        if allowed is None:
+            raise InvalidFact(f"Links of kind {kind!r} cannot be edited")
+        source, target = await self._find(source_id), await self._find(target_id)
+        if (source.kind, target.kind) not in allowed:
+            raise InvalidFact(f"{kind} links " + " or ".join(f"a {a} to a {b}" for a, b in allowed))
+        link = Link(source_id, target_id, LinkKind(kind))
+        return link, link in (await self._projector.snapshot()).links
+
+    async def add_link(self, source_id: str, target_id: str, kind: str) -> None:
+        link, present = await self._link(source_id, target_id, kind)
+        if not present:  # adding a link that exists is a no-op
+            await self._record(LinkAdded(source_id, target_id, kind, _now()))
+
+    async def remove_link(self, source_id: str, target_id: str, kind: str) -> None:
+        link, present = await self._link(source_id, target_id, kind)
+        if not present:
+            raise FactNotFound(f"{source_id} -> {target_id} ({kind})")  # the 404 handler's "Unknown fact" is close enough
+        await self._record(LinkRemoved(source_id, target_id, kind, _now()))
 
     async def revise(self, fact_id: str, title: str | None, attributes: dict[str, str] | None) -> Fact:
         """Full replacement of title and attributes. An omitted field keeps its current value."""

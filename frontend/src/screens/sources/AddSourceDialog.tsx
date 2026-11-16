@@ -20,11 +20,12 @@ export function AddSourceDialog({ open, onClose }: Props) {
     add.reset()
     onClose()
   }
-  const canImport = file !== null || text.trim() !== ''
+  // A file needs nothing else; typed text needs a name and details.
+  const canImport = file !== null || (name.trim() !== '' && text.trim() !== '')
   const submit = () => {
     const src = file
       ? ({ kind: 'file', file } as const)
-      : ({ kind: 'text', name: name.trim() || 'resume-text', text } as const)
+      : ({ kind: 'text', name: name.trim(), text } as const)
     add.mutate(src, { onSuccess: reset })
   }
   const pick = (f?: File) => f && setFile(f)
@@ -84,40 +85,45 @@ export function AddSourceDialog({ open, onClose }: Props) {
                   )}
                 </Text>
                 <Text fontSize="sm" color="app.muted" mt="1.5">
-                  PDF, DOCX, ZIP, CSV, TXT, MD
+                  PDF, DOCX, TXT, MD
                 </Text>
                 <input
                   ref={fileInput}
                   type="file"
                   hidden
                   data-testid="source-file"
-                  accept=".pdf,.docx,.zip,.csv,.txt,.md"
+                  accept=".pdf,.docx,.txt,.md"
                   onChange={(e) => pick(e.target.files?.[0])}
                 />
               </Box>
-              <Field.Root mt="5">
-                <Field.Label fontSize="sm" color="app.text2">
-                  Name
-                </Field.Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="For example, Resume 2026"
-                  borderColor="app.borderStrong"
-                />
-              </Field.Root>
-              <Field.Root mt="3">
-                <Field.Label fontSize="sm" color="app.text2">
-                  Or paste text
-                </Field.Label>
-                <Textarea
-                  rows={6}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder={'Jane Doe\n\nExperience\nSenior Engineer at Acme, 2019 - 2023'}
-                  borderColor="app.borderStrong"
-                />
-              </Field.Root>
+              <Text textAlign="center" fontSize="xs" color="app.muted" textTransform="uppercase" letterSpacing="wider" my="5">
+                or enter text
+              </Text>
+              <Box borderWidth="1px" borderColor="app.border" borderRadius="lg" p="4">
+                <Field.Root required mb="3">
+                  <Field.Label fontSize="sm" color="app.text2">
+                    Name
+                  </Field.Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="For example, Resume 2026"
+                    borderColor="app.borderStrong"
+                  />
+                </Field.Root>
+                <Field.Root>
+                  <Field.Label fontSize="sm" color="app.text2">
+                    Details
+                  </Field.Label>
+                  <Textarea
+                    rows={6}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={'Jane Doe\n\nExperience\nSenior Engineer at Acme, 2019 - 2023'}
+                    borderColor="app.borderStrong"
+                  />
+                </Field.Root>
+              </Box>
               {add.isError && (
                 <Text role="alert" color="app.missText" fontSize="sm" mt="3">
                   Import failed. Check the file type and try again.

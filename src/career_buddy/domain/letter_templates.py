@@ -1,4 +1,4 @@
-"""Letter and LinkedIn-About templates. Pure. Facts come from the tailored profile, everything else is fixed wording.
+"""Cover letter templates. Pure. Facts come from the tailored profile, everything else is fixed wording.
 
 Nothing is invented: a sentence names only what the profile or the user's inputs say, and the rest is boilerplate.
 """
@@ -44,9 +44,9 @@ def _skills(profile: Profile) -> str:
     return f"My experience includes {', '.join(profile.skills)}." if profile.skills else ""
 
 
-def _letter(profile: Profile, label: str, body: list[Entry], with_place: bool = True) -> Document:
+def _letter(profile: Profile, label: str, body: list[Entry]) -> Document:
     person = profile.id or None
-    place = profile.attributes.get("location", "") if with_place else ""
+    place = profile.attributes.get("location", "")
     return Document(Line(profile.name, person), (Line(place, person),) if place else (),
                     (Section("", tuple(body)),), label)
 
@@ -82,45 +82,7 @@ def cover_letter_email(profile: Profile, inputs: Inputs) -> Document:
     return _letter(profile, "Cover Letter Email", body + _closing(profile, "Best regards,"))
 
 
-def thank_you(profile: Profile, inputs: Inputs) -> Document:
-    role, company = inputs["role"], inputs["company"]
-    body = [
-        _greeting(profile, inputs["interviewer"]),
-        _say(profile, f"Thank you for speaking with me on {inputs['interview_date']} about the {role} position at "
-                      f"{company}. I enjoyed our conversation and remain interested in the role."),
-        _say(profile, _join(_lead(profile), _skills(profile))),
-        _say(profile, "Please let me know if I can provide anything further."),
-    ]
-    return _letter(profile, "Thank You", [e for e in body if e.paragraph.text] + _closing(profile, "Sincerely,"))
-
-
-def follow_up(profile: Profile, inputs: Inputs) -> Document:
-    role, company = inputs["role"], inputs["company"]
-    body = [
-        _greeting(profile, inputs.get("recipient") or "Hiring Team"),
-        _say(profile, f"I applied for the {role} position at {company} on {inputs['applied_date']} and am writing to "
-                      "follow up on my application. I remain interested in the role."),
-        _say(profile, _join(_lead(profile), _skills(profile))),
-        _say(profile, "Thank you for your time. I look forward to hearing from you."),
-    ]
-    return _letter(profile, "Follow Up", [e for e in body if e.paragraph.text] + _closing(profile, "Sincerely,"))
-
-
-def linkedin_about(profile: Profile, inputs: Inputs) -> Document:
-    person = profile.id or None
-    intro = profile.attributes.get("summary") or profile.attributes.get("headline") or _lead(profile)
-    body = [_say(profile, intro)] if intro else []
-    if bullets := _bullets(profile):
-        body.append(Entry(paragraph=Line("Highlights:", person, Origin.BOILERPLATE), bullets=bullets))
-    if profile.skills:
-        body.append(_say(profile, f"Skills: {', '.join(profile.skills)}"))
-    return _letter(profile, "LinkedIn About", body, with_place=False)
-
-
 LETTERS: dict[str, Callable[[Profile, Inputs], Document]] = {
     "cover-letter": cover_letter,
     "cover-letter-email": cover_letter_email,
-    "thank-you": thank_you,
-    "follow-up": follow_up,
-    "linkedin-about": linkedin_about,
 }

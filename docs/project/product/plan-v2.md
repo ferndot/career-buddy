@@ -186,9 +186,6 @@ The badge says "Passes ATS check", never "certified".
 | Resume | `resume-hybrid` (skills first, for career changers) | none |
 | Letter | `cover-letter` | company, role; recipient optional |
 | Letter | `cover-letter-email` | company, role |
-| Letter | `thank-you` | company, role, interviewer, interview date |
-| Letter | `follow-up` | company, role, applied date |
-| Other | `linkedin-about` | none |
 
 Every template renders to DOCX, PDF, TXT, MD and HTML. Functional resumes are left out on purpose.
 
@@ -250,7 +247,7 @@ Three steps across the top: **Import, Edit, Create**.
 - **Accept when:**
   - The v1 log replays.
   - An edit survives a restart and a re-import.
-  - LinkedIn "Acme Corp" plus PDF "Acme" are proposed as one employer, and after the merge the resume shows one employer.
+  - Resume text "Acme Corp" plus PDF "Acme" are proposed as one employer, and after the merge the resume shows one employer.
   - Undo restores both.
 - **Tests:**
   - HTTP tests.

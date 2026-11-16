@@ -21,7 +21,7 @@ export function DocumentsScreen() {
   const q = query.trim().toLowerCase()
   const rows: Row[] = docs.map((doc) => {
     const t = templates.data?.find((x) => x.id === doc.template)
-    return { doc, kind: t?.kind ?? 'other', templateLabel: t?.label ?? doc.template }
+    return { doc, kind: t?.kind ?? null, templateLabel: t?.label ?? doc.template }
   })
   const shown = rows.filter(
     (r) =>
@@ -37,7 +37,7 @@ export function DocumentsScreen() {
   const generate = () => navigate('/documents/new')
   const generateButton = (
     <Button bg="app.primary" color="app.onPrimary" onClick={generate}>
-      <LuPlus /> Generate
+      <LuPlus /> New document
     </Button>
   )
 
@@ -83,7 +83,6 @@ export function DocumentsScreen() {
                 <option value="">All types</option>
                 <option value="resume">Resume</option>
                 <option value="letter">Cover letter</option>
-                <option value="other">Other</option>
               </NativeSelect.Field>
               <NativeSelect.Indicator />
             </NativeSelect.Root>

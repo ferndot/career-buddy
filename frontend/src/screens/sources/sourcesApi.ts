@@ -7,7 +7,7 @@ export type Source = {
   source: string
   facts: number
   status: SourceStatus
-  progress: number
+  progress: number | null  // null while the current step has no measurable progress
   step: string
   error: string | null
 }
@@ -15,8 +15,6 @@ export type Source = {
 const KEY = ['sources']
 const reindexPath = (source: string) => `${endpoints.sources.remove(source)}/reindex`
 export const isBusy = (s: Source) => s.status === 'queued' || s.status === 'processing'
-// The LinkedIn export is imported structurally and keeps no original, so the API answers 422 to a reindex.
-export const canReindex = (s: Source) => s.source !== 'linkedin-export'
 
 /** Polls every 1.5s while any source is still queued or processing. */
 export function useSources() {

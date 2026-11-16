@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 FORMATS = ["docx", "pdf", "txt", "markdown", "html"]
 COMPANY = {"company": "Initech", "role": "Platform Engineer"}
@@ -16,22 +16,17 @@ INPUTS = {
     "resume-hybrid": {},
     "cover-letter": COMPANY,
     "cover-letter-email": COMPANY,
-    "thank-you": {**COMPANY, "interviewer": "Sam Rivera", "interview_date": "Nov 3, 2026"},
-    "follow-up": {**COMPANY, "applied_date": "Oct 20, 2026"},
-    "linkedin-about": {},
 }
 REQUIRED = {
     "cover-letter": ["company", "role"],
     "cover-letter-email": ["company", "role"],
-    "thank-you": ["company", "role", "interviewer", "interview_date"],
-    "follow-up": ["company", "role", "applied_date"],
 }
 
 
 @pytest.fixture
 def client(tmp_path: Path):
     with TestClient(create_app(tmp_path)) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
         yield client
 
 
@@ -46,9 +41,8 @@ def test_templates_endpoint_lists_ids_formats_and_required_inputs(client: TestCl
     assert all(sorted(t["formats"]) == sorted(FORMATS) for t in listed.values())
     assert {tid: t["required"] for tid, t in listed.items() if t["required"]} == REQUIRED
     assert listed["cover-letter"]["optional"] == ["recipient"]
-    assert listed["resume-classic"]["kind"] == "resume" and listed["thank-you"]["kind"] == "letter"
-    assert listed["linkedin-about"]["kind"] == "other"
-    assert listed["linkedin-about"]["label"] == "LinkedIn About" and listed["resume-hybrid"]["label"] == "Hybrid resume"
+    assert listed["resume-classic"]["kind"] == "resume" and listed["cover-letter-email"]["kind"] == "letter"
+    assert listed["resume-hybrid"]["label"] == "Hybrid resume"
 
 
 @pytest.mark.parametrize("fmt", FORMATS)
@@ -89,8 +83,8 @@ def test_the_cover_letter_uses_the_inputs_and_the_job_and_invents_nothing(client
 
 def test_filenames_say_what_the_document_is(client: TestClient) -> None:
     names = {t: render(client, t, "txt").headers["content-disposition"] for t in INPUTS}
-    assert names["cover-letter"].endswith('-Cover-Letter.txt"') and names["thank-you"].endswith('-Thank-You.txt"')
-    assert names["resume-hybrid"].endswith('-Resume.txt"') and names["linkedin-about"].endswith('-LinkedIn-About.txt"')
+    assert names["cover-letter"].endswith('-Cover-Letter.txt"')
+    assert names["resume-hybrid"].endswith('-Resume.txt"')
 
 
 def test_the_hybrid_resume_puts_skills_before_experience(client: TestClient) -> None:

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.domain.document import Document, Style
 from career_buddy.web.app import create_app
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 
 class DropsBullets(TextRenderer):
@@ -21,7 +21,7 @@ class DropsBullets(TextRenderer):
 @pytest.fixture
 def broken(tmp_path: Path):
     with TestClient(create_app(tmp_path, renderers=[DropsBullets()])) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
         yield client
 
 
@@ -45,6 +45,6 @@ def test_the_json_preview_carries_the_same_issues(broken: TestClient) -> None:
 
 def test_the_preview_checks_docx_by_default_and_passes_for_a_sound_renderer(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path)) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
         ats = client.post("/api/documents/preview", json={"template": "resume-classic"}).json()["ats"]
     assert ats == {"format": "docx", "passes": True, "issues": []}

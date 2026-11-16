@@ -3,7 +3,7 @@ import { apiFetch, apiUrl, endpoints } from '../../api'
 
 export type Template = {
   id: string
-  kind: 'resume' | 'letter' | 'other'
+  kind: 'resume' | 'letter'
   label: string
   formats: string[]
   required: string[]

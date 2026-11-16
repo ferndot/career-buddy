@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
 from llm_support import connect_mock
-from test_api import linkedin_zip
 
 TEXT = "Ada Lovelace\n\nExperience\nAnalyst at Analytical Society, 2010 - 2015\n- Wrote the first algorithm\n"
 FRONTEND = "http://localhost:5173"
@@ -103,8 +102,6 @@ def test_cors_origins_come_from_the_environment(tmp_path: Path, monkeypatch: pyt
 def test_the_source_list_carries_status_progress_step_and_error(client) -> None:
     assert client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"}).json() == {"facts": 4}
     assert listing(client)["ada.txt"] == {"source": "ada.txt", "facts": 4, "status": "ready", "progress": 100, "step": "Done", "error": None}
-    client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
-    assert listing(client)["linkedin-export"]["status"] == "ready"
 
 
 def test_an_import_with_a_model_returns_a_queued_source_and_becomes_ready(client, model) -> None:
@@ -114,7 +111,7 @@ def test_an_import_with_a_model_returns_a_queued_source_and_becomes_ready(client
     assert res.status_code == 202
     assert res.json()["source"] == "ada.txt" and res.json()["status"] in ("queued", "processing") and res.json()["error"] is None
     held = listing(client)["ada.txt"]
-    assert held["status"] in ("queued", "processing") and held["progress"] < 100 and held["step"]
+    assert held["status"] in ("queued", "processing") and held["progress"] in (None, 0) and held["step"]
     model.gate.set()
     ready = wait_for(client, "ada.txt", "ready")
     assert ready["progress"] == 100 and ready["facts"] > 0 and ready["error"] is None
@@ -150,11 +147,6 @@ def test_reindex_without_a_model_uses_the_offline_reader(client) -> None:
 
 def test_reindex_of_an_unknown_source_is_404(client) -> None:
     assert client.post("/api/sources/nothing.txt/reindex").status_code == 404
-
-
-def test_reindex_of_a_source_with_no_stored_original_is_422(client) -> None:
-    client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
-    assert client.post("/api/sources/linkedin-export/reindex").status_code == 422
 
 
 def test_reindex_while_processing_is_409_and_so_is_removing_the_source(client, model) -> None:
@@ -193,3 +185,56 @@ def test_a_failed_reindex_keeps_the_earlier_facts_and_a_retry_can_succeed(client
     model.status = 200
     assert client.post("/api/sources/ada.txt/reindex").status_code == 202
     wait_for(client, "ada.txt", "ready")
+
+
+def test_a_first_import_that_failed_can_be_retried(client, model) -> None:
+    connect_mock(client)
+    model.status = 503
+    client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
+    assert wait_for(client, "ada.txt", "failed")["facts"] == 0
+    model.status = 200
+    assert client.post("/api/sources/ada.txt/reindex").status_code == 202
+    wait_for(client, "ada.txt", "ready")
+    assert titles(client) == ["Analyst"]
+def app_client(tmp_path, model):
+    return TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(model)))
+
+
+def test_a_failed_first_import_is_listed_as_failed_and_returned_by_the_sources_endpoint(client, model) -> None:
+    connect_mock(client)
+    model.status = 503
+    client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
+    wait_for(client, "ada.txt", "failed")
+    listed = {s["source"]: s for s in client.get("/api/sources").json()}
+    assert listed["ada.txt"]["status"] == "failed" and listed["ada.txt"]["error"] and listed["ada.txt"]["facts"] == 0
+
+
+def test_a_source_that_failed_before_a_restart_can_be_retried_after_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model) -> None:
+    monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL", raising=False)
+    model.status = 503
+    with app_client(tmp_path, model) as first:
+        connect_mock(first)
+        first.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
+        wait_for(first, "ada.txt", "failed")
+    model.status = 200
+    with app_client(tmp_path, model) as second:  # job states are in memory, so only the registration remains
+        assert listing(second)["ada.txt"]["facts"] == 0
+        assert second.post("/api/sources/ada.txt/reindex").status_code == 202
+        wait_for(second, "ada.txt", "ready")
+        assert titles(second) == ["Analyst"]
+
+
+def test_importing_a_removed_source_again_registers_it_again(client, model) -> None:
+    connect_mock(client)
+    model.status = 503
+    client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
+    wait_for(client, "ada.txt", "failed")
+    assert client.delete("/api/sources/ada.txt").status_code == 204
+    assert "ada.txt" not in listing(client)
+    assert client.post("/api/sources/ada.txt/reindex").status_code == 404
+    client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
+    wait_for(client, "ada.txt", "failed")
+    model.status = 200
+    assert client.post("/api/sources/ada.txt/reindex").status_code == 202
+    wait_for(client, "ada.txt", "ready")
+    assert titles(client) == ["Analyst"]

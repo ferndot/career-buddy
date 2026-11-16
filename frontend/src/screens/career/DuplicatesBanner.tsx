@@ -14,14 +14,14 @@ export function DuplicatesBanner() {
 
   return (
     <>
-      <Flex align="center" gap="3" mb="6" px="5" py="4" borderRadius="lg" borderWidth="1px" bg="app.warnPanel" borderColor="app.warnBorder">
-        <Badge bg="app.warnBg" color="app.warnText" borderRadius="full" px="2">
+      <Flex align="center" gap="3" mb="4" px="3" py="2" borderRadius="lg" borderWidth="1px" bg="app.warnPanel" borderColor="app.warnBorder">
+        <Badge bg="app.warnBg" color="app.warnText" borderRadius="full" px="2" flexShrink={0}>
           {n} possible {n === 1 ? 'duplicate' : 'duplicates'}
         </Badge>
-        <Text flex="1" fontSize="sm" color="app.text">
+        <Text flex="1" minW="0" truncate fontSize="xs" color="app.text">
           "{first.a.title}" and "{first.b.title}" may be the same {first.kind.toLowerCase()}.
         </Text>
-        <Button size="sm" variant="outline" bg="app.surface" color="app.text" borderColor="app.borderStrong" onClick={() => setOpen(true)}>
+        <Button size="xs" variant="ghost" color="app.link" flexShrink={0} onClick={() => setOpen(true)}>
           Review
         </Button>
       </Flex>

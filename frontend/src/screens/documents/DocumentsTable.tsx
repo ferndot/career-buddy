@@ -2,7 +2,7 @@ import { Box, Button, Table, Text } from '@chakra-ui/react'
 import { useState } from 'react'
 import { downloadSaved, type SavedDocument } from './api'
 
-export const KIND_LABEL = { resume: 'Resume', letter: 'Cover letter', other: 'Other' } as const
+export const KIND_LABEL = { resume: 'Resume', letter: 'Cover letter' } as const
 export type Kind = keyof typeof KIND_LABEL
 
 export function AtsTag({ issues }: { issues: number }) {
@@ -25,7 +25,7 @@ export function AtsTag({ issues }: { issues: number }) {
 
 const cell = { borderColor: 'app.border' } as const
 
-export type Row = { doc: SavedDocument; kind: Kind; templateLabel: string }
+export type Row = { doc: SavedDocument; kind: Kind | null; templateLabel: string }
 type Props = { rows: Row[]; onDelete: (doc: SavedDocument) => void }
 
 export function DocumentsTable({ rows, onDelete }: Props) {
@@ -54,7 +54,7 @@ export function DocumentsTable({ rows, onDelete }: Props) {
           {rows.map(({ doc: d, kind, templateLabel }) => (
             <Table.Row key={d.id} bg="transparent">
               <Table.Cell fontWeight="semibold" {...cell}>{d.label}</Table.Cell>
-              <Table.Cell {...cell}>{KIND_LABEL[kind]}</Table.Cell>
+              <Table.Cell {...cell}>{kind ? KIND_LABEL[kind] : '—'}</Table.Cell>
               <Table.Cell {...cell}>{templateLabel}</Table.Cell>
               <Table.Cell {...cell}>{d.format.toUpperCase()}</Table.Cell>
               <Table.Cell whiteSpace="nowrap" {...cell}>

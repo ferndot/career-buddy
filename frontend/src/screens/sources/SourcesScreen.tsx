@@ -6,7 +6,7 @@ import { AddSourceDialog } from './AddSourceDialog'
 import { ProcessingCard } from './ProcessingCard'
 import { SourceCard } from './SourceCard'
 import { SourceLogSidebar } from './SourceLogSidebar'
-import { canReindex, isBusy, useReindexSources, useRemoveSource, useSources } from './sourcesApi'
+import { isBusy, useReindexSources, useRemoveSource, useSources } from './sourcesApi'
 
 export function SourcesScreen() {
   const [adding, setAdding] = useState(false)
@@ -17,7 +17,6 @@ export function SourcesScreen() {
   const remove = useRemoveSource()
   const busy = sources.filter(isBusy)
   const idle = sources.filter((s) => !isBusy(s))
-  const reindexable = idle.filter(canReindex)
   const firstBusy = busy.find((s) => s.status === 'processing') ?? busy[0]
   useEffect(() => {
     if (choice === undefined && firstBusy) setChoice(firstBusy.source) // stays open after the work ends: the log is the summary
@@ -31,7 +30,7 @@ export function SourcesScreen() {
 
   return (
     <>
-      <PageHeader title="Sources" subtitle="Import your career data. Everything stays on this computer." />
+      <PageHeader title="Sources" />
       <Flex direction={{ base: 'column', xl: 'row' }} gap="6" align={{ base: 'stretch', xl: 'flex-start' }}>
         <Box flex="1" minW="0" maxW="3xl">
           <Box display="flex" alignItems="center" gap="3" mb="3" flexWrap="wrap">
@@ -43,8 +42,8 @@ export function SourcesScreen() {
               variant="outline"
               borderColor="app.borderStrong"
               color="app.text"
-              disabled={reindexable.length === 0}
-              onClick={() => reindex.mutate(reindexable.map((s) => s.source))}
+              disabled={idle.length === 0}
+              onClick={() => reindex.mutate(idle.map((s) => s.source))}
             >
               <LuRefreshCw /> Reindex all
             </Button>
@@ -55,19 +54,22 @@ export function SourcesScreen() {
               Could not load sources.
             </Text>
           )}
-          {busy.length > 0 && <ProcessingCard sources={busy} selected={choice ?? ''} onLog={setChoice} />}
-          {idle.map((s) => (
-            <SourceCard
-              key={s.source}
-              source={s}
-              selected={choice === s.source}
-              onLog={() => setChoice(s.source)}
-              onReindex={() => reindex.mutate([s.source])}
-              onRemove={() => remove.mutate(s.source)}
-            />
-          ))}
+          {sources.map((s) =>
+            isBusy(s) ? (
+              <ProcessingCard key={s.source} sources={[s]} selected={choice ?? ''} onLog={setChoice} />
+            ) : (
+              <SourceCard
+                key={s.source}
+                source={s}
+                selected={choice === s.source}
+                onLog={() => setChoice(s.source)}
+                onReindex={() => reindex.mutate([s.source])}
+                onRemove={() => remove.mutate(s.source)}
+              />
+            ),
+          )}
           {sources.length === 0 && !isError && !isPending && (
-            <EmptyState title="No sources yet" description="Import a resume, LinkedIn export or text to get started.">
+            <EmptyState title="No sources yet" description="Import a resume or text to get started.">
               {addButton}
             </EmptyState>
           )}

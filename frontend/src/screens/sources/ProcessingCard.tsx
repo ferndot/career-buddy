@@ -1,5 +1,6 @@
-import { Badge, Box, Button, Progress, Text } from '@chakra-ui/react'
+import { Box, Button, Progress, Text } from '@chakra-ui/react'
 import { LuScrollText } from 'react-icons/lu'
+import { StatusBadge } from './StatusBadge'
 import { displayName } from './sourceDisplay'
 import type { Source } from './sourcesApi'
 
@@ -15,18 +16,18 @@ export function ProcessingCard({ sources, selected, onLog }: { sources: Source[]
           <Text fontWeight="semibold" fontSize="sm" color="app.text" truncate>
             {name}
           </Text>
-          <Text fontSize="sm" color="app.muted">
-            AI is reading positions, bullets and skills{more > 0 ? ` (+${more} waiting)` : ''}
-          </Text>
+          {more > 0 && (
+            <Text fontSize="sm" color="app.muted">
+              +{more} waiting
+            </Text>
+          )}
         </Box>
+        <StatusBadge status={s.status} />
         <Button size="sm" variant="ghost" color="app.link" onClick={() => onLog(s.source)} aria-label={`Show log of ${name}`} aria-pressed={selected === s.source}>
           <LuScrollText /> Log
         </Button>
-        <Badge bg="app.warnBg" color="app.warnText" borderRadius="full" px="2">
-          {s.status === 'queued' ? 'Queued' : `Processing ${s.progress}%`}
-        </Badge>
       </Box>
-      <Progress.Root value={s.progress} max={100} mt="3" size="sm" aria-label={`Processing ${name}`}>
+      <Progress.Root value={s.status === 'queued' ? 0 : s.progress} max={100} mt="3" size="sm" aria-label={`Processing ${name}`}>
         <Progress.Track bg="app.hover" borderRadius="full">
           <Progress.Range bg="app.primary" />
         </Progress.Track>

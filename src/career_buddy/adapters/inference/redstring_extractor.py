@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections import Counter
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from redstring import (
 
 from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind, fact_id
+from career_buddy.domain.text import split_skills
 
 log = logging.getLogger("career_buddy.extraction.pipeline")
 CAREER_SCHEMA: Path = Path(__file__).with_name("career_schema.yaml")
@@ -126,6 +128,7 @@ def to_batch(result: PipelineResult, source: str) -> FactBatch:
         facts.setdefault(fid, Fact(fid, kind, title, _attributes(entity), source))
 
     links: dict[Link, None] = {}
+    _tools_as_skills(result, facts, links, fact_of, position_of, source)
     for r in result.relationships:
         if (kind := _link_kind(r.relationship_type)) is None:
             dropped[f"relationship type {r.relationship_type!r}"] += 1
@@ -138,6 +141,25 @@ def to_batch(result: PipelineResult, source: str) -> FactBatch:
     made_person = _attach_to_person(facts, links, source)
     _log_mapping(source, result, facts, links, dropped, made_person)
     return FactBatch(tuple(facts.values()), tuple(links))
+
+
+TOOLS_CATEGORY = "Tools & platforms"
+
+
+def _tools_as_skills(result: PipelineResult, facts: dict[str, Fact], links: dict[Link, None], fact_of: dict, position_of: dict,
+                     source: str) -> None:
+    """Tools are skills. A model that still puts them in an achievement's `tools` becomes a Skill, used by the achievement and its position."""
+    for entity in result.entities:
+        if _kind(entity) != FactKind.ACHIEVEMENT:
+            continue
+        for name in split_skills(_text(entity.properties.get("tools"))):
+            fid = fact_id(FactKind.SKILL, name)
+            skill = facts.setdefault(fid, Fact(fid, FactKind.SKILL, name, {"category": TOOLS_CATEGORY}, source))
+            if not skill.attributes.get("category"):  # the same skill met first without one
+                facts[fid] = replace(skill, attributes={**skill.attributes, "category": TOOLS_CATEGORY})
+            if position := fact_of.get(position_of.get(entity.id)):
+                links[Link(position, fid, LinkKind.USES_SKILL)] = None
+            links[Link(fact_of[entity.id], fid, LinkKind.USES_SKILL)] = None
 
 
 def _log_mapping(source: str, result: PipelineResult, facts: dict, links: dict, dropped: Counter[str], made_person: bool) -> None:
@@ -198,7 +220,7 @@ def _scope(kind: FactKind, entity_id: object, org_of: dict, school_of: dict, pos
 
 
 def _attributes(entity: Entity) -> dict[str, str]:
-    attrs = {k: _text(v) for k, v in entity.properties.items() if _text(v)}
+    attrs = {k: _text(v) for k, v in entity.properties.items() if _text(v) and k != "tools"}  # tools become skills
     if entity.temporal and entity.temporal.original_text:
         attrs.setdefault("period", _text(entity.temporal.original_text))
     return attrs

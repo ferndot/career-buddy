@@ -18,12 +18,6 @@ class FactExtractor(Protocol):
     async def extract(self, text: str, source: str) -> FactBatch: ...
 
 
-class SourceParser(Protocol):
-    """A structured export (e.g. LinkedIn) in, facts out. Files are name -> bytes."""
-
-    def parse(self, files: dict[str, bytes], source: str) -> FactBatch: ...
-
-
 class EventLog(Protocol):
     def append(self, event: Event) -> None: ...
 
@@ -125,7 +119,7 @@ class SourceBusy(Exception):
 
 
 class NoOriginal(Exception):
-    """The source has no stored original to read again, for example a LinkedIn export."""
+    """The source has no stored original to read again."""
 
 
 @dataclass(frozen=True)
@@ -133,7 +127,7 @@ class JobState:
     """Where a source is in processing. `progress` is 0-100; `error` is user-readable and set only when failed."""
 
     status: Literal["queued", "processing", "ready", "failed"]
-    progress: int
+    progress: int | None  # None while the step has no measurable progress
     step: str
     error: str | None = None
 

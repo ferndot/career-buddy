@@ -10,14 +10,13 @@ To keep a rendered file, see [Saved documents API](saved-documents-api.md).
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/templates` | `[{id, kind, label, formats, required, optional}]` for the eight templates |
+| `GET /api/templates` | `[{id, kind, label, formats, required, optional}]` for the five templates |
 | `POST /api/documents/render` | The file, with `Content-Disposition`. `format` is `docx`, `pdf`, `txt`, `markdown` or `html` |
 | `POST /api/documents/preview` | `{lines, document, tailoring, markers, ats}`. `ats` checks `format` (default `docx`) |
 | `POST /api/documents/check` | `{passes, issues}` for one format |
 
 Templates: `resume-classic`, `resume-compact`, `resume-hybrid`, `cover-letter` (company, role), `cover-letter-email`
-(company, role), `thank-you` (company, role, interviewer, interview_date), `follow-up` (company, role, applied_date),
-`linkedin-about`. A missing or blank required input returns 422 and names it. Unknown inputs are ignored.
+(company, role). A missing or blank required input returns 422 and names it. Unknown inputs are ignored.
 
 ## ATS check is a warning
 

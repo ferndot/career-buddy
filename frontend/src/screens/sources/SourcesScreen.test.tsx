@@ -5,7 +5,7 @@ import { SourcesScreen } from './SourcesScreen'
 
 const sources = [
   { source: 'resume.pdf', facts: 8, status: 'processing', progress: 62, step: 'Step 2 of 3: 5 of 8 positions read', error: null },
-  { source: 'linkedin-export', facts: 14, status: 'ready', progress: 100, step: '', error: null },
+  { source: 'cv.docx', facts: 14, status: 'ready', progress: 100, step: '', error: null },
   { source: 'notes.txt', facts: 0, status: 'failed', progress: 0, step: '', error: 'Model unreachable' },
 ]
 const log = (source: string) => ({
@@ -27,9 +27,9 @@ describe('SourcesScreen', () => {
   it('shows progress, source cards and failed errors', async () => {
     stubApi()
     renderApp(<SourcesScreen />)
-    expect(await screen.findByText('Processing 62%')).toBeInTheDocument()
+    expect(await screen.findByText('Working')).toBeInTheDocument()
     expect(screen.getAllByText('Step 2 of 3: 5 of 8 positions read').length).toBeGreaterThan(0)
-    expect(screen.getByText('LinkedIn export')).toBeInTheDocument()
+    expect(screen.getByText('cv.docx')).toBeInTheDocument()
     expect(screen.getByText('Model unreachable')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry notes.txt' })).toBeInTheDocument()
   })
@@ -38,8 +38,8 @@ describe('SourcesScreen', () => {
     stubApi()
     renderApp(<SourcesScreen />)
     expect(await screen.findByText('log of resume.pdf')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Show log of LinkedIn export' }))
-    expect(await screen.findByText('log of linkedin-export')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show log of cv.docx' }))
+    expect(await screen.findByText('log of cv.docx')).toBeInTheDocument()
     expect(screen.queryByText('log of resume.pdf')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close log' }))
     expect(screen.queryByRole('log')).not.toBeInTheDocument()

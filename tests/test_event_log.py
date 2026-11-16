@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
-from career_buddy.domain.events import FactRevised, FactsImported, FactsMerged
+from career_buddy.domain.events import FactDeleted, FactRevised, FactsImported, FactsMerged, LinkAdded, LinkRemoved, SourceRegistered
 from career_buddy.domain.model import Fact, FactBatch, FactKind, Link, LinkKind
 
 V1_LOG = Path(__file__).parent / "fixtures" / "events-v1.jsonl"
@@ -16,6 +16,10 @@ EVENTS = [
     FactsMerged("b", "a", False, "2026-11-14T10:01:00+00:00"),
     FactsMerged("b", "a", True, "2026-11-14T10:02:00+00:00"),
     FactsImported(FactBatch((Fact("b", FactKind.SKILL, "Rust"),)), "sources/abc.pdf"),
+    FactDeleted("b", "2026-11-14T10:03:00+00:00"),
+    LinkAdded("p", "o", "AT", "2026-11-14T10:04:00+00:00"),
+    LinkRemoved("p", "o", "AT", "2026-11-14T10:05:00+00:00"),
+    SourceRegistered("cv.pdf", "sources/abc.pdf", "2026-11-14T10:06:00+00:00"),
 ]
 
 

@@ -10,7 +10,7 @@ from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.application.ports import RendererUnavailable
 from career_buddy.domain.document import Document, Style
 from career_buddy.web.app import create_app
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 BODY = {"template": "resume-classic", "format": "markdown"}
 
@@ -31,7 +31,7 @@ def open_client(tmp_path: Path) -> TestClient:
 @pytest.fixture
 def client(tmp_path: Path):
     c = open_client(tmp_path)
-    c.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+    seed_jane(c)
     yield c
     c.__exit__(None, None, None)
 
@@ -61,7 +61,7 @@ def test_an_empty_label_falls_back_to_the_file_name_without_extension(client: Te
 
 def test_the_list_is_newest_first_and_survives_a_restart(tmp_path: Path) -> None:
     with open_client(tmp_path) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
         first = save(client, label="first").json()
         time.sleep(0.01)
         second = save(client, label="second", format="txt").json()

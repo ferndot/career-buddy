@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
 from llm_support import connect_mock
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 JOB = "Requirements:\n- Kubernetes migrations\n- Terraform"
 DIRTY = "Delve into cost data to fix potential leaks​"
@@ -32,9 +32,9 @@ def no_env_llm(monkeypatch) -> None:
 def open_client(tmp_path: Path, handler=None) -> TestClient:
     client = TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(handler) if handler else None))
     client.__enter__()
+    seed_jane(client)  # before the model connects, so the offline reader finishes the import in the call
     if handler:
         connect_mock(client)
-    client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
     return client
 
 

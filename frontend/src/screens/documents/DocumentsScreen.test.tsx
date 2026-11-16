@@ -22,11 +22,12 @@ afterEach(() => {
   queryClient.clear()
 })
 
-test('shows the empty state with a Generate action', async () => {
+test('shows the empty state with a New document action', async () => {
   stubApi([])
   renderApp(<DocumentsScreen />)
   expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
   expect(await screen.findByText('No documents yet')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'New document' })).toHaveLength(2) // header and empty state
 })
 
 test('lists saved documents and filters by type', async () => {

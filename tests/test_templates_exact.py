@@ -7,18 +7,14 @@ from career_buddy.domain.templates import TemplateSpec, build_document, get_temp
 JOB = ("company", "role")
 
 
-def letter(id: str, label: str, required=JOB, optional=(), kind="letter") -> TemplateSpec:
-    return TemplateSpec(id, label, (), 2, 5, kind, required, optional)
+def letter(id: str, label: str, optional=()) -> TemplateSpec:
+    return TemplateSpec(id, label, (), 2, 5, "letter", JOB, optional)
 
 
 def test_every_letter_template_has_its_exact_spec() -> None:
     assert get_template("cover-letter") == letter("cover-letter", "Cover letter", optional=("recipient",))
     assert get_template("cover-letter-email") == letter("cover-letter-email", "Cover letter (email)",
                                                          optional=("recipient",))
-    assert get_template("thank-you") == letter("thank-you", "Thank-you note",
-                                               (*JOB, "interviewer", "interview_date"))
-    assert get_template("follow-up") == letter("follow-up", "Follow-up", (*JOB, "applied_date"), ("recipient",))
-    assert get_template("linkedin-about") == letter("linkedin-about", "LinkedIn About", (), kind="other")
 
 
 def build(*positions: PositionView, **attrs: str):

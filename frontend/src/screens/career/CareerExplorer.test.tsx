@@ -27,7 +27,7 @@ afterEach(() => {
 it('switches kinds with tabs and follows a linked item to its detail', async () => {
   renderApp(<CareerExplorer facts={facts} edges={edges} career={career} />)
   expect(screen.getByRole('tab', { name: 'Organizations (1)' })).toBeInTheDocument()
-  expect(screen.getByRole('checkbox', { name: 'Cut build times by 60%' })).toBeChecked() // first position's card
+  expect(screen.getByRole('button', { name: 'Hide: Cut build times by 60%' })).toBeInTheDocument() // first position's card
 
   // A real click focuses the tab first; Chakra tabs select on focus.
   const achievements = screen.getByRole('tab', { name: 'Achievements (1)' })

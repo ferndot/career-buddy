@@ -38,7 +38,7 @@ def test_the_log_shows_each_step_and_chunk_while_processing_and_stays_after_it(c
     client.post("/api/import/text", json={"text": TEXT, "source": "ada.txt"})
     wait_for(client, "ada.txt", "processing")
     live = read(client, "ada.txt")
-    assert live["status"] == "processing" and live["step"] and live["progress"] < 100
+    assert live["status"] == "processing" and live["step"] and live["progress"] in (None, 0)
     deadline = 100
     while not any("chunk 1: asking the model" in m for m in messages(live)) and deadline:  # the call starts a moment after the step
         live, deadline = read(client, "ada.txt"), deadline - 1

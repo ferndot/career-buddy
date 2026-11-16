@@ -4,8 +4,7 @@ import type { Wizard } from './state'
 
 const KINDS = [
   { id: 'resume', label: 'Resume' },
-  { id: 'letter', label: 'Cover letter and notes' },
-  { id: 'other', label: 'Other' },
+  { id: 'letter', label: 'Cover letter' },
 ] as const
 
 type Props = { w: Wizard; templates: Template[]; set: (patch: Partial<Wizard>) => void }

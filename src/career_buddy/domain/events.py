@@ -14,6 +14,15 @@ class FactsImported:
 
 
 @dataclass(frozen=True)
+class SourceRegistered:
+    """A source was imported and its original stored under `source_key`, whether or not extraction has succeeded yet."""
+
+    source: str
+    source_key: str
+    at: str = ""
+
+
+@dataclass(frozen=True)
 class FactRevised:
     """Full replacement of a fact's title and attributes. Hide = attributes["hidden"] == "true"."""
 
@@ -50,4 +59,32 @@ class SourceRemoved:
     at: str = ""
 
 
-Event = FactsImported | FactRevised | FactsMerged | DuplicateDismissed | SourceRemoved
+@dataclass(frozen=True)
+class FactDeleted:
+    """The user deleted a fact for good. A position's achievements go with it."""
+
+    fact_id: str
+    at: str = ""
+
+
+@dataclass(frozen=True)
+class LinkAdded:
+    """The user linked two facts. Wins over an earlier LinkRemoved of the same link."""
+
+    source_id: str
+    target_id: str
+    kind: str
+    at: str = ""
+
+
+@dataclass(frozen=True)
+class LinkRemoved:
+    """The user unlinked two facts. A re-import of the link does not bring it back."""
+
+    source_id: str
+    target_id: str
+    kind: str
+    at: str = ""
+
+
+Event = FactsImported | SourceRegistered | FactRevised | FactsMerged | DuplicateDismissed | SourceRemoved | FactDeleted | LinkAdded | LinkRemoved

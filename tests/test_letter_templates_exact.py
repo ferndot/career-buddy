@@ -89,63 +89,15 @@ def test_cover_letter_email_bare_profile() -> None:
         "Thank you for your time. I look forward to hearing from you.", "Best regards,", "Bob"]
 
 
-def test_thank_you_full_and_bare() -> None:
-    inputs = {**JOB, "interviewer": "Dr. Who", "interview_date": "May 5"}
-    thanks = "Thank you for speaking with me on May 5 about the Dev position at Initech. " \
-             "I enjoyed our conversation and remain interested in the role."
-    expected = letter(FULL, "Thank You", [
-        say("Dear Dr. Who,"), say(thanks), say(f"{LEAD} {SKILLS}"),
-        say("Please let me know if I can provide anything further."), say("Sincerely,"), say("Ada Lovelace"),
-    ])
-    assert build("thank-you", FULL, **inputs) == expected
-    bare = build("thank-you", BARE, **inputs)
-    assert [e.paragraph.text for e in bare.sections[0].entries] == [
-        "Dear Dr. Who,", thanks, "Please let me know if I can provide anything further.", "Sincerely,", "Bob"]
-
-
-def test_follow_up_full_and_bare() -> None:
-    inputs = {**JOB, "applied_date": "May 1"}
-    ask = ("I applied for the Dev position at Initech on May 1 and am writing to follow up on my application. "
-           "I remain interested in the role.")
-    expected = letter(FULL, "Follow Up", [
-        say("Dear Ann,"), say(ask), say(f"{LEAD} {SKILLS}"),
-        say("Thank you for your time. I look forward to hearing from you."), say("Sincerely,"), say("Ada Lovelace"),
-    ])
-    assert build("follow-up", FULL, recipient="Ann", **inputs) == expected
-    bare = build("follow-up", BARE, **inputs)
-    assert [e.paragraph.text for e in bare.sections[0].entries] == [
-        "Dear Hiring Team,", ask, "Thank you for your time. I look forward to hearing from you.", "Sincerely,", "Bob"]
-
-
-def test_linkedin_about_prefers_summary_then_headline_then_the_lead() -> None:
-    expected = letter(FULL, "LinkedIn About", [
-        say("Mathematician."),
-        Entry(paragraph=Line("Highlights:", PID, Origin.BOILERPLATE), bullets=BULLETS),
-        say("Skills: Python, Go"),
-    ], place="")
-    assert build("linkedin-about", FULL) == expected
-    headline_only = Profile(name="Q", id="q", attributes={"headline": "Analyst"}, positions=FULL.positions)
-    assert build("linkedin-about", headline_only).sections[0].entries[0] == say("Analyst", "q")
-    lead_only = Profile(name="Q", id="q", positions=FULL.positions)
-    assert build("linkedin-about", lead_only).sections[0].entries[0] == say(LEAD, "q")
-    summary_and_headline = Profile(name="Q", attributes={"summary": "S", "headline": "H"})
-    assert build("linkedin-about", summary_and_headline).sections[0].entries == (say("S", None),)
-
-
-def test_linkedin_about_of_an_empty_profile_has_no_body() -> None:
-    doc = build("linkedin-about", BARE)
-    assert doc == Document(Line("Bob", None), (), (Section("", ()),), "LinkedIn About")
-
-
 def test_cover_letter_keeps_at_most_three_bullets() -> None:
     many = Profile(name="M", positions=(PositionView("T", "O", achievements=("1", "2", "3", "4")),))
     entry = build("cover-letter", many, **JOB).sections[0].entries[2]
     assert [b.text for b in entry.bullets] == ["1", "2", "3"]
 
 
-@pytest.mark.parametrize("template", ["cover-letter", "cover-letter-email", "thank-you", "follow-up"])
+@pytest.mark.parametrize("template", ["cover-letter", "cover-letter-email"])
 def test_letters_carry_the_location_under_the_name(template: str) -> None:
-    doc = build(template, FULL, interviewer="I", interview_date="d", applied_date="d", **JOB)
+    doc = build(template, FULL, **JOB)
     assert doc.intro == (Line("London", PID),)
 
 

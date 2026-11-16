@@ -1,22 +1,35 @@
 """Blackbox tests through the HTTP front door: import, then read documents back."""
 
-import io
-import zipfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
 
-FIXTURES = Path(__file__).parent / "fixtures" / "linkedin"
+JANE_TEXT = """Jane Doe
+Experience
+Senior Engineer at Acme Corp, Mar 2019 - Jan 2023
+- Cut build times by 60%
+- Migrated 40 services to Kubernetes
+Engineer at Globex, Jun 2016 - Feb 2019
+- Built ETL jobs
+
+Skills
+Python, Kubernetes
+
+Education
+University of Lisbon
+"""
 
 
-def linkedin_zip() -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as archive:
-        for path in FIXTURES.glob("*.csv"):
-            archive.writestr(path.name, path.read_bytes())
-    return buf.getvalue()
+def seed_jane(client: TestClient) -> None:
+    """Imports the text, then fills what the offline reader does not read: headline, summary and the degree."""
+    assert client.post("/api/import/text", json={"text": JANE_TEXT}).status_code == 200
+    facts = {f["kind"]: f["id"] for f in client.get("/api/facts").json() if f["kind"] in ("Person", "Education")}
+    summary = {"headline": "Platform engineer", "summary": "Builds reliable data pipelines", "location": "Lisbon, Portugal"}
+    degree = {"school": "University of Lisbon", "started": "2012", "finished": "2016"}
+    assert client.patch(f"/api/facts/{facts['Person']}", json={"attributes": summary}).status_code == 200
+    assert client.patch(f"/api/facts/{facts['Education']}", json={"title": "BSc Computer Science", "attributes": degree}).status_code == 200
 
 
 RESUME_TEXT = """Ada Lovelace
@@ -32,10 +45,9 @@ Trinity College
 """
 
 
-def test_linkedin_import_then_resume_and_letter(tmp_path: Path) -> None:
+def test_import_then_resume_and_letter(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path)) as client:
-        res = client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
-        assert res.status_code == 200 and res.json()["facts"] > 0
+        seed_jane(client)
 
         md = client.get("/api/resume/markdown").text
         assert md.startswith("# Jane Doe")
@@ -54,8 +66,8 @@ def test_linkedin_import_then_resume_and_letter(tmp_path: Path) -> None:
 
 def test_repeated_import_is_idempotent(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path)) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
+        seed_jane(client)
         positions = [f for f in client.get("/api/facts", params={"kind": "Position"}).json()]
         assert len(positions) == 2
 

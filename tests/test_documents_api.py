@@ -8,7 +8,7 @@ from docx import Document as DocxDocument
 from fastapi.testclient import TestClient
 
 from career_buddy.web.app import create_app
-from test_api import linkedin_zip
+from test_api import seed_jane
 
 FORMATS = ["markdown", "html", "txt", "docx", "pdf"]
 
@@ -16,7 +16,7 @@ FORMATS = ["markdown", "html", "txt", "docx", "pdf"]
 @pytest.fixture
 def client(tmp_path: Path):
     with TestClient(create_app(tmp_path)) as client:
-        client.post("/api/import/linkedin", files={"file": ("export.zip", linkedin_zip(), "application/zip")})
+        seed_jane(client)
         yield client
 
 
