@@ -6,7 +6,7 @@ import httpx
 from pydantic import BaseModel
 
 from career_graph.adapters.inference.errors import CAUGHT, unavailable
-from career_graph.adapters.inference.structured import instructions, read_reply
+from career_graph.adapters.inference.structured import instructions, read_reply, warn_if_cut_off
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1"
 VERSION = "2023-06-01"
@@ -35,7 +35,9 @@ class StructuredAnthropicProvider:
                       "messages": [{"role": "user", "content": text}]},
             )
             response.raise_for_status()
-            reply = "".join(b.get("text", "") for b in response.json()["content"] if b.get("type") == "text")
+            body = response.json()
+            reply = "".join(b.get("text", "") for b in body["content"] if b.get("type") == "text")
         except CAUGHT as error:
             raise unavailable(error) from error
+        warn_if_cut_off(self._model, body.get("stop_reason"), "max_tokens", reply)
         return read_reply(reply, schema, self._model)

@@ -6,7 +6,7 @@ import httpx
 from pydantic import BaseModel
 
 from career_graph.adapters.inference.errors import CAUGHT, unavailable
-from career_graph.adapters.inference.structured import instructions, read_reply
+from career_graph.adapters.inference.structured import instructions, read_reply, warn_if_cut_off
 
 
 class StructuredOpenAIProvider:
@@ -28,7 +28,9 @@ class StructuredOpenAIProvider:
                                    {"role": "user", "content": text}]},
             )
             response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"] or ""
+            choice = response.json()["choices"][0]
+            content = choice["message"]["content"] or ""
         except CAUGHT as error:
             raise unavailable(error) from error
+        warn_if_cut_off(self._model, choice.get("finish_reason"), "length", content)
         return read_reply(content, schema, self._model)

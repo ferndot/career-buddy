@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
 import zipfile
 from collections.abc import AsyncIterator, Awaitable, Sequence
@@ -99,6 +100,9 @@ def create_app(
     job_fetcher: JobLinkFetcher | None = None,
 ) -> FastAPI:
     data_dir = data_dir or Path(os.environ.get("CAREER_GRAPH_DATA", "data"))
+    # uvicorn only configures its own loggers; without this the extraction logs never show. No-op if the host app set up logging.
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("career_graph").setLevel(os.environ.get("CAREER_GRAPH_LOG_LEVEL", "INFO").upper())
     state: dict[str, App] = {}
     job_fetcher = job_fetcher or JobLinkFetcher()
     jobs = new_jobs()
