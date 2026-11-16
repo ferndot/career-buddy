@@ -132,7 +132,9 @@ def _pick(pos: PositionView, terms: list[Term], limit: int, selection: frozenset
                    achievement_ids=tuple(i[2] for i in items) if pos.achievement_ids else ())
 
 
-def _skills(profile: Profile, job_text: str, limit: int) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _skills(
+    profile: Profile, job_text: str, limit: int, selection: frozenset[str] | None = None
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     lowered = job_text.lower()
     used = Counter(s.lower() for p in profile.positions for s in set(p.skills))
     ids = profile.skill_ids or ("",) * len(profile.skills)
@@ -145,7 +147,8 @@ def _skills(profile: Profile, job_text: str, limit: int) -> tuple[tuple[str, ...
     rows = [(where(s), s, i) for s, i in zip(profile.skills, ids)]
     matched = sorted((r for r in rows if r[0] >= 0), key=lambda r: r[0])
     rest = sorted((r for r in rows if r[0] < 0), key=lambda r: -used[r[1].lower()])
-    chosen = (matched + rest)[:limit]
+    ordered = matched + rest
+    chosen = ordered[:limit] if selection is None else [r for r in ordered if r[2] in selection]  # a chosen set is not capped
     return tuple(r[1] for r in chosen), tuple(r[2] for r in chosen) if profile.skill_ids else ()
 
 
@@ -163,13 +166,23 @@ def _report(source: Profile, shown: Profile, terms: list[Term]) -> Report:
 
 
 def tailor(
-    profile: Profile, job_text: str, spec: TemplateSpec, selection: frozenset[str] | None = None
+    profile: Profile,
+    job_text: str,
+    spec: TemplateSpec,
+    selection: frozenset[str] | None = None,
+    skill_selection: frozenset[str] | None = None,
+    education_selection: frozenset[str] | None = None,
 ) -> tuple[Profile, Report]:
-    """The profile reduced to what the template shows for this job, and the report. `selection` is bullet ids."""
+    """The profile reduced to what the template shows for this job, and the report.
+
+    `selection` is bullet ids, `skill_selection` skill ids, `education_selection` education ids. None keeps the
+    template's own choice; a set keeps exactly those that exist, ignoring the template's caps.
+    """
     terms = job_terms(job_text)
     positions = tuple(_pick(p, terms, spec.bullets, selection) for p in sorted(profile.positions, key=_when, reverse=True))
-    skills, skill_ids = _skills(profile, job_text, spec.skills)
-    tailored = replace(profile, positions=positions, skills=skills, skill_ids=skill_ids)
+    skills, skill_ids = _skills(profile, job_text, spec.skills, skill_selection)
+    education = profile.education if education_selection is None else tuple(e for e in profile.education if e.id in education_selection)
+    tailored = replace(profile, positions=positions, education=education, skills=skills, skill_ids=skill_ids)
     return tailored, _report(profile, tailored, terms)
 
 

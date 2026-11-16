@@ -1,3 +1,0 @@
-GrapesJS 0.23.6 (BSD-3-Clause), vendored unmodified from https://registry.npmjs.org/grapesjs/-/grapesjs-0.23.6.tgz
-sha512-I8M/sPWjHm6MLIdUtRFNOKsQ3PtDgIDsc2S8ANkJsfHj3ZoH98oNMMWr64Kx22XgjHCQ4xpUx7nvXyQSKV1mrQ==
-Files: grapes.min.js, grapes.min.css, LICENSE

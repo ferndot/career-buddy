@@ -41,3 +41,11 @@ class LocalObjectStore:
 
     def delete(self, key: str) -> None:
         self._path(key).unlink(missing_ok=True)
+
+    def list(self, prefix: str) -> list[str]:
+        folder = prefix.rpartition("/")[0]  # walk only the deepest folder the prefix names
+        base = self._path(folder) if folder else self._root
+        if not base.is_dir():
+            return []
+        keys = (p.relative_to(self._root).as_posix() for p in base.rglob("*") if p.is_file())
+        return sorted(k for k in keys if k.startswith(prefix))

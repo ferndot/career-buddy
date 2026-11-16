@@ -8,11 +8,15 @@ import mimetypes
 from dataclasses import replace
 from datetime import UTC, datetime
 
+from career_graph.application.jobs import READY, SourceJobs
 from career_graph.application.ports import (
     EventLog,
     FactExtractor,
     FactNotFound,
+    NoOriginal,
     ObjectStore,
+    SourceBusy,
+    SourceNotFound,
     SourceParser,
     TextReader,
     UnreadableDocument,
@@ -28,7 +32,10 @@ from career_graph.domain.profile import Profile, assemble_profile, rank_for_job
 
 
 class ImportService:
-    """Write side. Every import is recorded in the log before it reaches the graph."""
+    """Write side. Every import is recorded in the log before it reaches the graph.
+
+    Text and file imports go through a job, so progress shows in the source list. With a model-backed extractor
+    (`background`) the job runs after the call returns and `import_text` / `import_file` return None."""
 
     def __init__(
         self,
@@ -38,6 +45,8 @@ class ImportService:
         extractor: FactExtractor,
         file_readers: dict[str, TextReader],
         store: ObjectStore,
+        jobs: SourceJobs,
+        background: bool = False,
     ) -> None:
         self._log = log
         self._projector = projector
@@ -45,6 +54,8 @@ class ImportService:
         self._extractor = extractor
         self._file_readers = file_readers
         self._store = store
+        self._jobs = jobs
+        self._background = background
 
     async def _record(self, batch: FactBatch, source_key: str = "") -> int:
         event = FactsImported(batch, source_key)
@@ -55,11 +66,22 @@ class ImportService:
     async def import_structured(self, kind: str, files: dict[str, bytes], source: str) -> int:
         return await self._record(self._parsers[kind].parse(files, source))
 
-    async def import_text(self, text: str, source: str, source_key: str = "") -> int:
-        return await self._record(await self._extractor.extract(text, source), source_key)
+    async def _extract_and_save(self, text: str, source: str, source_key: str, replace: bool) -> int:
+        self._jobs.report(source, "Extracting positions", 30)
+        batch = await self._extractor.extract(text, source)
+        self._jobs.report(source, "Saving facts", 85)
+        if replace:  # the old facts go first, so the new extraction replaces them instead of adding to them
+            event = SourceRemoved(source, _now())
+            self._log.append(event)
+            await self._projector.project(event)
+        return await self._record(batch, source_key)
 
-    async def import_file(self, extension: str, data: bytes, source: str) -> int:
-        """Read a PDF, DOCX, TXT or MD to text, then take the same path as pasted text."""
+    async def import_text(self, text: str, source: str, source_key: str = "") -> int | None:
+        """Facts added, or None when the work was queued."""
+        key = source_key or await self._keep_original("txt", text.encode())  # kept so the source can be reindexed
+        return await self._jobs.run(source, lambda: self._extract_and_save(text, source, key, False), self._background)
+
+    async def _to_text(self, extension: str, data: bytes) -> str:
         reader = self._file_readers.get(extension)
         if reader is None:
             raise UnsupportedFileType(extension)
@@ -68,7 +90,35 @@ class ImportService:
         text = "\n".join(part for part in (extracted.header_footer_text, extracted.text) if part.strip())
         if not text.strip():
             raise UnreadableDocument("No text found in the file")
+        return text
+
+    async def import_file(self, extension: str, data: bytes, source: str) -> int | None:
+        """Read a PDF, DOCX, TXT or MD to text, then take the same path as pasted text."""
+        text = await self._to_text(extension, data)
         return await self.import_text(text, source, await self._keep_original(extension, data))
+
+    def _original_key(self, source: str) -> str:
+        keys = [e.source_key for e in self._log.replay()
+                if isinstance(e, FactsImported) and e.source_key and any(f.source == source for f in e.batch.facts)]
+        if not keys:
+            raise NoOriginal(source)
+        return keys[-1]
+
+    async def reindex(self, source: str) -> None:
+        """Read the stored original again and replace the source's facts with a fresh extraction. Always in the background."""
+        if self._jobs.is_active(source):
+            raise SourceBusy(source)
+        if source not in self._projector.sources() and self._jobs.state(source) is None:
+            raise SourceNotFound(source)
+        key = self._original_key(source)
+
+        async def work() -> int:
+            self._jobs.report(source, "Reading file", 10)
+            data = await asyncio.to_thread(self._store.get, key)
+            text = await self._to_text(key.rsplit(".", 1)[-1], data)
+            return await self._extract_and_save(text, source, key, True)
+
+        await self._jobs.run(source, work, True)
 
     async def _keep_original(self, extension: str, data: bytes) -> str:
         """Content-addressed, so the same file is stored once however often or under whatever name it is uploaded."""
@@ -90,9 +140,10 @@ def fact_json(f: Fact) -> dict[str, object]:
 class EditService:
     """Write side for the user's own changes: revise, add by hand, merge. Each is logged, then projected."""
 
-    def __init__(self, log: EventLog, projector: Projector) -> None:
+    def __init__(self, log: EventLog, projector: Projector, jobs: SourceJobs) -> None:
         self._log = log
         self._projector = projector
+        self._jobs = jobs
 
     async def _find(self, fact_id: str) -> Fact:
         facts = {f.id: f for f in (await self._projector.snapshot()).facts}
@@ -126,9 +177,14 @@ class EditService:
         await self._record(DuplicateDismissed(a_id, b_id, _now()))
 
     async def remove_source(self, source: str) -> None:
-        if source not in self._projector.sources():
+        if self._jobs.is_active(source):
+            raise SourceBusy(source)
+        known = source in self._projector.sources()
+        if not known and self._jobs.state(source) is None:
             raise FactNotFound(source)
-        await self._record(SourceRemoved(source, _now()))
+        self._jobs.forget(source)
+        if known:  # a source whose import failed has no facts and nothing in the log
+            await self._record(SourceRemoved(source, _now()))
 
     async def add_fact(self, kind: FactKind, title: str, parent_id: str | None, attributes: dict[str, str]) -> str:
         parent = await self._find(parent_id) if parent_id else None
@@ -152,8 +208,9 @@ class EditService:
 class CareerQueries:
     """Read side. Assembles views from the projection; never writes."""
 
-    def __init__(self, graph: Projector) -> None:
+    def __init__(self, graph: Projector, jobs: SourceJobs) -> None:
         self._graph = graph
+        self._jobs = jobs
 
     async def profile(self) -> Profile:
         return assemble_profile(await self._graph.snapshot())
@@ -163,7 +220,16 @@ class CareerQueries:
         counts: dict[str, int] = {}
         for f in batch.facts:
             counts[f.source] = counts.get(f.source, 0) + 1
-        return [{"source": s, "facts": counts.get(s, 0)} for s in sorted(self._graph.sources())]
+        states = self._jobs.states()  # a queued or failed import has no facts yet, so it is listed from here
+        out = []
+        for name in sorted(self._graph.sources() | states.keys()):
+            state = states.get(name, READY)  # no entry: imported before this run, so it is ready
+            out.append({"source": name, "facts": counts.get(name, 0), "status": state.status,
+                        "progress": state.progress, "step": state.step, "error": state.error})
+        return out
+
+    async def source(self, name: str) -> dict[str, object]:
+        return next(s for s in await self.sources() if s["source"] == name)
 
     async def graph(self) -> dict[str, list[dict[str, object]]]:
         batch = await self._graph.snapshot()

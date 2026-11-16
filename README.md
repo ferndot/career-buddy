@@ -13,7 +13,7 @@ Requires Docker. Chromium for PDF output is already in the image.
 docker compose up --build
 ```
 
-Open http://127.0.0.1:8080. Your data lives in `./data` on the host, so it survives rebuilds. Port 8080 is
+The container serves the API on http://127.0.0.1:8080 (interactive docs at `/docs`). The web UI is the separate React app in `frontend/`. Your data lives in `./data` on the host, so it survives rebuilds. Port 8080 is
 used because 8000 is often taken; change it in `docker-compose.yml`.
 
 To use a model, add a connection in Settings (see [LLM connections](#llm-connections)). In the container, `localhost` is
@@ -38,7 +38,7 @@ uv run playwright install chromium
 Without it everything else works. A PDF request returns HTTP 503 with this instruction, and the PDF tests are
 skipped with the same message.
 
-Open http://127.0.0.1:8000 (or the port set by `PORT`). Data is stored in `./data/events.jsonl` (override with `CAREER_GRAPH_DATA`).
+The API listens on http://127.0.0.1:8000 (or the port set by `PORT`; interactive docs at `/docs`). Data is stored in `./data/events.jsonl` (override with `CAREER_GRAPH_DATA`).
 
 ## LLM connections
 
@@ -73,7 +73,7 @@ API: `GET /api/llm/providers`, `GET|POST /api/llm/connections`, `PATCH|DELETE /a
 (`source_key` in `events.jsonl`). The same file is stored once. Choose where with `CAREER_GRAPH_STORAGE`:
 
 - `local` (default): files under `${CAREER_GRAPH_DATA}/objects`.
-- `s3`: any S3 API, built for [MinIO](https://min.io) run as a separate container (reached over the S3 API only).
+- `s3`: any S3 API, such as the bundled SeaweedFS container or your own [MinIO](https://min.io) (reached over the S3 API only).
   Set `CAREER_GRAPH_S3_ENDPOINT`, `CAREER_GRAPH_S3_BUCKET`, `CAREER_GRAPH_S3_ACCESS_KEY`, `CAREER_GRAPH_S3_SECRET_KEY`
   and optionally `CAREER_GRAPH_S3_REGION` (default `us-east-1`). The bucket is created on startup if missing.
 
@@ -129,11 +129,11 @@ src/career_graph/
     inference/     HeuristicExtractor, OpenAICompatibleExtractor, AnthropicExtractor  (text -> facts), LLMConnections
     storage/       JsonlEventLog                    (append-only event log, the source of truth)
                    KeyStore                         (API keys: OS keychain, or a private file)
-                   LocalObjectStore, S3ObjectStore  (original uploads; boto3 against MinIO or any S3)
+                   LocalObjectStore, S3ObjectStore  (original uploads and saved documents; boto3 against MinIO or any S3)
     graph/         MemoryFactGraph                  (plain in-memory projection)
     outputs/       Markdown, HTML, TXT, DOCX (python-docx), PDF (Playwright) renderers
     readers/       PDF (pdfminer.six), DOCX (python-docx), Markdown/TXT/HTML text readers
-  web/             FastAPI HTTP adapter and a static single-page UI
+  web/             FastAPI HTTP adapter (the UI is the separate app in `frontend/`)
   composition.py   the only place that picks concrete adapters
 ```
 

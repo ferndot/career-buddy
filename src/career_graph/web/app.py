@@ -3,44 +3,44 @@
 from __future__ import annotations
 
 import io
-import mimetypes
 import os
 import zipfile
 from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path, PurePosixPath
 from dataclasses import asdict
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, Response
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field
 
 from career_graph.adapters.inference.connections import InvalidConnection, ReadOnlyConnection, UnknownConnection
 from career_graph.adapters.sources.job_link import JobLinkError, JobLinkFetcher
-from career_graph.application.documents import TailorOptions
 from career_graph.application.ports import (
     DocumentRenderer,
     FactNotFound,
     LLMUnavailable,
     MissingInputs,
+    NoOriginal,
     RendererUnavailable,
+    SourceBusy,
+    SourceNotFound,
     UnreadableDocument,
     UnsupportedFileType,
 )
+from career_graph.application.saved_documents import SavedDocumentNotFound
 from career_graph.application.services import fact_json
-from career_graph.composition import App, build_app
-from career_graph.domain.document import Style
+from career_graph.composition import App, build_app, new_jobs
 from career_graph.domain.model import FactKind, InvalidFact
 from career_graph.domain.templates import TEMPLATES
 from career_graph.web.llm_routes import llm_router
+from career_graph.web.requests import DocumentRequest, PreviewRequest, SuggestRequest, TailorRequest
+from career_graph.web.saved_document_routes import saved_document_router
 
-STATIC = Path(__file__).parent / "static"
-mimetypes.add_type("text/javascript", ".js")  # Windows can map .js to text/plain through the registry
-mimetypes.add_type("text/css", ".css")
 MAX_UPLOAD = 10 * 1024 * 1024
 
 
@@ -84,37 +84,6 @@ class DismissRequest(BaseModel):
     b_id: str
 
 
-class TailorRequest(BaseModel):
-    template: str
-    job_text: str = ""
-    selection: list[str] | None = None  # bullet fact ids to keep, in place of the template's top-k
-    overrides: dict[str, str] = {}  # bullet fact id -> the user's own wording
-    inputs: dict[str, str] = {}  # template inputs: company, role, interviewer, ...
-
-    @property
-    def options(self) -> TailorOptions:
-        selection = None if self.selection is None else frozenset(self.selection)
-        return TailorOptions(self.job_text, selection, self.overrides, self.inputs)
-
-
-class SuggestRequest(TailorRequest):
-    job_text: str = Field(min_length=1)
-
-
-class PreviewRequest(TailorRequest):
-    format: str = "docx"  # the format whose ATS check the preview reports
-
-
-class DocumentRequest(PreviewRequest):
-    format: str
-    font: Literal["sans", "serif"] = "sans"
-    paper: Literal["letter", "a4"] = "letter"
-
-    @property
-    def style(self) -> Style:
-        return Style(self.font, self.paper)
-
-
 def connection_error(error: Exception) -> str:
     if isinstance(error, UnknownConnection):
         return "That connection no longer exists."
@@ -132,9 +101,10 @@ def create_app(
     data_dir = data_dir or Path(os.environ.get("CAREER_GRAPH_DATA", "data"))
     state: dict[str, App] = {}
     job_fetcher = job_fetcher or JobLinkFetcher()
+    jobs = new_jobs()
 
     async def rebuild() -> None:
-        state["app"] = await build_app(data_dir, llm_transport, renderers)
+        state["app"] = await build_app(data_dir, jobs, llm_transport, renderers)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -146,12 +116,21 @@ def create_app(
     # shortcut: "[::1]" is not matched (the middleware cannot parse it), so use 127.0.0.1 or localhost.
     api.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver", *filter(None, os.environ.get("CAREER_GRAPH_ALLOWED_HOSTS", "").split(","))])
 
+    # The dev server of the separate frontend is a different origin. Only the listed origins may call the API.
+    origins = os.environ.get("CAREER_GRAPH_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    api.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in origins.split(",") if o.strip()],
+                       allow_methods=["*"], allow_headers=["*"])
+
     def app() -> App:
         return state["app"]
 
     @api.exception_handler(FactNotFound)
     def not_found(_: Request, error: FactNotFound) -> JSONResponse:
         return JSONResponse({"detail": f"Unknown fact: {error}"}, status_code=404)
+
+    for error_type, status, message in ((SavedDocumentNotFound, 404, "Unknown saved document"), (SourceNotFound, 404, "Unknown source"), (SourceBusy, 409, "This source is still being processed"),
+                                        (NoOriginal, 422, "This source has no original file to read again")):
+        api.exception_handler(error_type)(lambda _, error, status=status, message=message: JSONResponse({"detail": message}, status_code=status))
 
     @api.exception_handler(InvalidFact)
     def invalid(_: Request, error: InvalidFact) -> JSONResponse:
@@ -169,10 +148,7 @@ def create_app(
         return JSONResponse({"detail": f"Missing required input: {error}"}, status_code=422)
 
     api.include_router(llm_router(lambda: app().llm, rebuild))
-
-    @api.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(STATIC / "index.html")
+    api.include_router(saved_document_router(lambda: app().saved))
 
     @api.post("/api/import/linkedin")
     async def import_linkedin(file: UploadFile) -> dict[str, int]:
@@ -186,21 +162,27 @@ def create_app(
             raise HTTPException(400, "No CSV files found in upload")
         return {"facts": await app().imports.import_structured("linkedin", files, "linkedin-export")}
 
-    @api.post("/api/import/text")
-    async def import_text(body: TextImport) -> dict[str, int]:
+    async def started(source: str, facts: int | None) -> Response | dict[str, int]:
+        """Done: the fact count. Queued behind a model call: 202 and the source record, to poll in GET /api/sources."""
+        if facts is None:
+            return JSONResponse(await app().queries.source(source), status_code=202)
+        return {"facts": facts}
+
+    @api.post("/api/import/text", response_model=None)
+    async def import_text(body: TextImport) -> Response | dict[str, int]:
         if not body.text.strip():
             raise HTTPException(400, "Text is empty")
-        return {"facts": await app().imports.import_text(body.text, body.source)}
+        return await started(body.source, await app().imports.import_text(body.text, body.source))
 
-    @api.post("/api/import/file")
-    async def import_file(file: UploadFile) -> dict[str, int]:
+    @api.post("/api/import/file", response_model=None)
+    async def import_file(file: UploadFile) -> Response | dict[str, int]:
         # shortcut: the framework spools the whole body before this runs; fine on localhost, cap it at the proxy if exposed.
         data = await file.read(MAX_UPLOAD + 1)
         if len(data) > MAX_UPLOAD:
             raise HTTPException(413, "File is over 10 MB")
         name = PurePosixPath((file.filename or "").replace("\\", "/")).name
         try:
-            return {"facts": await app().imports.import_file(PurePosixPath(name).suffix.lower().lstrip("."), data, name)}
+            return await started(name, await app().imports.import_file(PurePosixPath(name).suffix.lower().lstrip("."), data, name))
         except UnsupportedFileType as error:
             raise HTTPException(415, "Unsupported file type: use PDF, DOCX, TXT or MD") from error
         except UnreadableDocument as error:
@@ -216,6 +198,11 @@ def create_app(
     @api.get("/api/sources")
     async def sources() -> list[dict[str, object]]:
         return await app().queries.sources()
+
+    @api.post("/api/sources/{source}/reindex", status_code=202)
+    async def reindex_source(source: str) -> dict[str, object]:
+        await app().imports.reindex(source)
+        return await app().queries.source(source)
 
     @api.delete("/api/sources/{source}", status_code=204)
     async def remove_source(source: str) -> Response:
@@ -316,5 +303,4 @@ def create_app(
     async def fit(body: JobText) -> dict[str, object]:
         return await app().queries.fit(body.job_text)
 
-    api.mount("/static", StaticFiles(directory=STATIC), name="static")  # last: the routes above win
     return api

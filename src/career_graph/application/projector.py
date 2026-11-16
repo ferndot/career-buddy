@@ -40,6 +40,8 @@ class Projector:
                 self.dismissed.add(frozenset((a_id, b_id)))
             case SourceRemoved(source):
                 self.removed.add(source)
+                for stated in self._stated_by.values():  # forget it, so a later import of the source replaces its facts
+                    stated.discard(source)
 
     def sources(self) -> set[str]:
         """Sources still in use: imported and not removed."""

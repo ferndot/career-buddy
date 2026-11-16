@@ -1,0 +1,21 @@
+import { Portal, Stack, Toast, Toaster as ChakraToaster, createToaster } from '@chakra-ui/react'
+
+export const toaster = createToaster({ placement: 'bottom-end', pauseOnPageIdle: true })
+
+export function Toaster() {
+  return (
+    <Portal>
+      <ChakraToaster toaster={toaster} insetInline={{ mdDown: '4' }}>
+        {(t) => (
+          <Toast.Root width={{ md: 'sm' }}>
+            <Stack gap="1" flex="1" maxW="100%">
+              {t.title && <Toast.Title>{t.title}</Toast.Title>}
+              {t.description && <Toast.Description>{t.description}</Toast.Description>}
+            </Stack>
+            <Toast.CloseTrigger />
+          </Toast.Root>
+        )}
+      </ChakraToaster>
+    </Portal>
+  )
+}

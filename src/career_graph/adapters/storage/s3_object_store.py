@@ -46,3 +46,7 @@ class S3ObjectStore:
 
     def delete(self, key: str) -> None:
         self._s3.delete_object(Bucket=self._bucket, Key=key)  # S3 deletes are already idempotent
+
+    def list(self, prefix: str) -> list[str]:
+        pages = self._s3.get_paginator("list_objects_v2").paginate(Bucket=self._bucket, Prefix=prefix)
+        return [item["Key"] for page in pages for item in page.get("Contents", [])]

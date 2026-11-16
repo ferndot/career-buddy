@@ -1,8 +1,18 @@
 services:
+  # The React app. The browser talks only to this container; nginx forwards /api to career-graph.
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:8080:80"       # open http://localhost:8080
+    depends_on:
+      - career-graph
+    restart: unless-stopped
+
   career-graph:
     build: .
-    ports:
-      - "127.0.0.1:8080:8000"   # reachable only from this machine
+    # The API is reached through the frontend. Expose it only if you want to call it directly.
+    expose:
+      - "8000"
     volumes:
       - ./data:/data              # your facts, settings and saved keys live here, on the host
     extra_hosts:
@@ -12,7 +22,7 @@ services:
       - CAREER_GRAPH_LLM_BASE_URL=${CAREER_GRAPH_LLM_BASE_URL:-}
       - CAREER_GRAPH_LLM_MODEL=${CAREER_GRAPH_LLM_MODEL:-}
       - CAREER_GRAPH_LLM_API_KEY=${CAREER_GRAPH_LLM_API_KEY:-}
-      # Where uploaded originals go: "local" (default, under ./data/objects) or "s3" (see the "storage" profile below).
+      # Where originals and generated documents go: "local" (default, under ./data/objects) or "s3" (see the "storage" profile below).
       - CAREER_GRAPH_STORAGE=${CAREER_GRAPH_STORAGE:-local}
       - CAREER_GRAPH_S3_ENDPOINT=${CAREER_GRAPH_S3_ENDPOINT:-http://s3:8333}
       - CAREER_GRAPH_S3_BUCKET=${CAREER_GRAPH_S3_BUCKET:-careers}

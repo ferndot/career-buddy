@@ -32,6 +32,8 @@ class TailorOptions:
     selection: frozenset[str] | None = None  # bullet fact ids; None means the template's top-k
     overrides: dict[str, str] = field(default_factory=dict)  # bullet fact id -> user text
     inputs: dict[str, str] = field(default_factory=dict)  # template inputs: company, role, ...
+    skills: frozenset[str] | None = None  # skill fact ids; None means the template's top-k
+    education: frozenset[str] | None = None  # education fact ids; None means all
 
 
 @dataclass(frozen=True)
@@ -80,7 +82,7 @@ class DocumentService:
         if missing := [name for name in spec.required if not options.inputs.get(name, "").strip()]:
             raise MissingInputs(", ".join(missing))
         profile = assemble_profile(await self._graph.snapshot())
-        tailored, report = tailor(profile, options.job_text, spec, options.selection)
+        tailored, report = tailor(profile, options.job_text, spec, options.selection, options.skills, options.education)
         tailored = override_paragraphs(tailored, options.overrides)
         doc, markers = clean_document(apply_overrides(build_document(tailored, spec, options.inputs), options.overrides))
         return doc, Preview(doc, report, markers), profile
@@ -122,7 +124,7 @@ class DocumentService:
             raise LLMUnavailable("No LLM is configured")
         spec = get_template(template_id)
         profile = assemble_profile(await self._graph.snapshot())
-        tailored, report = tailor(profile, options.job_text, spec, options.selection)
+        tailored, report = tailor(profile, options.job_text, spec, options.selection, options.skills, options.education)
         skills = [*profile.skills, *(s for p in profile.positions for s in p.skills)]
         protected = [*(t for p in profile.positions for t in (p.title, p.organization)),
                      *(t for e in profile.education for t in (e.degree, e.school))]

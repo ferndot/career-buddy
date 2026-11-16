@@ -1,9 +1,11 @@
 """Tailoring: job terms, scoring, selection under template caps, and the report. All pure."""
 
+from dataclasses import replace
+
 from hypothesis import given, strategies as st
 
 from career_graph.domain.document import Document, Entry, Line, Origin, Section
-from career_graph.domain.profile import PositionView, Profile
+from career_graph.domain.profile import EducationView, PositionView, Profile
 from career_graph.domain.tailoring import apply_overrides, job_terms, tailor
 from career_graph.domain.templates import build_document, get_template
 
@@ -129,3 +131,37 @@ def test_tailoring_never_adds_a_line_without_a_source_fact(profile: Profile, job
     assert all(a in original for p in tailored.positions for a in p.achievements)
     assert {p.id for p in tailored.positions} == {p.id for p in profile.positions}
     assert set(tailored.skills) <= set(profile.skills)
+
+
+SKILLS = Profile(skills=("Go", "Python", "Rust", "Zig"), skill_ids=("s1", "s2", "s3", "s4"),
+                 education=(EducationView("MIT", "BSc", id="e1"), EducationView("ETH", "MSc", id="e2")))
+
+
+def test_a_skill_selection_keeps_job_match_order_and_ignores_the_template_cap() -> None:
+    chosen = frozenset({"s1", "s3", "s4"})
+    tailored, _ = tailor(SKILLS, "We use Zig and Rust", CLASSIC, skill_selection=chosen)
+    assert set(tailored.skill_ids) == chosen
+    assert tailored.skills == ("Zig", "Rust", "Go")  # matched in the order the posting names them, then the rest
+    capped = replace(CLASSIC, skills=1)
+    assert len(tailor(SKILLS, "", capped, skill_selection=chosen)[0].skills) == 3
+    assert len(tailor(SKILLS, "", capped)[0].skills) == 1
+
+
+def test_an_empty_skill_selection_shows_no_skills_and_none_means_the_default() -> None:
+    assert tailor(SKILLS, "", CLASSIC, skill_selection=frozenset())[0].skills == ()
+    assert len(tailor(SKILLS, "", CLASSIC)[0].skills) == 4
+
+
+def test_an_education_selection_keeps_only_those_entries() -> None:
+    assert [e.id for e in tailor(SKILLS, "", CLASSIC, education_selection=frozenset({"e2"}))[0].education] == ["e2"]
+    assert tailor(SKILLS, "", CLASSIC, education_selection=frozenset())[0].education == ()
+    assert len(tailor(SKILLS, "", CLASSIC)[0].education) == 2
+
+
+@given(st.sets(st.sampled_from(["s1", "s2", "s3", "s4", "unknown"])), st.text(max_size=30))
+def test_selected_skills_are_a_subset_of_the_requested_ids_in_the_unselected_order(chosen, job) -> None:
+    everything = tailor(SKILLS, job, CLASSIC)[0]
+    picked = tailor(SKILLS, job, CLASSIC, skill_selection=frozenset(chosen))[0]
+    assert set(picked.skill_ids) <= chosen
+    assert set(picked.skill_ids) == chosen & {"s1", "s2", "s3", "s4"}
+    assert list(picked.skill_ids) == [i for i in everything.skill_ids if i in chosen]

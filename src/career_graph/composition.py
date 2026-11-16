@@ -12,6 +12,7 @@ import httpx
 from career_graph.adapters.graph.memory_graph import MemoryFactGraph
 from career_graph.adapters.inference.heuristic import HeuristicExtractor
 from career_graph.adapters.inference.connections import LLMConnections
+from career_graph.adapters.jobs.memory_jobs import InMemoryJobStore
 from career_graph.adapters.outputs.render_docx import DocxRenderer
 from career_graph.adapters.outputs.render_html import HtmlRenderer
 from career_graph.adapters.outputs.render_markdown import MarkdownRenderer
@@ -25,8 +26,10 @@ from career_graph.adapters.storage.jsonl_event_log import JsonlEventLog
 from career_graph.adapters.storage.local_object_store import LocalObjectStore
 from career_graph.adapters.storage.s3_object_store import S3ObjectStore
 from career_graph.application.documents import DocumentService
+from career_graph.application.jobs import SourceJobs
 from career_graph.application.ports import DocumentRenderer, ObjectStore
 from career_graph.application.projector import Projector
+from career_graph.application.saved_documents import SavedDocuments
 from career_graph.application.services import CareerQueries, EditService, ImportService
 
 
@@ -36,6 +39,7 @@ class App:
     edits: EditService
     queries: CareerQueries
     documents: DocumentService
+    saved: SavedDocuments
     llm: LLMConnections
 
 
@@ -50,15 +54,24 @@ def object_store(data_dir: Path) -> ObjectStore:
     raise ValueError(f"CAREER_GRAPH_STORAGE must be 'local' or 's3', not {kind!r}")
 
 
+def new_jobs() -> SourceJobs:
+    """Processing state outlives a rebuild of the app (a changed LLM connection), so the caller makes it once."""
+    return SourceJobs(InMemoryJobStore())
+
+
 async def build_app(
-    data_dir: Path, llm_transport: httpx.AsyncBaseTransport | None = None, extra_renderers: Sequence[DocumentRenderer] = ()
+    data_dir: Path,
+    jobs: SourceJobs,
+    llm_transport: httpx.AsyncBaseTransport | None = None,
+    extra_renderers: Sequence[DocumentRenderer] = (),
 ) -> App:
     log = JsonlEventLog(data_dir / "events.jsonl")
     projector = Projector(MemoryFactGraph())
 
     # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
     llm = LLMConnections(data_dir, llm_transport)
-    extractor, rewriter = llm.inference() or (HeuristicExtractor(), None)
+    model = llm.inference()
+    extractor, rewriter = model or (HeuristicExtractor(), None)
 
     readers = {
         "markdown": PlainTextReader(),
@@ -68,7 +81,9 @@ async def build_app(
         "pdf": PdfTextReader(),
     }
     file_readers = {ext: readers[ext] for ext in ("pdf", "docx", "txt")} | {"md": readers["markdown"]}
-    imports = ImportService(log, projector, {"linkedin": LinkedInExportParser()}, extractor, file_readers, object_store(data_dir))
+    store = object_store(data_dir)
+    imports = ImportService(log, projector, {"linkedin": LinkedInExportParser()}, extractor, file_readers, store,
+                            jobs, background=model is not None)  # a model call is slow, the heuristic is not
     # Projection rebuild: the log is the truth, the graph is derived from it.
     for event in log.replay():
         await projector.project(event)
@@ -76,5 +91,6 @@ async def build_app(
     renderers = {
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
-    return App(imports, EditService(log, projector), CareerQueries(projector),
-               DocumentService(projector, renderers, readers, rewriter), llm)
+    documents = DocumentService(projector, renderers, readers, rewriter)
+    return App(imports, EditService(log, projector, jobs), CareerQueries(projector, jobs), documents,
+               SavedDocuments(store, documents), llm)

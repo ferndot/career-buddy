@@ -81,3 +81,17 @@ def test_absolute_keys_are_always_rejected(tmp_path_factory, rest) -> None:
     store = LocalObjectStore(tmp_path_factory.mktemp("store") / "objects")
     with pytest.raises(ValueError):
         store.put("/" + rest, b"x", "text/plain")
+
+
+def test_list_returns_sorted_keys_under_a_prefix(store) -> None:
+    for key in ("documents/b/meta.json", "documents/a/file.pdf", "documents/a/meta.json", "sources/x.txt", "documentsx/y"):
+        store.put(key, b"x", "text/plain")
+    assert store.list("documents/a/") == ["documents/a/file.pdf", "documents/a/meta.json"]
+    assert store.list("documents/") == ["documents/a/file.pdf", "documents/a/meta.json", "documents/b/meta.json"]
+    assert store.list("") == sorted(["documents/a/file.pdf", "documents/a/meta.json", "documents/b/meta.json", "documentsx/y", "sources/x.txt"])
+    assert store.list("nothing/") == [] and store.list("sources/x") == ["sources/x.txt"]
+
+
+def test_list_rejects_a_prefix_that_leaves_the_store(store) -> None:
+    with pytest.raises(ValueError):
+        store.list("../")

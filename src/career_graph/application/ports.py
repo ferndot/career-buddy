@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Literal, Protocol
 
 from career_graph.domain.ats import Extracted
 from career_graph.domain.document import Document, Style
@@ -104,3 +105,40 @@ class ObjectStore(Protocol):
 
     def delete(self, key: str) -> None:
         """Idempotent: deleting a missing key is not an error."""
+
+    def list(self, prefix: str) -> list[str]:
+        """Every key that starts with `prefix`, sorted."""
+
+
+class SourceNotFound(Exception):
+    """No source has this name."""
+
+
+class SourceBusy(Exception):
+    """The source is queued or processing already."""
+
+
+class NoOriginal(Exception):
+    """The source has no stored original to read again, for example a LinkedIn export."""
+
+
+@dataclass(frozen=True)
+class JobState:
+    """Where a source is in processing. `progress` is 0-100; `error` is user-readable and set only when failed."""
+
+    status: Literal["queued", "processing", "ready", "failed"]
+    progress: int
+    step: str
+    error: str | None = None
+
+
+class JobStore(Protocol):
+    """Processing state by source name. Not part of the event log: it describes work in flight."""
+
+    def get(self, source: str) -> JobState | None: ...
+
+    def put(self, source: str, state: JobState) -> None: ...
+
+    def delete(self, source: str) -> None: ...
+
+    def all(self) -> dict[str, JobState]: ...
