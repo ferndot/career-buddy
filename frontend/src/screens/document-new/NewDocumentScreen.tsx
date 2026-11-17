@@ -90,7 +90,7 @@ export function NewDocumentScreen() {
           )}
         </Box>
         {((w.step === 1 && reviewing.active) || w.step >= 4) && (
-          <ActivityLog title={w.step === 1 ? 'Job posting review' : 'Document activity'} status={activity.status} entries={activity.entries} />
+          <ActivityLog docked title={w.step === 1 ? 'Job posting review' : 'Document activity'} status={activity.status} entries={activity.entries} />
         )}
       </Flex>
     </>
