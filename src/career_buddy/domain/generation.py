@@ -41,16 +41,6 @@ class Caps:
 CAPS = {1: Caps(1, 3, 10), 2: Caps(2, 5, 15), 3: Caps(3, 7, 20)}  # pages -> caps
 
 
-def sections_of(kind: str) -> tuple[str, ...]:
-    """The parts a writer is asked for, one request each: a resume's summary, experience and skills, or a letter's whole body."""
-    return ("summary", "experience", "skills") if kind == "resume" else ("letter",)
-
-
-def section_of(slot: str) -> str:
-    """The section a slot id belongs to."""
-    return {"summary": "summary", "skills": "skills"}.get(slot) or ("experience" if slot.startswith("bullet:") else "letter")
-
-
 def caps_for(pages: int) -> Caps:
     return CAPS.get(pages, CAPS[1])
 
@@ -70,7 +60,6 @@ class Brief:
     caps: Caps = CAPS[1]
     pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: the writer leaves them alone
     template_instructions: str = ""  # how the chosen template and style want the text written
-    section: str = ""  # the part of the document this call writes: one of `sections_of(kind)`; "" is every part
 
 
 @dataclass(frozen=True)

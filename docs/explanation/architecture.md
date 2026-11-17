@@ -31,7 +31,7 @@ Facts get deterministic IDs (UUIDv5 over kind, title and scope), so importing th
 
 ## How documents are written
 
-A document is built from every visible fact. The model is sent those facts, one request for each section (the summary, the experience bullets, the skills, or the letter body), and writes the text for that section. Each text must cite facts it was sent and may not add claims the facts do not make. Texts that fail are sent back once for repair, and a text that still fails is flagged for the user. See the [Documents API](../reference/documents-api.md) for the exact rules.
+A document is built from every visible fact. The model is sent those facts, in one request, and writes the whole document from them: the summary, the bullets, the skills or the letter body, choosing the wording and which facts to use. Each text must cite facts it was sent and may not add claims the facts do not make. Texts that fail are sent back once for repair, and a text that still fails is flagged for the user. See the [Documents API](../reference/documents-api.md) for the exact rules.
 
 Every rendered file is read back with the same readers that serve import, and an ATS check reports problems. The check is a warning and never blocks a download.
 

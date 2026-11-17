@@ -47,26 +47,25 @@ def verify_prose(source: str, candidate: str, known: Iterable[str] = (), missing
 
 
 def claims_of(brief: Brief, written: Generated) -> dict[str, Claim]:
-    """What the writer wrote, by slot id (`summary`, `bullet:<fact id>`, `para:<n>`, `skills`), for the brief's kind and section only.
+    """What the writer wrote, by slot id (`summary`, `bullet:<fact id>`, `para:<n>`, `skills`), for the brief's kind only.
 
     Dropped without a word, since the writer cannot fix them: a slot the person pinned, a bullet for a fact that is not one of
     the brief's achievements, a second text for the same bullet, bullets over the per-position cap, skills the brief lacks or over the cap."""
     out: dict[str, Claim] = {}
-    mine = lambda section: brief.section in ("", section)  # a section's call counts only its own part of the answer
     if brief.kind == "letter":
-        return {f"para:{n}": c for n, c in enumerate(written.paragraphs, 1) if f"para:{n}" not in brief.pinned} if mine("letter") else {}
-    if mine("summary") and written.summary and "summary" not in brief.pinned:
+        return {f"para:{n}": c for n, c in enumerate(written.paragraphs, 1) if f"para:{n}" not in brief.pinned}
+    if written.summary and "summary" not in brief.pinned:
         out["summary"] = written.summary
     position = {f.id: f.position_id for f in brief.facts if f.kind == "achievement"}
     used: Counter[str] = Counter()
-    for item in written.bullets if mine("experience") else ():
+    for item in written.bullets:
         slot = f"bullet:{item.fact_id}"
         if item.fact_id in position and slot not in out and slot not in brief.pinned and used[position[item.fact_id]] < brief.caps.bullets:
             used[position[item.fact_id]] += 1
             out[slot] = Claim(item.text, (item.fact_id,))
     names = {f.id: f.text for f in brief.facts if f.kind == "skill"}
     ids = tuple(dict.fromkeys(i for i in written.skill_ids if i in names))[: brief.caps.skills]
-    if mine("skills") and ids and "skills" not in brief.pinned:
+    if ids and "skills" not in brief.pinned:
         out["skills"] = Claim(", ".join(names[i] for i in ids), ids)
     return out
 

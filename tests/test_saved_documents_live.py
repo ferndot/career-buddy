@@ -115,7 +115,7 @@ def test_regenerating_replaces_generated_text_only_where_there_is_no_override(tm
         out = txt(client, record)
         assert "My own summary" in out and f"- {NEW}" in out and OLD not in out and "Old summary" not in out
         assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={"instructions": "Brief"}).status_code == 200
-        assert model.payloads[3]["directions"] == "Brief"  # the second regenerate: its first of three section calls and content(client, record)["source"]["instructions"] == "Brief"
+        assert model.payloads[1]["directions"] == "Brief" and content(client, record)["source"]["instructions"] == "Brief"
 
 
 def test_each_resume_keeps_its_own_length_and_regenerating_uses_it_unless_given_a_new_one(tmp_path: Path) -> None:
@@ -129,7 +129,7 @@ def test_each_resume_keeps_its_own_length_and_regenerating_uses_it_unless_given_
         assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={}).status_code == 200  # the new length was kept
         assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": 4}).status_code == 422
         assert content(client, short)["source"]["resume_pages"] == 3 and content(client, long)["source"]["resume_pages"] == 2
-    assert [m["caps"]["pages"] for m in model.payloads if m["section"] == "summary"] == [1, 2, 3, 3]
+    assert [m["caps"]["pages"] for m in model.payloads] == [1, 2, 3, 3]
 
 
 def test_regenerating_a_letter_gives_it_the_models_paragraphs_under_the_header_and_nothing_else(tmp_path: Path) -> None:

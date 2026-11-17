@@ -28,15 +28,6 @@ class Model:
         self.payloads: list[dict] = []
         self.systems: list[str] = []  # the system prompt of each call
 
-    @property
-    def writes(self) -> list[dict]:
-        """The writing calls: a resume is asked one section at a time."""
-        return [p for p in self.payloads if "failed" not in p]
-
-    @property
-    def repairs(self) -> list[dict]:
-        return [p for p in self.payloads if "failed" in p]
-
     def respond(self, request: httpx.Request) -> httpx.Response:
         if self.status != 200:
             return httpx.Response(self.status, text="no")
@@ -133,7 +124,7 @@ def test_the_writer_is_sent_every_printed_fact_with_its_dates_and_no_name_or_con
         generate(client, {**RESUME, "job_text": "Python platform engineer, Kubernetes", "instructions": "Warm, and stress Kubernetes",
                           "inputs": {"company": "Acme", "role": "Platform Engineer"}})
         known = ids(client)
-    assert [p["section"] for p in model.writes] == ["summary", "experience", "skills"]  # one request for each section
+    assert len(model.payloads) == 1
     sent = model.payloads[0]
     assert sent["kind"] == "resume" and sent["directions"] == "Warm, and stress Kubernetes" and sent["posting"] == "Python platform engineer, Kubernetes"
     assert sent["company"] == "Acme" and sent["role"] == "Platform Engineer" and sent["caps"] == {"pages": 1, "bullets_per_position": 3, "skills": 10}
@@ -212,7 +203,7 @@ def test_the_resume_length_of_the_request_sets_the_caps_and_is_one_page_when_lef
         for pages in (2, 3):
             generate(client, {**RESUME, "resume_pages": pages})
         assert client.post("/api/documents/generate", json={**RESUME, "resume_pages": 4}).status_code == 422
-    assert [m["caps"] for m in model.writes if m["section"] == "summary"] == [{"pages": 2, "bullets_per_position": 5, "skills": 15},
+    assert [m["caps"] for m in model.payloads] == [{"pages": 2, "bullets_per_position": 5, "skills": 15},
                                                   {"pages": 3, "bullets_per_position": 7, "skills": 20}]
 
 
@@ -247,11 +238,11 @@ def test_an_invented_number_is_rejected_and_the_one_repair_call_covers_only_that
     with open_client(tmp_path, model) as client:
         known = ids(client)
         draft = generate(client, RESUME)
-    assert len(model.writes) == 3 and len(model.repairs) == 1  # a call for each section and one repair call, for the section that failed
-    failed = model.repairs[0]["failed"]
+    assert len(model.payloads) == 2  # one writing call and one repair call
+    failed = model.payloads[1]["failed"]
     assert [f["slot"] for f in failed] == [f"bullet:{known[CUT]}"] and failed[0]["text"] == "Reduced build times by 90%"
     assert "number not in the source: 90" in failed[0]["reasons"][0]
-    assert [f["id"] for f in model.repairs[0]["facts"]] == [known[CUT]]  # only the facts the failed slot cites
+    assert [f["id"] for f in model.payloads[1]["facts"]] == [known[CUT]]  # only the facts the failed slot cites
     assert draft["slots"][f"bullet:{known[CUT]}"] == "Reduced build times by 60%" and draft["flags"] == {}
 
 
@@ -261,14 +252,13 @@ def test_the_prompt_is_the_versioned_file_for_the_kind_and_the_repair_call_adds_
     letter = Model(lambda p: {})
     with open_client(tmp_path, model) as client:
         generate(client, RESUME)
-    *writes, repair = model.systems
-    assert len(writes) == 3 and all(w.startswith("You write text for a person's job application") for w in writes)
-    assert ["Write the summary of a resume." in writes[0], "Write the experience section of a resume." in writes[1], "Choose the skills of a resume." in writes[2]] == [True] * 3
-    assert all("Write the body of a cover letter" not in w and "were rejected for the reasons given" not in w for w in writes)
-    assert "were rejected for the reasons given" in repair and "Write the experience section of a resume." in repair
+    write, repair = model.systems
+    assert write.startswith("You write text for a person's job application") and "Write the most effective resume you can" in write
+    assert "Write the body of a cover letter" not in write and "were rejected for the reasons given" not in write
+    assert "were rejected for the reasons given" in repair and "Write the most effective resume you can" in repair
     with open_client(tmp_path / "letter", letter) as client:
         client.post("/api/documents/generate", json=LETTER)
-    assert "Write the body of a cover letter" in letter.systems[0] and "Write the summary of a resume." not in letter.systems[0]
+    assert "Write the body of a cover letter" in letter.systems[0] and "Write the most effective resume you can" not in letter.systems[0]
 
 
 def test_a_second_failure_is_final_a_bullet_shows_the_facts_own_title_flagged_and_the_rest_is_kept(tmp_path: Path) -> None:
@@ -281,7 +271,7 @@ def test_a_second_failure_is_final_a_bullet_shows_the_facts_own_title_flagged_an
     with open_client(tmp_path, model) as client:
         known = ids(client)
         draft = generate(client, RESUME)
-    assert len(model.repairs) == 1  # the repair runs exactly once
+    assert len(model.payloads) == 2  # the repair runs exactly once
     slot = f"bullet:{known[CUT]}"
     assert draft["slots"][slot] == CUT and draft["flags"][slot]["code"] == "not_rewritten" and "80" in draft["flags"][slot]["reasons"][0]
     assert draft["slots"][f"bullet:{known[ETL]}"] == "Built ETL jobs" and set(draft["flags"]) == {slot} and "summary" in draft["slots"]
@@ -296,7 +286,7 @@ def test_a_summary_that_fails_twice_is_left_empty_and_flagged_with_the_reason(tm
     model = Model(write, lambda p: {"slots": []})  # the repair answers nothing
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
-    assert len(model.repairs) == 1
+    assert len(model.payloads) == 2
     assert draft["slots"]["summary"] == "" and draft["flags"]["summary"]["code"] == "rejected"
     assert any(r.startswith("number not in the source: 12") for r in draft["flags"]["summary"]["reasons"])
     assert any("Initech" in r for r in draft["flags"]["summary"]["reasons"])  # an employer the facts lack
@@ -324,7 +314,7 @@ def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_repaired_
     model = Model(write, lambda p: {"slots": [{"slot": "summary", "text": "Platform engineer.", "fact_ids": [find(p, CUT)]}]})
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
-    assert model.repairs[0]["failed"][0]["reasons"] == ["cites no fact"] and len(model.repairs[0]["facts"]) == 9  # none cited: all
+    assert model.payloads[1]["failed"][0]["reasons"] == ["cites no fact"] and len(model.payloads[1]["facts"]) == 9  # none cited: all
     assert draft["slots"]["summary"] == "Platform engineer." and draft["flags"] == {} and "not-a-fact" not in json.dumps(draft)
 
 
@@ -338,7 +328,7 @@ def test_more_than_30_percent_of_the_slots_rejected_after_the_repair_is_a_502(tm
     model = Model(write, lambda p: {"slots": []})
     with open_client(tmp_path, model) as client:
         res = client.post("/api/documents/generate", json=RESUME)
-    assert res.status_code == 502 and res.json()["code"] == "ungrounded" and len(model.repairs) == 1
+    assert res.status_code == 502 and res.json()["code"] == "ungrounded" and len(model.payloads) == 2
     assert len(res.json()["rejected"]) == 2 and "unchanged" in res.json()["detail"]
 
 
@@ -376,16 +366,3 @@ def test_template_instructions_go_to_the_writer_and_are_kept_for_regenerating(tm
         client.post(f"/api/saved-documents/{saved.json()['id']}/regenerate", json={})
     assert [p["template_instructions"] for p in model.payloads] == [style, style]
     assert "template_instructions" in model.systems[0]
-
-
-def test_each_section_is_its_own_request_and_only_its_own_part_of_the_answer_counts(tmp_path: Path) -> None:
-    asked: list[str] = []
-
-    def write(p):
-        asked.append(p["section"])
-        return good(p)  # a model that answers every part every time: a section keeps only its own
-
-    with open_client(tmp_path, Model(write)) as client:
-        draft = generate(client, RESUME)
-    assert asked == ["summary", "experience", "skills"] and draft["flags"] == {}
-    assert len(draft["slots"]) == 5 and {"summary", "skills"} <= draft["slots"].keys()  # the summary, three bullets, the skills: each once

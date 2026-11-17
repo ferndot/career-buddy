@@ -1,8 +1,6 @@
 """The gate for generated text: bullets are checked like rewordings, prose by `verify_prose`, every claim must cite the brief's facts,
 and what was never the writer's to write is dropped."""
 
-from dataclasses import replace
-
 from hypothesis import given, strategies as st
 
 from career_buddy.domain.generation import CAPS, Brief, BriefFact, Bullet, Caps, Claim, Generated
@@ -119,10 +117,3 @@ def test_whatever_the_writer_says_only_the_briefs_facts_appear_within_the_caps_a
 
 def test_the_caps_follow_the_length_setting() -> None:
     assert [(c.pages, c.bullets, c.skills) for c in CAPS.values()] == [(1, 3, 10), (2, 5, 15), (3, 7, 20)]
-
-
-def test_a_sections_call_keeps_only_its_own_part_of_the_answer() -> None:
-    written = Generated(Claim("Engineer.", ("a1",)), (Bullet("a1", "Cut build times by 60%"),), ("s1",))
-    resume = Brief("resume", FACTS)
-    keys = {s: set(claims_of(replace(resume, section=s), written)) for s in ("summary", "experience", "skills")}
-    assert keys == {"summary": {"summary"}, "experience": {"bullet:a1"}, "skills": {"skills"}}

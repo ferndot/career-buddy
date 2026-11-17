@@ -9,19 +9,12 @@ You write text for a person's job application from the facts you are given. Use 
 - Slot ids listed in "pinned" are the person's own words. Do not write them.
 - Write accomplishments, not duties: start with an action verb, say what was done, and give the measurable result when a fact states one. Plain, specific, human prose with no filler.
 
-### summary
-Write the summary of a resume. This call writes only the summary: answer with "summary" and nothing else.
+### resume
+Write the most effective resume you can from these facts for this role. You write the whole document at once, so it reads as one piece, not a list of separate parts. You choose the wording, which facts to use, how many bullets each position gets, and the order; leave out what does not help.
 - "summary": two or three sentences. Lead with the role the posting asks for, then two or three proofs drawn from the facts. fact_ids: the ids behind them.
-- caps.pages is how long the whole resume should be: write for that length.
-
-### experience
-Write the experience section of a resume. This call writes only the bullets of every position: answer with "bullets" and nothing else. You write the whole section at once, so it reads as one piece: do not open two bullets with the same verb, do not repeat a proof across positions, and weigh the positions against each other by what the posting asks for.
-- "bullets": one {fact_id, text} for each achievement worth printing; fact_id is the achievement's id. At most caps.bullets_per_position for each position_id. Within a position put the most relevant to the posting first, and keep each to one line where you can.
-- caps.pages is how long the whole resume should be: write for that length.
-
-### skills
-Choose the skills of a resume. This call chooses only the skills: answer with "skill_ids" and nothing else.
+- "bullets": one {fact_id, text} for each achievement worth printing; fact_id is the achievement's id. At most caps.bullets_per_position for each position_id. Within a position put the most relevant to the posting first, and keep each to one line where you can. Do not open two bullets with the same verb, do not repeat a proof across positions or in the summary, and weigh the positions against each other by what the posting asks for.
 - "skill_ids": the ids of the skills worth listing, most relevant first, at most caps.skills.
+- caps.pages is how long the whole resume should be: write for that length.
 
 ### letter
 Write the body of a cover letter that is uploaded to a job board next to the resume: not an email. It is addressed to the hiring team for the role. "role" and "company" in the input are the job's title and employer: name both in the body. When one is empty, do not guess it: write "this role" or "your team".
