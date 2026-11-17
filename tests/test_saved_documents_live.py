@@ -39,7 +39,7 @@ def test_a_save_keeps_the_settings_and_none_of_the_text(tmp_path: Path) -> None:
         record = save(client, job_text="Python platform",
                       inputs={"company": "Acme"}, instructions="  Warm  ", font="serif", paper="a4")
         assert content(client, record)["source"] == {"template": "resume-classic", "job_text": "Python platform", "inputs": {"company": "Acme"},
-                                                     "instructions": "Warm", "resume_pages": 1}
+                                                     "instructions": "Warm", "resume_pages": 1, "template_instructions": ""}
         raw = stored(tmp_path, record, "source.json").read_text()
         assert "Jane" not in raw and CUT not in raw
         assert json.loads(stored(tmp_path, record, "meta.json").read_text())["paper"] == "a4"

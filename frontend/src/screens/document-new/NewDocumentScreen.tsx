@@ -62,7 +62,7 @@ export function NewDocumentScreen() {
   const writer = useWriting(w, setDoc, newLog, () => {
     setWriting(false)
     go(LAST)
-  })
+  }, templates.data)
   const next = () => {
     if (w.step === 1) return reviewing.start()
     if (w.step === 4) {
@@ -83,7 +83,7 @@ export function NewDocumentScreen() {
   ) : (
     <Flex direction={{ base: 'column', md: 'row' }} gap="5" alignItems="flex-start" wrap="wrap">
       <Box flex="1.4 1 320px" minW="0">
-        <DocPreview w={w} kind={active} ready={ready(active)} setDoc={setDoc(active)} editable />
+        <DocPreview w={w} kind={active} template={templates.data.find((t) => t.id === w.docs[active].templateId)} ready={ready(active)} setDoc={setDoc(active)} />
       </Box>
       <Box flex="1 1 280px" minW="0">
         <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} newLog={newLog} blocked={w.docs[active].genError} />

@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '../../api'
 import type { Log } from '../../components'
-import { generateText } from '../documents/api'
-import { buildBody, kindLabel, type DocDraft, type DocKind, type Wizard } from './state'
+import { generateText, type Template } from '../documents/api'
+import { buildBody, kindLabel, writerInstructions, type DocDraft, type DocKind, type Wizard } from './state'
 import { whyFailed } from './whyFailed'
 
 type Reject = { reasons: string[] }
@@ -19,14 +19,14 @@ function logRejected(log: Log, rejected: Reject[]) {
  * except under the user's own wording. A failure stops the run; the document keeps its `genError` until a write works.
  * Each document's write is its own activity in the log.
  */
-export function useWriting(w: Wizard, setDoc: (kind: DocKind) => (patch: Partial<DocDraft>) => void, newLog: (title: string) => Log, onDone: () => void) {
+export function useWriting(w: Wizard, setDoc: (kind: DocKind) => (patch: Partial<DocDraft>) => void, newLog: (title: string) => Log, onDone: () => void, templates: Template[] = []) {
   const write = async (kind: DocKind) => {
     const d = w.docs[kind]
     const log = newLog(`Document: ${kindLabel(kind)}`)
     const pinned = Object.keys(d.overrides).length
     log('info', `Sent request for the ${kindLabel(kind).toLowerCase()}${pinned ? `, ${pinned} slot${pinned === 1 ? '' : 's'} kept as written` : ''}`, 'working')
     try {
-      const draft = await generateText({ ...buildBody(w, kind), instructions: d.instructions, pinned: Object.keys(d.overrides), resume_pages: d.resumePages })
+      const draft = await generateText({ ...buildBody(w, kind), instructions: d.instructions, pinned: Object.keys(d.overrides), resume_pages: d.resumePages, template_instructions: writerInstructions(d, templates.find((t) => t.id === d.templateId)) })
       setDoc(kind)({ generated: { ...Object.fromEntries(Object.entries(d.generated).filter(([slot]) => slot in d.overrides)), ...draft.slots }, flags: draft.flags, genError: undefined })
       const n = Object.keys(draft.slots).length
       log('info', `Received ${n} slot${n === 1 ? '' : 's'}`, 'done')

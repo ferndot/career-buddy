@@ -9,6 +9,7 @@ from career_buddy.adapters.outputs.render_html import stored_html
 from career_buddy.adapters.outputs.render_text import TextRenderer
 from career_buddy.adapters.readers.html_document import read_document, read_slots
 from career_buddy.domain.document import Document, Entry, Line, Origin, Section, Style
+from career_buddy.domain.templates import Layout
 from samples import sample_document
 
 texts = st.text(st.characters(blacklist_categories=("Cs", "Cc")), max_size=30).map(lambda s: " ".join(s.split())).filter(bool)
@@ -32,6 +33,14 @@ def test_a_document_survives_being_stored_and_read_back(doc: Document) -> None:
     assert everything(back) == everything(doc)
     assert back.headings() == doc.headings()
     assert TextRenderer().render(back, Style()) == TextRenderer().render(doc, Style())  # what a download shows is unchanged
+
+
+@given(documents, st.sampled_from(["plain", "centered", "band"]), st.lists(texts, max_size=2))
+def test_a_layout_only_wraps_the_document_and_reads_back_the_same(doc: Document, header: str, side: list[str]) -> None:
+    layout = Layout(header, tuple(side))  # type: ignore[arg-type]  # a side section moves to the end
+    html = stored_html(doc, layout)
+    assert read_document(html).lines() == read_document(stored_html(doc)).lines() or side  # side sections move to the end
+    assert sorted(read_document(html).lines()) == sorted(doc.lines())
 
 
 @given(documents)

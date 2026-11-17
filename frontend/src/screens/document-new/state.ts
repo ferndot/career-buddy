@@ -1,4 +1,4 @@
-import type { Fit, Flag, PreviewDoc, ResumePages, SaveBody, TailorBody, Template } from '../documents/api'
+import type { Fit, Flag, PreviewDoc, ResumePages, SaveBody, TailorBody, Template, WritingStyle } from '../documents/api'
 import { saveTexts } from './layout'
 
 export type DocKind = Template['kind']
@@ -12,6 +12,7 @@ export const kindLabel = (k: DocKind) => DOC_KINDS.find((d) => d.id === k)?.labe
 /** What the user chose for one document. */
 export type DocDraft = {
   templateId: string
+  styleId: string // a letter's writing style; empty is the template's first
   inputs: Record<string, string>
   overrides: Record<string, string> // the user's own wording by slot id ("summary", "bullet:<fact id>", "para:<n>") -> text. Wins over generated text.
   instructions: string // the user's directions for the writer
@@ -38,6 +39,7 @@ export type Wizard = {
 
 export const emptyDoc: DocDraft = {
   templateId: '',
+  styleId: '',
   inputs: {},
   overrides: {},
   instructions: '',
@@ -90,6 +92,12 @@ export function withOverride(overrides: Record<string, string>, key: string, tex
 
 export const missingInputs = (d: DocDraft, t: Template | undefined) => !t || t.required.some((f) => !d.inputs[f]?.trim())
 
+/** The style a letter is written in: the chosen one, else the template's first. Resumes have none. */
+export const styleOf = (d: DocDraft, t: Template | undefined): WritingStyle | undefined => t?.styles.find((s) => s.id === d.styleId) ?? t?.styles[0]
+
+/** What the writer is told about the template and, for a letter, its style. */
+export const writerInstructions = (d: DocDraft, t: Template | undefined) => [t?.instructions, styleOf(d, t)?.instructions].filter(Boolean).join(' ')
+
 /** The request for one document: the template, the job and the inputs, never the user's text. The backend uses every visible fact. */
 export function buildBody(w: Wizard, kind: DocKind): TailorBody {
   const d = w.docs[kind]
@@ -109,6 +117,7 @@ export function buildSave(w: Wizard, kind: DocKind, t: Template, preview?: Previ
     generated,
     instructions: w.docs[kind].instructions.trim(),
     resume_pages: w.docs[kind].resumePages,
+    template_instructions: writerInstructions(w.docs[kind], t),
     font: 'sans',
     paper: 'letter',
     label: [role, company].filter(Boolean).join(' · ') || t.label,

@@ -68,8 +68,8 @@ Open **Documents** and choose **New document**. The wizard has five steps:
 1. **Job posting.** Paste a link to the posting and wait for the text, or paste the text yourself. You can also choose to write without a posting. Only public `http` and `https` links work; for a page that needs JavaScript or a login, paste the text.
 2. **Documents.** Choose a resume, a cover letter, or both.
 3. **Missing requirements.** The model reads the posting and lists requirements that none of your facts mention. Answer each one.
-4. **Template.** Pick a template and see the document laid out with your career facts. Add directions for tone and length, and choose how many pages the resume should have. Next has the model write the text, from your facts and the job posting. If the model fails, the page says why and you can try again; nothing is saved until the text is written.
-5. **Preview and download.** Read the written text and edit any of it. Text marked for review could not be tied to your facts. Save, then download in the format you need.
+4. **Template.** Pick a template and see its layout as a wireframe of grey bars: the headings and columns, but none of your text. Resumes come as classic, sidebar and modern; letters come as classic and modern, in a writing style you pick (direct and concise, narrative story or formal traditional). Add directions for tone and length, and choose how many pages the resume should have. Next has the model write the text, from your facts and the job posting. If the model fails, the page says why and you can try again; nothing is saved until the text is written.
+5. **Preview and download.** The page is headed by the document's title, such as Resume - Ada Lovelace. Read the written text on a white sheet in the template's layout and edit any of it. The ATS check is shown here. Text marked for review could not be tied to your facts. Save, then download in the format you need.
 
 Documents you finish appear on the **Documents** screen, where you can open, download again, regenerate or delete them.
 

@@ -5,9 +5,16 @@ import { renderShell } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
 
 const line = (text: string, id: string | null = null, field = '') => ({ text, source_fact_id: id, origin: 'fact', field, cites: [] })
-const templates = [
-  { id: 'resume-classic', kind: 'resume', label: 'Classic resume', formats: ['docx', 'pdf'], required: [], optional: [] },
-  { id: 'cover-letter', kind: 'letter', label: 'Cover letter', formats: ['docx', 'pdf'], required: [], optional: [] },
+const SECTIONS = ['Summary', 'Experience', 'Education', 'Skills']
+const STYLES = [
+  { id: 'direct', label: 'Direct and concise', instructions: 'Write it direct.' },
+  { id: 'narrative', label: 'Narrative story', instructions: 'Tell a story.' },
+]
+const base = { formats: ['docx', 'pdf'], required: [], optional: [] }
+export const templates = [
+  { ...base, id: 'resume-classic', kind: 'resume', label: 'Classic resume', sections: SECTIONS, layout: { header: 'centered', side: [], css: '' }, instructions: 'Classic style.', styles: [] },
+  { ...base, id: 'resume-sidebar', kind: 'resume', label: 'Sidebar resume', sections: SECTIONS, layout: { header: 'plain', side: ['Education', 'Skills'], css: '' }, instructions: 'Sidebar style.', styles: [] },
+  { ...base, id: 'cover-letter', kind: 'letter', label: 'Cover letter', sections: [], layout: { header: 'plain', side: [], css: '' }, instructions: 'Letter style.', styles: STYLES },
 ]
 const preview = (missing: string[]) => ({
   lines: ['Ada'],

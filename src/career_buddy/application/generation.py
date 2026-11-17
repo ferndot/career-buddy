@@ -42,11 +42,11 @@ class Draft:
     flags: dict[str, Flag] = field(default_factory=dict)
 
 
-def _brief(t: Tailored, options: TailorOptions, instructions: str, pinned: Collection[str], pages: int) -> Brief:
+def _brief(t: Tailored, options: TailorOptions, instructions: str, pinned: Collection[str], pages: int, template_instructions: str) -> Brief:
     """What the document prints, as the writer reads it. No name or contact details leave the machine."""
     return Brief(t.spec.kind, brief_facts(t.profile, t.facts, t.absorbed), t.report.matched, t.report.missing,
                  options.inputs.get("company", ""), options.inputs.get("role", ""), instructions,
-                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned))
+                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions)
 
 
 class DocumentGeneration:
@@ -55,8 +55,8 @@ class DocumentGeneration:
         self._writer = writer
 
     async def generate(self, template: str, options: TailorOptions, instructions: str = "",
-                       pinned: Collection[str] = (), pages: int = 1) -> Draft:
-        """`pinned` are slot ids the person wrote: the writer leaves them alone.
+                       pinned: Collection[str] = (), pages: int = 1, template_instructions: str = "") -> Draft:
+        """`pinned` are slot ids the person wrote: the writer leaves them alone. `template_instructions` tell the writer how the template's style reads.
 
         KeyError: unknown template. MissingInputs: a letter with neither a posting nor a company and role. LLMUnavailable: no model, or it did not
         answer. UngroundedDraft: the model's text failed the facts."""
@@ -66,7 +66,7 @@ class DocumentGeneration:
         writer = self._writer()  # asked at each request: a model can be connected after start
         if writer is None:
             raise LLMUnavailable(NO_MODEL)
-        brief = _brief(t, options, instructions.strip(), pinned, pages)
+        brief = _brief(t, options, instructions.strip(), pinned, pages, template_instructions.strip())
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]

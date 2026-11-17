@@ -350,3 +350,19 @@ def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_s
     assert model.payloads[0]["posting"] == posting and model.payloads[0]["company"] == "Initech" and model.payloads[0]["role"] == "Platform Engineer"
     assert draft["flags"] == {} and "Initech" in draft["slots"]["para:1"]  # the company in the posting is not an invented name
     assert "not an email" in model.systems[0] and "no subject line" in model.systems[0]
+    assert "template_instructions" not in model.payloads[0]  # nothing is added unless the request carries it
+
+
+def test_template_instructions_go_to_the_writer_and_are_kept_for_regenerating(tmp_path: Path) -> None:
+    def write(p):
+        return {"paragraphs": [{"text": "I would like to build platforms at Acme.", "fact_ids": [find(p, "Senior Engineer", "position")]}]}
+
+    model = Model(write)
+    style = "Direct and concise: three short paragraphs."
+    with open_client(tmp_path, model) as client:
+        generate(client, {**LETTER, "template_instructions": style})
+        saved = client.post("/api/saved-documents", json={**LETTER, "template_instructions": style, "generated": {"para:1": "I would like to build platforms at Acme."}})
+        assert saved.status_code == 201
+        client.post(f"/api/saved-documents/{saved.json()['id']}/regenerate", json={})
+    assert [p["template_instructions"] for p in model.payloads] == [style, style]
+    assert "template_instructions" in model.systems[0]

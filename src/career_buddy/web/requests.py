@@ -29,6 +29,7 @@ class GenerateRequest(TailorRequest):
     instructions: str = Field("", max_length=2000)  # the user's free-text directions for the writer; empty is fine
     pinned: list[str] = Field([], max_length=500)  # slot ids the user wrote themselves: the writer leaves them alone
     resume_pages: Literal[1, 2, 3] = 1  # how long a resume should be; a letter ignores it
+    template_instructions: str = Field("", max_length=4000)  # how the chosen template and letter style want the text written; empty adds none
 
 
 class PreviewRequest(TailorRequest):
@@ -54,6 +55,7 @@ class SaveRequest(TailorRequest):
     generated: dict[str, str] = {}  # what the writer wrote, by slot id: kept apart from `overrides`, which is the user's own wording
     instructions: str = Field("", max_length=2000)  # the user's directions for the writer, kept for regenerating
     resume_pages: Literal[1, 2, 3] = 1  # this resume's length, kept for regenerating
+    template_instructions: str = Field("", max_length=4000)  # the template's instructions, kept for regenerating
 
     @property
     def style(self) -> Style:

@@ -182,10 +182,10 @@ The badge says "Passes ATS check", never "certified".
 | Kind | Id | Required inputs |
 |---|---|---|
 | Resume | `resume-classic` (default, reverse-chronological) | none |
-| Resume | `resume-compact` (one-page target) | none |
-| Resume | `resume-hybrid` (skills first, for career changers) | none |
-| Letter | `cover-letter` | company, role; recipient optional |
-| Letter | `cover-letter-email` | company, role |
+| Resume | `resume-sidebar` (education and skills in a side column) | none |
+| Resume | `resume-modern` (header band, compact) | none |
+| Letter | `cover-letter` | none; recipient optional |
+| Letter | `cover-letter-modern` (header band) | none; recipient optional |
 
 Every template renders to DOCX, PDF, TXT, MD and HTML. Functional resumes are left out on purpose.
 

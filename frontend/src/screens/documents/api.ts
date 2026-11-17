@@ -1,6 +1,10 @@
 // Document helpers shared by the Documents list and the new-document wizard.
 import { apiFetch, apiUrl, endpoints } from '../../api'
 
+/** How a template arranges its page: the header kind, and the headings of the sections in a side column. */
+export type TemplateLayout = { header: 'plain' | 'centered' | 'band'; side: string[]; css: string }
+/** A way to write a letter. Its instructions go to the writer after the template's own. */
+export type WritingStyle = { id: string; label: string; instructions: string }
 export type Template = {
   id: string
   kind: 'resume' | 'letter'
@@ -8,6 +12,10 @@ export type Template = {
   formats: string[]
   required: string[]
   optional: string[]
+  sections: string[] // a resume's headings in order; a letter has none
+  layout: TemplateLayout
+  instructions: string // what the writer is told about this template's style
+  styles: WritingStyle[] // a letter's suggested styles
 }
 /** The model's review of a job posting. `missing_*` are the terms none of the career facts cover. */
 export type Fit = {
@@ -59,7 +67,7 @@ export type Generated = {
 export const MAX_INSTRUCTIONS = 2000
 export type ResumePages = 1 | 2 | 3
 /** `pinned` are the slots the user wrote themselves: the writer leaves them alone. `resume_pages` is how long a resume should be. */
-export const generateText = (body: TailorBody & { instructions: string; pinned: string[]; resume_pages: ResumePages }) =>
+export const generateText = (body: TailorBody & { instructions: string; pinned: string[]; resume_pages: ResumePages; template_instructions: string }) =>
   apiFetch<Generated>(endpoints.documents.generate(), { method: 'POST', body })
 
 export type SavedDocument = {
@@ -75,6 +83,7 @@ export type SaveBody = TailorBody & {
   generated: Record<string, string> // the writer's text by slot id, kept apart so regenerating never touches an override
   instructions: string // the directions given to the writer, kept for regenerating
   resume_pages: ResumePages // this resume's length, kept for regenerating
+  template_instructions: string // the template's and the chosen style's instructions, kept for regenerating
   font: 'sans' | 'serif'
   paper: 'letter' | 'a4'
   label: string

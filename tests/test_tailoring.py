@@ -7,7 +7,7 @@ from career_buddy.domain.profile import EducationView, PositionView, Profile
 from career_buddy.domain.tailoring import apply_overrides, job_terms, tailor
 from career_buddy.domain.templates import build_document, get_template
 
-CLASSIC, COMPACT = get_template("resume-classic"), get_template("resume-compact")  # for the document builder only
+CLASSIC, COMPACT = get_template("resume-classic"), get_template("resume-modern")  # for the document builder only
 
 
 def position(title: str, bullets: list[str], dates: dict[str, str] = {"started": "2020", "finished": "2021"}, skills: tuple[str, ...] = (), pid: str = "p") -> PositionView:

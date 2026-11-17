@@ -12,13 +12,10 @@ FORMATS = ["docx", "pdf", "txt", "markdown", "html"]
 COMPANY = {"company": "Initech", "role": "Platform Engineer"}
 INPUTS = {
     "resume-classic": {},
-    "resume-compact": {},
-    "resume-hybrid": {},
+    "resume-sidebar": {},
+    "resume-modern": {},
     "cover-letter": {},
-    "cover-letter-email": COMPANY,
-}
-REQUIRED = {
-    "cover-letter-email": ["company", "role"],
+    "cover-letter-modern": {},
 }
 
 
@@ -38,10 +35,30 @@ def test_templates_endpoint_lists_ids_formats_and_required_inputs(client: TestCl
     listed = {t["id"]: t for t in client.get("/api/templates").json()}
     assert set(listed) == set(INPUTS)
     assert all(sorted(t["formats"]) == sorted(FORMATS) for t in listed.values())
-    assert {tid: t["required"] for tid, t in listed.items() if t["required"]} == REQUIRED
+    assert not any(t["required"] for t in listed.values())
     assert listed["cover-letter"]["optional"] == ["recipient"]
-    assert listed["resume-classic"]["kind"] == "resume" and listed["cover-letter-email"]["kind"] == "letter"
-    assert listed["resume-hybrid"]["label"] == "Hybrid resume"
+    assert listed["resume-classic"]["kind"] == "resume" and listed["cover-letter-modern"]["kind"] == "letter"
+    assert listed["resume-sidebar"]["label"] == "Sidebar resume"
+
+
+def test_every_template_carries_its_layout_and_its_own_writer_instructions(client: TestClient) -> None:
+    listed = {t["id"]: t for t in client.get("/api/templates").json()}
+    resumes = [t for t in listed.values() if t["kind"] == "resume"]
+    letters = [t for t in listed.values() if t["kind"] == "letter"]
+    assert len(resumes) >= 3 and len(letters) >= 2
+    assert len({(t["layout"]["header"], tuple(t["layout"]["side"])) for t in resumes}) == len(resumes)  # clearly different layouts
+    assert len({t["instructions"] for t in listed.values()}) == len(listed) and all(t["instructions"] for t in listed.values())
+    assert listed["resume-sidebar"]["layout"]["side"] == ["Education", "Skills"]
+    assert [s["id"] for s in listed["cover-letter"]["styles"]] == ["direct", "narrative", "formal"]
+    assert all(s["label"] and s["instructions"] for s in listed["cover-letter"]["styles"]) and listed["resume-classic"]["styles"] == []
+    assert listed["resume-modern"]["sections"] == ["Summary", "Experience", "Education", "Skills"] and listed["cover-letter"]["sections"] == []
+
+
+def test_the_email_cover_letter_is_gone(client: TestClient) -> None:
+    assert "cover-letter-email" not in {t["id"] for t in client.get("/api/templates").json()}
+    assert render(client, "cover-letter", "txt").status_code == 200
+    res = client.post("/api/documents/render", json={"template": "cover-letter-email", "format": "txt", "inputs": COMPANY})
+    assert res.status_code == 404
 
 
 @pytest.mark.parametrize("fmt", FORMATS)
@@ -56,22 +73,7 @@ def test_every_template_renders_in_every_format_and_passes_the_ats_check(
     assert "x-ats-issues" not in res.headers  # a passing check sends no warning
 
 
-@pytest.mark.parametrize("template", list(REQUIRED))
-def test_a_missing_required_input_is_422_and_names_what_is_missing(client: TestClient, template: str) -> None:
-    for fmt, path in (("txt", "render"), ("txt", "check"), (None, "preview")):
-        body = {"template": template, **({"format": fmt} if fmt else {}), "inputs": {}}
-        res = client.post(f"/api/documents/{path}", json=body)
-        assert res.status_code == 422, (path, res.text)
-        assert all(name in res.json()["detail"] for name in REQUIRED[template])
-
-
-def test_a_blank_required_input_counts_as_missing(client: TestClient) -> None:
-    res = client.post("/api/documents/render", json={"template": "cover-letter-email", "format": "txt",
-                                                      "inputs": {"company": "Initech", "role": "   "}})
-    assert res.status_code == 422 and "role" in res.json()["detail"]
-
-
-@pytest.mark.parametrize("template", ["cover-letter", "cover-letter-email"])
+@pytest.mark.parametrize("template", ["cover-letter", "cover-letter-modern"])
 def test_a_letter_without_a_writer_is_the_name_and_location_and_an_empty_body(client: TestClient, template: str) -> None:
     """No code writes a letter's words: the inputs and the job are for the writer, and nothing of them is printed."""
     job = "Requirements:\n- Kubernetes migrations\n- Terraform"
@@ -83,12 +85,9 @@ def test_a_letter_without_a_writer_is_the_name_and_location_and_an_empty_body(cl
 def test_filenames_say_what_the_document_is(client: TestClient) -> None:
     names = {t: render(client, t, "txt").headers["content-disposition"] for t in INPUTS}
     assert names["cover-letter"].endswith('-Cover-Letter.txt"')
-    assert names["resume-hybrid"].endswith('-Resume.txt"')
+    assert names["cover-letter-modern"].endswith('-Cover-Letter.txt"')
+    assert names["resume-sidebar"].endswith('-Resume.txt"')
 
-
-def test_the_hybrid_resume_puts_skills_before_experience(client: TestClient) -> None:
-    text = render(client, "resume-hybrid", "txt").text
-    assert text.index("\nSkills\n") < text.index("\nExperience\n")
 
 
 def test_other_templates_ignore_unknown_inputs(client: TestClient) -> None:

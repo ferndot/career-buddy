@@ -17,7 +17,7 @@ def document_router(generation: Callable[[], DocumentGeneration]) -> APIRouter:
     @router.post("/generate")
     async def generate(body: GenerateRequest) -> dict[str, object]:
         try:
-            return asdict(await generation().generate(body.template, body.options, body.instructions, body.pinned, body.resume_pages))
+            return asdict(await generation().generate(body.template, body.options, body.instructions, body.pinned, body.resume_pages, body.template_instructions))
         except KeyError as error:
             raise HTTPException(404, f"Unknown template: {error.args[0]}") from error
 

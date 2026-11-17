@@ -21,7 +21,7 @@ from career_buddy.application.ports import ObjectNotFound, ObjectStore
 from career_buddy.domain.document import Document, Style
 from career_buddy.domain.markers import clean_document
 from career_buddy.domain.slots import Slot, Written, layout_overrides, paragraph_indexes, resolve, with_paragraphs, written_for
-from career_buddy.domain.templates import get_template
+from career_buddy.domain.templates import Layout, get_template
 
 _ID = re.compile(r"[0-9a-f]{32}")
 DEFAULT_FORMAT = "docx"
@@ -31,8 +31,8 @@ DEFAULT_FORMAT = "docx"
 class HtmlCodec:
     """How a document is kept: written to a layout in html and css, read back with the text of each slot."""
 
-    write: Callable[[Document], str]
-    css: Callable[[Style], str]
+    write: Callable[[Document, Layout], str]
+    css: Callable[[Style, Layout], str]
     slots: Callable[[str], list[Slot]]
     read: Callable[[str, dict[str, str], frozenset[str]], Document]
 
@@ -66,10 +66,11 @@ class SavedSource:
     inputs: dict[str, str] = field(default_factory=dict)
     instructions: str = ""  # the user's directions for the writer
     resume_pages: int = 1  # how long a resume should be: 1, 2 or 3 pages
+    template_instructions: str = ""  # the template's and the chosen style's instructions for the writer
 
     @staticmethod
-    def of(template: str, options: TailorOptions, instructions: str, resume_pages: int) -> SavedSource:
-        return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages)
+    def of(template: str, options: TailorOptions, instructions: str, resume_pages: int, template_instructions: str = "") -> SavedSource:
+        return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages, template_instructions)
 
     def options(self, overrides: dict[str, str]) -> TailorOptions:
         return TailorOptions(self.job_text, overrides, self.inputs)
@@ -114,13 +115,14 @@ class SavedDocuments:
         doc, stem = await self._documents.compose(template, replace(options, overrides={**summary, **options.overrides}))
         if (paragraphs := paragraph_indexes(texts)) and get_template(template).kind == "letter":  # a letter written by the user or the model: its body is those paragraphs
             doc = with_paragraphs(doc, paragraphs[-1])
-        return self._html.write(doc), stem
+        return self._html.write(doc, get_template(template).layout), stem
 
     def _put(self, doc_id: str, name: str, data: object, content_type: str = "application/json") -> None:
         self._store.put(f"{_prefix(doc_id)}{name}", data if isinstance(data, bytes) else json.dumps(data).encode(), content_type)
 
     async def save(self, template: str, style: Style, options: TailorOptions, label: str = "",
-                   generated: Mapping[str, str] | None = None, instructions: str = "", resume_pages: int = 1) -> SavedMeta:
+                   generated: Mapping[str, str] | None = None, instructions: str = "", resume_pages: int = 1,
+                   template_instructions: str = "") -> SavedMeta:
         """Keep the layout, what the user wrote (`options.overrides`) and what a writer generated, both by slot id or fact id,
         and what the document was built from. The facts' own text is not kept: it is found when the document is read."""
         generated = generated or {}
@@ -133,10 +135,10 @@ class SavedDocuments:
         meta = SavedMeta(doc_id, label.strip() or stem, template, stem, datetime.now(UTC).isoformat(),
                          [issue.code for issue in issues], style.font, style.paper)
         self._put(doc_id, "document.html", html.encode(), "text/html")
-        self._put(doc_id, "document.css", self._html.css(style).encode(), "text/css")
+        self._put(doc_id, "document.css", self._html.css(style, get_template(template).layout).encode(), "text/css")
         self._put(doc_id, "overrides.json", overrides)
         self._put(doc_id, "generated.json", {k: asdict(w) for k, w in made.items()})
-        self._put(doc_id, "source.json", asdict(SavedSource.of(template, options, instructions.strip(), resume_pages)))
+        self._put(doc_id, "source.json", asdict(SavedSource.of(template, options, instructions.strip(), resume_pages, template_instructions.strip())))
         self._put(doc_id, "meta.json", asdict(meta))  # last: a record means a complete save
         return meta
 
@@ -189,7 +191,7 @@ class SavedDocuments:
             raise NoSource(doc_id)
         source = replace(c.source, instructions=instructions.strip() or c.source.instructions, resume_pages=resume_pages or c.source.resume_pages)
         options = source.options(c.overrides)
-        draft = await self._generation.generate(source.template, options, source.instructions, c.overrides, source.resume_pages)
+        draft = await self._generation.generate(source.template, options, source.instructions, c.overrides, source.resume_pages, source.template_instructions)
         html, _ = await self._layout(source.template, options, {**draft.slots, **c.overrides})
         slots = self._html.slots(html)
         fresh = {k: v for k, v in layout_overrides(draft.slots, (slot.id for slot in slots)).items() if k not in c.overrides}

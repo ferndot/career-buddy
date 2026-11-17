@@ -277,7 +277,9 @@ def create_app(
     @api.get("/api/templates")
     async def templates() -> list[dict[str, Any]]:
         return [{"id": t.id, "kind": t.kind, "label": t.label,
-                 "formats": app().documents.formats, "required": list(t.required), "optional": list(t.optional)}
+                 "formats": app().documents.formats, "required": list(t.required), "optional": list(t.optional),
+                 "sections": [label for _, label in t.sections], "layout": asdict(t.layout), "instructions": t.instructions,
+                 "styles": [asdict(s) for s in t.styles]}
                 for t in TEMPLATES]
 
     @api.get("/api/profile")

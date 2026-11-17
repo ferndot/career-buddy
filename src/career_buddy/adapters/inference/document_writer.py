@@ -17,7 +17,7 @@ from redstring import LlmProvider, RedstringError
 from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.generation import Brief, BriefFact, Bullet, Claim, Generated, Rejection
 
-PROMPT = "document_writer_v2"
+PROMPT = "document_writer_v3"
 _SECTIONS = dict(re.findall(r"^### (\w+)\n(.*?)(?=^### |\Z)", (Path(__file__).parent / "prompts" / f"{PROMPT}.txt").read_text(encoding="utf-8"), re.M | re.S))
 
 
@@ -59,6 +59,8 @@ def payload(brief: Brief, facts: Sequence[BriefFact], failed: Sequence[Rejection
         "kind": brief.kind, "company": brief.company, "role": brief.role, "directions": brief.instructions, "posting": brief.posting,
         "job_terms": list(brief.terms), "missing_terms": list(brief.missing), "pinned": sorted(brief.pinned), "facts": [_fact(f) for f in facts],
     }
+    if brief.template_instructions:
+        out["template_instructions"] = brief.template_instructions
     if brief.kind == "resume":
         out["caps"] = {"pages": brief.caps.pages, "bullets_per_position": brief.caps.bullets, "skills": brief.caps.skills}
     if failed:

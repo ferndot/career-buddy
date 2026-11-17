@@ -59,6 +59,7 @@ class Brief:
     posting: str = ""  # the job posting, cut to MAX_POSTING
     caps: Caps = CAPS[1]
     pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: the writer leaves them alone
+    template_instructions: str = ""  # how the chosen template and style want the text written
 
 
 @dataclass(frozen=True)

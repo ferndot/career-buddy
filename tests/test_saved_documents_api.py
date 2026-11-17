@@ -206,8 +206,8 @@ def test_an_unknown_template_is_404_and_nothing_is_stored(client: TestClient) ->
     assert client.get("/api/saved-documents").json() == []
 
 
-def test_missing_inputs_for_a_letter_are_422(client: TestClient) -> None:  # the email letter; the cover letter has none
-    assert client.post("/api/saved-documents", json={"template": "cover-letter-email"}).status_code == 422
+def test_the_removed_email_letter_cannot_be_saved(client: TestClient) -> None:
+    assert client.post("/api/saved-documents", json={"template": "cover-letter-email"}).status_code == 404
 
 
 def skill_ids(client: TestClient) -> dict[str, str]:
@@ -225,3 +225,12 @@ def test_every_visible_skill_and_education_entry_is_printed_in_renders_and_saved
     saved = file(client, save(client).json(), "txt").text
     for text in (render_text(client), saved, " ".join(client.post("/api/documents/preview", json={"template": "resume-classic"}).json()["lines"])):
         assert "Python" in text and "Kubernetes" in text and "University of Lisbon" in text
+
+
+def test_a_saved_resume_keeps_its_templates_layout_in_its_html_and_css(client: TestClient) -> None:
+    saved = save(client, template="resume-sidebar").json()
+    stored = client.get(f"/api/saved-documents/{saved['id']}/content").json()
+    assert '<header class="plain">' in stored["html"] and '<div class="side"><h2 data-origin="boilerplate">Education</h2>' in stored["html"]
+    assert ".side{" in stored["css"]
+    assert 'class="side"' not in client.get(f"/api/saved-documents/{save(client).json()['id']}/content").json()["html"].split('<div class="main">')[0]
+    assert "Education" in file(client, saved, "txt").text  # a download is unchanged by the layout

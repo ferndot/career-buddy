@@ -2,19 +2,14 @@
 
 from career_buddy.domain.document import Entry, Line
 from career_buddy.domain.profile import EducationView, PositionView, Profile
-from career_buddy.domain.templates import TemplateSpec, build_document, get_template
-
-JOB = ("company", "role")
+from career_buddy.domain.templates import build_document, get_template
 
 
-def letter(id: str, label: str, optional=()) -> TemplateSpec:
-    return TemplateSpec(id, label, (), "letter", JOB, optional)
-
-
-def test_every_letter_template_has_its_exact_spec() -> None:
-    assert get_template("cover-letter") == TemplateSpec("cover-letter", "Cover letter", (), "letter", (), ("recipient",))
-    assert get_template("cover-letter-email") == letter("cover-letter-email", "Cover letter (email)",
-                                                         optional=("recipient",))
+def test_every_letter_template_is_a_job_board_letter_with_the_same_styles() -> None:
+    letters = [get_template(i) for i in ("cover-letter", "cover-letter-modern")]
+    assert all((t.kind, t.sections, t.required, t.optional) == ("letter", (), (), ("recipient",)) for t in letters)
+    assert letters[0].styles == letters[1].styles and len(letters[0].styles) >= 3
+    assert letters[0].layout != letters[1].layout
 
 
 def build(*positions: PositionView, **attrs: str):
