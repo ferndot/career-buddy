@@ -93,7 +93,9 @@ export const missingInputs = (d: DocDraft, t: Template | undefined) => !t || t.r
 /** The request for one document: the template, the job and the inputs, never the user's text. The backend uses every visible fact. */
 export function buildBody(w: Wizard, kind: DocKind): TailorBody {
   const d = w.docs[kind]
-  return { template: d.templateId, job_text: w.jobText, inputs: d.inputs }
+  const fit = kind === 'letter' && w.review && w.review.result !== 'unavailable' ? w.review.result : undefined // a letter names the posting's role and company
+  const job = fit ? { ...(fit.title && { role: fit.title }), ...(fit.company && { company: fit.company }) } : {}
+  return { template: d.templateId, job_text: w.jobText, inputs: { ...job, ...d.inputs } }
 }
 
 /** The save request. `preview` is the document's layout, which a letter needs to name its paragraphs. */

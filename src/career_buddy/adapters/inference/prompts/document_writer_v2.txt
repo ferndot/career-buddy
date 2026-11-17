@@ -16,7 +16,8 @@ Write the text of a resume.
 - caps.pages is how long the whole resume should be: write for that length.
 
 ### letter
-Write the body of a cover letter for the role at the company in the input. Do not write a greeting or a sign-off.
+Write the body of a cover letter that is uploaded to a job board next to the resume: not an email. It is addressed to the hiring team for the role. "role" and "company" in the input are the job's title and employer: name both in the body. When one is empty, do not guess it: write "this role" or "your team".
+- Plain paragraphs only: no subject line, no "Dear ..." greeting, no sign-off, no name, no contact details, no markdown or lists. The applicant's name is already in the header.
 - "paragraphs": three or four, each {text, fact_ids}. Open with the role and your strongest matching proof. Tell one or two achievements as short stories tied to the posting. Do not restate the resume. End with a clear ask for a conversation.
 - A paragraph is pinned when "pinned" lists "para:N" for its position N, counting from 1. Still write something in that position so the others keep their numbers: it is thrown away and the person's own paragraph is used.
 

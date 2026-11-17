@@ -17,7 +17,7 @@ from redstring import LlmProvider, RedstringError
 from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.generation import Brief, BriefFact, Bullet, Claim, Generated, Rejection
 
-PROMPT = "document_writer_v1"
+PROMPT = "document_writer_v2"
 _SECTIONS = dict(re.findall(r"^### (\w+)\n(.*?)(?=^### |\Z)", (Path(__file__).parent / "prompts" / f"{PROMPT}.txt").read_text(encoding="utf-8"), re.M | re.S))
 
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from career_buddy.application.documents import DocumentService, TailorOptions, Tailored
-from career_buddy.application.ports import DocumentWriter, LLMUnavailable
+from career_buddy.application.ports import DocumentWriter, LLMUnavailable, MissingInputs
 from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, Rejection, brief_facts, caps_for
 from career_buddy.domain.grounding import claims_of, ground
 
@@ -58,9 +58,11 @@ class DocumentGeneration:
                        pinned: Collection[str] = (), pages: int = 1) -> Draft:
         """`pinned` are slot ids the person wrote: the writer leaves them alone.
 
-        KeyError: unknown template. MissingInputs: a letter without company or role. LLMUnavailable: no model, or it did not
+        KeyError: unknown template. MissingInputs: a letter with neither a posting nor a company and role. LLMUnavailable: no model, or it did not
         answer. UngroundedDraft: the model's text failed the facts."""
         t = await self._documents.tailored(template, options)
+        if t.spec.kind == "letter" and not options.job_text.strip() and not all(options.inputs.get(k, "").strip() for k in ("company", "role")):
+            raise MissingInputs("a job posting: the letter is written for the role and company it names")
         writer = self._writer()  # asked at each request: a model can be connected after start
         if writer is None:
             raise LLMUnavailable(NO_MODEL)

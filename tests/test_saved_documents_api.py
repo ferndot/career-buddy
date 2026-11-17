@@ -206,8 +206,8 @@ def test_an_unknown_template_is_404_and_nothing_is_stored(client: TestClient) ->
     assert client.get("/api/saved-documents").json() == []
 
 
-def test_missing_inputs_for_a_letter_are_422(client: TestClient) -> None:
-    assert client.post("/api/saved-documents", json={"template": "cover-letter"}).status_code == 422
+def test_missing_inputs_for_a_letter_are_422(client: TestClient) -> None:  # the email letter; the cover letter has none
+    assert client.post("/api/saved-documents", json={"template": "cover-letter-email"}).status_code == 422
 
 
 def skill_ids(client: TestClient) -> dict[str, str]:

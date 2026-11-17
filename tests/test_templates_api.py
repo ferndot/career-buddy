@@ -14,11 +14,10 @@ INPUTS = {
     "resume-classic": {},
     "resume-compact": {},
     "resume-hybrid": {},
-    "cover-letter": COMPANY,
+    "cover-letter": {},
     "cover-letter-email": COMPANY,
 }
 REQUIRED = {
-    "cover-letter": ["company", "role"],
     "cover-letter-email": ["company", "role"],
 }
 
@@ -67,7 +66,7 @@ def test_a_missing_required_input_is_422_and_names_what_is_missing(client: TestC
 
 
 def test_a_blank_required_input_counts_as_missing(client: TestClient) -> None:
-    res = client.post("/api/documents/render", json={"template": "cover-letter", "format": "txt",
+    res = client.post("/api/documents/render", json={"template": "cover-letter-email", "format": "txt",
                                                       "inputs": {"company": "Initech", "role": "   "}})
     assert res.status_code == 422 and "role" in res.json()["detail"]
 

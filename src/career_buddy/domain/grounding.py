@@ -98,7 +98,7 @@ def ground(
         elif slot.startswith("bullet:"):
             reasons = verify_rewording(texts[ids[0]], text, skills, protected, brief.missing)
         else:
-            reasons = verify_prose("\n".join(texts[i] for i in ids), text, known, brief.missing)
+            reasons = verify_prose("\n".join(texts[i] for i in ids), text, known, [m for m in brief.missing if m.lower() not in f"{brief.company} {brief.role}".lower()])  # the posting's own company and role may be named
         if reasons:
             rejected.append(Rejection(slot, tuple(reasons), Claim(text, ids)))
         else:

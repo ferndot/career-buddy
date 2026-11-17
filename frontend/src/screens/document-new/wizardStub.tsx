@@ -7,7 +7,7 @@ import { NewDocumentScreen } from './NewDocumentScreen'
 const line = (text: string, id: string | null = null, field = '') => ({ text, source_fact_id: id, origin: 'fact', field, cites: [] })
 const templates = [
   { id: 'resume-classic', kind: 'resume', label: 'Classic resume', formats: ['docx', 'pdf'], required: [], optional: [] },
-  { id: 'cover-letter', kind: 'letter', label: 'Cover letter', formats: ['docx', 'pdf'], required: ['role', 'company'], optional: [] },
+  { id: 'cover-letter', kind: 'letter', label: 'Cover letter', formats: ['docx', 'pdf'], required: [], optional: [] },
 ]
 const preview = (missing: string[]) => ({
   lines: ['Ada'],
@@ -42,7 +42,7 @@ export const DRAFTS = {
 export type Calls = { method: string; url: string; body?: Record<string, unknown> }[]
 
 /** Answers every wizard request. `calls` records them in order. `model` is whether an LLM connection is active; `generate` replaces the writer's answer. */
-export function stubApi(missing: string[] = [], model = true, generate?: (asked: Record<string, unknown>) => Response) {
+export function stubApi(missing: string[] = [], model = true, generate?: (asked: Record<string, unknown>) => Response, job = { title: '', company: '' }) {
   const calls: Calls = []
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -62,7 +62,7 @@ export function stubApi(missing: string[] = [], model = true, generate?: (asked:
     const body = u.includes('templates') ? templates
       : u.includes('preview') ? preview(missing)
       : u.endsWith('/api/facts') ? [{ id: 'person', kind: 'Person', title: 'Ada', attributes: {}, source: '' }]
-      : u.includes('/api/fit') ? { title: '', company: '', must_have: [], nice_to_have: [], missing_must_have: [], missing_nice_to_have: [] }
+      : u.includes('/api/fit') ? { ...job, must_have: [], nice_to_have: [], missing_must_have: [], missing_nice_to_have: [] }
       : []
     return new Response(JSON.stringify(body))
   }))
@@ -88,8 +88,6 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   if (step === 4) return
   if (kinds.includes('Cover letter')) {
     fireEvent.click(screen.getByRole('tab', { name: /Cover letter/ }))
-    fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
-    fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
     fireEvent.click(screen.getByRole('tab', { name: /Resume/ }))
   }
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())

@@ -21,7 +21,7 @@ To keep a rendered file, see [Saved documents API](saved-documents-api.md).
 | `POST /api/documents/generate` | A draft of the text a document needs, written from every visible fact. See below |
 | `POST /api/documents/suggest` | Needs `job_text`. `{suggestions: [{fact_id, before, after}], rejected: [{fact_id, reasons}]}`: model wordings for the bullets, each checked against the facts. `503` with no model |
 
-Templates: `resume-classic`, `resume-compact`, `resume-hybrid`, `cover-letter` (company, role), `cover-letter-email`
+Templates: `resume-classic`, `resume-compact`, `resume-hybrid`, `cover-letter` (no required inputs: the job-board letter), `cover-letter-email`
 (company, role). A missing or blank required input returns 422 and names it. Unknown inputs are ignored.
 
 ## ATS check is a warning
@@ -35,7 +35,7 @@ Every render and preview reads the file back and runs `domain/ats.check`. A fail
 `POST /api/documents/generate` takes the same body as the other endpoints plus `resume_pages` (`1`, `2` or `3`, default `1`:
 how long this resume should be; a letter ignores it; `422` for any other value), `instructions` (free text, at most 2000
 characters, `422` over that, empty allowed: the user's direction for tone, length and emphasis) and `pinned` (slot ids the user
-wrote themselves; the writer leaves them alone). A letter needs `inputs.company` and `inputs.role` (`422` without). An unknown
+wrote themselves; the writer leaves them alone). A `cover-letter` is written from `job_text`; the wizard also sends the posting review's title and company as `inputs.role` and `inputs.company`. A letter with no `job_text` and no company and role is `422`. An unknown
 template is `404`. Nothing is stored. A model is required: there is no text made without one.
 
 ```json
@@ -54,7 +54,7 @@ template is `404`. Nothing is stored. A model is required: there is no text made
 - Caps come from `resume_pages`, the length of this resume (it is a setting of each resume, not of the app): 1 page (the default)
   is 3 bullets per position and 10 skills, 2 pages is 5 and 15, 3 pages is 7 and 20. Bullets over the cap and skills over the cap are dropped, and skills the
   model names that were not sent are dropped.
-- The prompt is the versioned text file `adapters/inference/prompts/document_writer_v1.txt`.
+- The prompt is the versioned text file `adapters/inference/prompts/document_writer_v2.txt`.
 - Every text must cite sent facts and may not say more than they do. A cited id that was not sent is dropped from the text, and a
   text left with none is rejected. A number, a capitalised name, a skill, a company or role, or a job term the facts lack is
   rejected. All rejected texts go back to the model in **one** repair call, with the reasons; nothing more is asked after it.

@@ -61,8 +61,6 @@ test('a resume has its own length, one page until chosen, sent to the writer and
 test('the cover letter tab has no length control and saves the default', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
-  fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
-  fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
   await screen.findByLabelText('Edit text: Paragraph one')
   expect(screen.queryByLabelText('Resume length')).not.toBeInTheDocument()
   expect((await saved(calls)).resume_pages).toBe(1)
@@ -135,8 +133,6 @@ test('a draft the facts did not support is an error and the last draft stays', a
 test('a cover letter paragraph is editable; the saved letter carries every paragraph, the stub ones as generated text', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
-  fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
-  fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
   const para = await screen.findByLabelText('Edit text: Paragraph one')
   fireEvent.change(para, { target: { value: 'I would love to join Acme.' } })
   expect(screen.getByLabelText('Edit text: Paragraph one')).toHaveValue('I would love to join Acme.')
@@ -148,8 +144,6 @@ test('a cover letter paragraph is editable; the saved letter carries every parag
 test('a generated letter is its own paragraphs under the header', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
-  fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
-  fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
   await screen.findByLabelText('Edit text: Paragraph one')
   generate()
   expect(await screen.findByLabelText('Edit text: Generated two')).toBeInTheDocument()
@@ -246,4 +240,17 @@ test('each generate press is its own activity in the log', async () => {
   const rows = await screen.findAllByRole('button', { name: /Document: Resume/ })
   expect(rows).toHaveLength(2)
   await waitFor(() => expect(screen.queryByText('Working')).not.toBeInTheDocument()) // both writes finish inside the test
+})
+
+test('a cover letter asks for no role or company: the posting review supplies them to the writer', async () => {
+  const calls = stubApi([], true, undefined, { title: 'Platform Engineer', company: 'Initech' })
+  await openAt(4, ['Cover letter'])
+  fireEvent.click(screen.getByRole('tab', { name: /Cover letter/ }))
+  await screen.findByLabelText('Edit text: Paragraph one')
+  expect(screen.queryByLabelText(/role|company/i)).not.toBeInTheDocument()
+  generate()
+  await screen.findByLabelText('Edit text: Generated two')
+  const sent = calls.find((c) => c.url.endsWith('/api/documents/generate') && c.body?.template === 'cover-letter')
+  expect(sent?.body?.inputs).toEqual({ role: 'Platform Engineer', company: 'Initech' })
+  expect(sent?.body?.job_text).toBe('Python engineer with Kubernetes')
 })

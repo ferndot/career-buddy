@@ -13,7 +13,7 @@ from llm_support import connect_mock
 from test_api import seed_jane
 
 RESUME = {"template": "resume-classic"}
-LETTER = {"template": "cover-letter", "inputs": {"company": "Acme", "role": "Engineer"}}
+LETTER = {"template": "cover-letter", "job_text": "Engineer at Acme: Kubernetes platform work", "inputs": {"company": "Acme", "role": "Engineer"}}
 CUT = "Cut build times by 60%"
 MIGRATED = "Migrated 40 services to Kubernetes"
 ETL = "Built ETL jobs"
@@ -105,7 +105,7 @@ def test_the_directions_are_free_text_up_to_2000_characters(client: TestClient) 
     assert client.post("/api/documents/generate", json={**RESUME, "instructions": "x" * 2001}).status_code == 422
 
 
-def test_unknown_template_is_404_and_a_letter_without_company_and_role_is_422_even_without_a_model(client: TestClient) -> None:
+def test_unknown_template_is_404_and_a_letter_without_a_posting_or_company_and_role_is_422_even_without_a_model(client: TestClient) -> None:
     generate(client, {"template": "nope"}, 404)
     generate(client, {"template": "cover-letter"}, 422)
 
@@ -335,3 +335,18 @@ def test_more_than_30_percent_of_the_slots_rejected_after_the_repair_is_a_502(tm
 def test_a_reply_with_nothing_kept_is_a_502(tmp_path: Path) -> None:
     with open_client(tmp_path, Model(lambda p: {})) as client:
         assert client.post("/api/documents/generate", json=RESUME).status_code == 502
+
+
+def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_supplies_the_company_and_role(tmp_path: Path) -> None:
+    def write(p):
+        senior = find(p, "Senior Engineer", "position")
+        return {"paragraphs": [{"text": "I am applying for the Platform Engineer role at Initech to keep building reliable platforms.", "fact_ids": [senior]}]}
+
+    model = Model(write)
+    posting = "Initech is hiring a Platform Engineer to run Kubernetes."
+    with open_client(tmp_path, model) as client:
+        draft = generate(client, {"template": "cover-letter", "job_text": posting, "inputs": {"company": "Initech", "role": "Platform Engineer"}})
+        generate(client, {"template": "cover-letter"}, 422)  # no posting and no company and role: nothing to write it for
+    assert model.payloads[0]["posting"] == posting and model.payloads[0]["company"] == "Initech" and model.payloads[0]["role"] == "Platform Engineer"
+    assert draft["flags"] == {} and "Initech" in draft["slots"]["para:1"]  # the company in the posting is not an invented name
+    assert "not an email" in model.systems[0] and "no subject line" in model.systems[0]

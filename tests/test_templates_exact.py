@@ -12,7 +12,7 @@ def letter(id: str, label: str, optional=()) -> TemplateSpec:
 
 
 def test_every_letter_template_has_its_exact_spec() -> None:
-    assert get_template("cover-letter") == letter("cover-letter", "Cover letter", optional=("recipient",))
+    assert get_template("cover-letter") == TemplateSpec("cover-letter", "Cover letter", (), "letter", (), ("recipient",))
     assert get_template("cover-letter-email") == letter("cover-letter-email", "Cover letter (email)",
                                                          optional=("recipient",))
 

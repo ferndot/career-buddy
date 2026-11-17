@@ -52,9 +52,7 @@ test('the chosen documents become side tabs in steps 4 and 5, and not before', a
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
   fireEvent.click(screen.getByRole('tab', { name: /Cover letter/ }))
   expect(screen.getByRole('tab', { name: /Cover letter/ })).toHaveAttribute('aria-selected', 'true')
-  expect(nextButton()).toBeDisabled() // the letter needs a role and company
-  fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
-  fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
+  expect(screen.queryByLabelText(/role|company/i)).not.toBeInTheDocument() // read from the posting, not asked
   expect(nextButton()).toBeEnabled()
   fireEvent.click(nextButton())
   expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 5 of 5 · Download')

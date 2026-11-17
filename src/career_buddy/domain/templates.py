@@ -28,15 +28,16 @@ RESUME_HYBRID = TemplateSpec("resume-hybrid", "Hybrid resume", (_SUMMARY, _SKILL
 _JOB = ("company", "role")
 
 
-def _letter(id: str, label: str, optional: tuple[str, ...] = ()) -> TemplateSpec:
-    return TemplateSpec(id, label, kind="letter", required=_JOB, optional=optional)
+def _letter(id: str, label: str, optional: tuple[str, ...] = (), required: tuple[str, ...] = _JOB) -> TemplateSpec:
+    return TemplateSpec(id, label, kind="letter", required=required, optional=optional)
 
 
 TEMPLATES = (
     RESUME_CLASSIC,
     RESUME_COMPACT,
     RESUME_HYBRID,
-    _letter("cover-letter", "Cover letter", optional=("recipient",)),
+    # the job-board letter: the company and role are read from the posting, not asked for
+    _letter("cover-letter", "Cover letter", optional=("recipient",), required=()),
     _letter("cover-letter-email", "Cover letter (email)", optional=("recipient",)),
 )
 _REGISTRY = {spec.id: spec for spec in TEMPLATES}

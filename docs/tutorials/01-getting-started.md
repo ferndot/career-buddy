@@ -68,7 +68,7 @@ Open **Documents** and choose **New document**. The wizard has five steps:
 1. **Job posting.** Paste a link to the posting and wait for the text, or paste the text yourself. You can also choose to write without a posting. Only public `http` and `https` links work; for a page that needs JavaScript or a login, paste the text.
 2. **Documents.** Choose a resume, a cover letter, or both.
 3. **Missing requirements.** The model reads the posting and lists requirements that none of your facts mention. Answer each one.
-4. **Template and preview.** Pick a template. A cover letter also needs the company and the role. Add directions for tone and length, and choose how many pages the resume should have. Read the draft and edit any text. Text marked for review could not be tied to your facts.
+4. **Template and preview.** Pick a template. A cover letter is written from the job posting and names the role and company it gives. Add directions for tone and length, and choose how many pages the resume should have. Read the draft and edit any text. Text marked for review could not be tied to your facts.
 5. **Download.** Choose a format and download the file.
 
 Documents you finish appear on the **Documents** screen, where you can open, download again, regenerate or delete them.
