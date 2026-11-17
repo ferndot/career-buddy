@@ -61,7 +61,7 @@ test('the cover letter tab has no length control and saves the default', async (
   await openAt(4, ['Cover letter'])
   fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
   fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
-  await screen.findByLabelText('Edit text: I am writing to apply.')
+  await screen.findByLabelText('Edit text: Paragraph one')
   expect(screen.queryByLabelText('Resume length')).not.toBeInTheDocument()
   expect((await saved(calls)).resume_pages).toBe(1)
 })
@@ -130,29 +130,28 @@ test('a draft the facts did not support is an error and the last draft stays', a
   expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
 })
 
-test('a cover letter paragraph is editable; the saved letter carries every paragraph, the template ones as generated text', async () => {
+test('a cover letter paragraph is editable; the saved letter carries every paragraph, the stub ones as generated text', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
   fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
   fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
-  const para = await screen.findByLabelText('Edit text: I am writing to apply.')
-  expect(screen.queryByLabelText('Edit text: Dear Hiring Team,')).not.toBeInTheDocument() // the greeting is the layout's
+  const para = await screen.findByLabelText('Edit text: Paragraph one')
   fireEvent.change(para, { target: { value: 'I would love to join Acme.' } })
-  expect(screen.getByLabelText('Edit text: I am writing to apply.')).toHaveValue('I would love to join Acme.')
+  expect(screen.getByLabelText('Edit text: Paragraph one')).toHaveValue('I would love to join Acme.')
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:1': 'I would love to join Acme.', headline: 'Engineer' })
-  expect(body.generated).toEqual({ 'para:1': 'I am writing to apply.', 'para:2': 'Thank you for your consideration.' })
+  expect(body.generated).toEqual({ 'para:1': 'Paragraph one', 'para:2': 'Paragraph two' })
 })
 
-test('a generated letter is its own paragraphs between the greeting and the sign-off', async () => {
+test('a generated letter is its own paragraphs under the header', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
   fireEvent.change(await screen.findByLabelText(/role/i), { target: { value: 'Engineer' } })
   fireEvent.change(screen.getByLabelText(/company/i), { target: { value: 'Acme' } })
-  await screen.findByLabelText('Edit text: I am writing to apply.')
+  await screen.findByLabelText('Edit text: Paragraph one')
   generate()
   expect(await screen.findByLabelText('Edit text: Generated two')).toBeInTheDocument()
-  expect(screen.queryByLabelText('Edit text: I am writing to apply.')).not.toBeInTheDocument() // replaced, not overlaid
+  expect(screen.queryByLabelText('Edit text: Paragraph one')).not.toBeInTheDocument() // replaced, not overlaid
   fireEvent.change(screen.getByLabelText('Edit text: Generated two'), { target: { value: 'Second, mine' } })
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:2': 'Second, mine', headline: 'Engineer' })

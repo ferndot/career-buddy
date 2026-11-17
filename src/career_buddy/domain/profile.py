@@ -1,9 +1,8 @@
-"""Assembles a read model (Profile) from facts and links, and ranks it against a job posting."""
+"""Assembles a read model (Profile) from facts and links."""
 
 from __future__ import annotations
 
 import math
-import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -95,22 +94,3 @@ def assemble_profile(batch: FactBatch) -> Profile:
     skills = targets(person.id, LinkKind.HAS_SKILL)
     return Profile(person.title, person.attributes, tuple(positions), tuple(education),
                    tuple(f.title for f in skills), person.id, tuple(f.id for f in skills))
-
-
-_WORD = re.compile(r"[a-z0-9+#.]+")
-
-
-def _words(text: str) -> set[str]:
-    return set(_WORD.findall(text.lower()))
-
-
-def rank_for_job(profile: Profile, job_text: str) -> tuple[list[PositionView], list[str]]:
-    """Positions ordered by overlap with the job text, and the profile skills the job mentions."""
-    wanted = _words(job_text)
-
-    def score(pos: PositionView) -> int:
-        return len(wanted & _words(" ".join([pos.title, *pos.achievements, *pos.skills])))
-
-    ranked = sorted(profile.positions, key=score, reverse=True)
-    matched = [s for s in profile.skills if _words(s) & wanted]
-    return ranked, matched

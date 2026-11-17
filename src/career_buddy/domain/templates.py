@@ -7,7 +7,6 @@ from typing import Literal
 
 from career_buddy.domain.dates import format_range
 from career_buddy.domain.document import Document, Entry, Line, Section
-from career_buddy.domain.letter_templates import LETTERS
 from career_buddy.domain.profile import PositionView, Profile
 
 
@@ -88,12 +87,13 @@ def _sections(profile: Profile) -> dict[str, tuple[Entry, ...]]:
 
 
 def build_document(profile: Profile, spec: TemplateSpec, inputs: dict[str, str] | None = None) -> Document:
-    if spec.kind != "resume":
-        return LETTERS[spec.id](profile, inputs or {})
-    available = _sections(profile)
-    sections = tuple(Section(label, available[key]) for key, label in spec.sections if available[key])
+    """A resume from the facts. A letter is only its header and an empty body: its text comes from a writer or the user."""
     person = profile.id or None
-    contact = profile.attributes.get("location", "")
-    headline = profile.attributes.get("headline", "")
-    intro = tuple(Line(text, person, field=_own(profile, name)) for name, text in (("location", contact), ("headline", headline)) if text)
-    return Document(Line(profile.name, person, field=_own(profile, "title")), intro, sections)
+    letter = spec.kind == "letter"
+    header = ("location",) if letter else ("location", "headline")
+    intro = tuple(Line(text, person, field=_own(profile, name)) for name in header if (text := profile.attributes.get(name, "")))
+    name = Line(profile.name, person, field=_own(profile, "title"))
+    if letter:
+        return Document(name, intro, (Section("", ()),), spec.label.title())  # the inputs (company, role) are for the writer
+    available = _sections(profile)
+    return Document(name, intro, tuple(Section(label, available[key]) for key, label in spec.sections if available[key]))

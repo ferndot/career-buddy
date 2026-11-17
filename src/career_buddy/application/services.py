@@ -14,6 +14,8 @@ from career_buddy.application.ports import (
     EventLog,
     FactExtractor,
     FactNotFound,
+    JobReviewer,
+    LLMUnavailable,
     NoOriginal,
     ObjectStore,
     SourceBusy,
@@ -39,8 +41,9 @@ from career_buddy.domain.events import (
 from career_buddy.domain.manual import manual_fact
 from career_buddy.domain.text import BULLETS
 from career_buddy.domain.model import Fact, FactBatch, FactKind, InvalidFact, Link, LinkKind
-from career_buddy.domain.letter import write_letter
-from career_buddy.domain.profile import Profile, assemble_profile, rank_for_job
+from career_buddy.domain.generation import MAX_POSTING
+from career_buddy.domain.profile import Profile, assemble_profile
+from career_buddy.domain.review import fact_text, uncovered, validate
 from collections.abc import Awaitable, Callable
 
 log = logging.getLogger(__name__)
@@ -294,7 +297,9 @@ class CareerQueries:
     """Read side. Assembles views from the projection; never writes."""
 
     def __init__(self, graph: Projector, jobs: SourceJobs,
-                 skill_matcher: Callable[[FactBatch], Awaitable[list[tuple[str, str, float]]]] | None = None) -> None:
+                 skill_matcher: Callable[[FactBatch], Awaitable[list[tuple[str, str, float]]]] | None = None,
+                 reviewer: JobReviewer | None = None) -> None:
+        self._reviewer = reviewer  # reads job postings; none means no model is connected
         self._graph = graph
         self._jobs = jobs
         self._skill_matcher = skill_matcher  # finds skill duplicates; none means only organizations and positions
@@ -344,9 +349,15 @@ class CareerQueries:
             if frozenset((a, b)) not in dismissed
         ]
 
-    async def cover_letter(self, job_text: str) -> str:
-        return write_letter(await self.profile(), job_text)
-
     async def fit(self, job_text: str) -> dict[str, object]:
-        positions, skills = rank_for_job(await self.profile(), job_text)
-        return {"positions": [p.title for p in positions], "matched_skills": skills}
+        """The model's review of the posting, validated against it, and which of its terms no fact covers. Only the posting is sent.
+
+        LLMUnavailable: no model is connected, or it did not answer. There is no keyword fallback."""
+        if self._reviewer is None:
+            raise LLMUnavailable("Connect a model in Settings to check the job posting for requirements.")
+        posting = job_text.strip()[:MAX_POSTING]
+        review = validate(await self._reviewer.review(posting), posting)
+        facts = fact_text(await self.profile())
+        return {"title": review.title, "company": review.company, "must_have": list(review.must_have),
+                "nice_to_have": list(review.nice_to_have), "missing_must_have": list(uncovered(review.must_have, facts)),
+                "missing_nice_to_have": list(uncovered(review.nice_to_have, facts))}

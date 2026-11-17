@@ -27,7 +27,6 @@ are fixed headings and have no slot.
 | `bullet:<achievement id>` | an achievement |
 | `edu:<education id>` | an education entry |
 | `skills` | the chosen skills, joined with commas. Their ids are in `data-fact-id`, fixed when the document is saved |
-| `greeting`, `subject`, `closing`, `signature` | a letter's greeting, an email letter's subject, the sign-off and the name under it |
 | `para:<n>` | a letter's paragraphs, counted from 1 |
 
 An id that would repeat gets `#2`, `#3`. The ids are stable, so `GET .../content` and `POST /api/documents/generate` use the same ones.
@@ -41,8 +40,7 @@ It is found when the document is read, every time, in this order:
    (the fact was edited or deleted) shows the facts instead. A summary or a paragraph rests on many facts and never goes stale;
 3. the current value of the fact it is bound to, so a later edit to the career facts shows in the next download. A fact
    that was deleted or merged away leaves its slot empty, and an empty line is left out;
-4. the placeholder: the layout's fixed wording (a letter's greeting and, until paragraphs are written, its template
-   sentences), otherwise empty. Fixed wording never resolves from a fact.
+4. the placeholder: the layout's own text, empty for a letter's slots (no code writes a letter's words). Placeholder text never resolves from a fact.
 
 So editing a fact after saving changes the download, except where the user's own words (an override) or the writer's text for a
 summary or paragraph stand in its place.

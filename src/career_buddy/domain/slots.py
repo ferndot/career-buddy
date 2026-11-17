@@ -6,7 +6,7 @@ when the document is shown or downloaded, in this order:
 1. the user's override for the slot (`overrides.json`), their own words;
 2. the text a writer generated for it (`generated.json`), unless the facts it was written from have changed since;
 3. the current value of the fact the slot is bound to (so edits to the career facts flow into the document);
-4. the placeholder, which is the layout's fixed wording (a greeting, a letter's template sentences), empty otherwise.
+4. the placeholder, the layout's own text, empty for a letter's slots: no code writes a letter's words.
 
 Slot ids: `name`, `location`, `headline`, `summary`, `skills`, `greeting`, `subject`, `closing`, `signature`,
 `heading:<position id>`, `bullet:<achievement id>`, `edu:<education id>` and, for fixed body lines and a letter's
@@ -131,20 +131,9 @@ def layout_overrides(given: Mapping[str, str], slots: Iterable[str]) -> dict[str
 
 
 def with_paragraphs(doc: Document, count: int) -> Document:
-    """A letter whose body is `count` empty paragraph slots in place of its template sentences, bullets and sign-off text.
-
-    The greeting, subject, closing and the name under it stay. The paragraphs get their words from overrides."""
-    if not doc.sections:
-        return doc
-
-    def field(entry: Entry) -> str:
-        return entry.paragraph.field if entry.paragraph and not entry.bullets else ""
-
-    entries = doc.sections[0].entries
-    head = [e for e in entries if field(e) in ("greeting", "subject")]
-    tail = [e for e in entries if field(e) in ("closing", "title")]  # the sign-off and the name under it
-    body = [Entry(paragraph=Line("", None, Origin.BOILERPLATE)) for _ in range(count)]
-    return replace(doc, sections=(Section(doc.sections[0].title, (*head, *body, *tail)), *doc.sections[1:]))
+    """A letter whose body is `count` empty paragraph slots. They get their words from overrides or the writer; none has fixed text."""
+    body = tuple(Entry(paragraph=Line("", None, Origin.BOILERPLATE)) for _ in range(count))
+    return replace(doc, sections=(Section(doc.sections[0].title if doc.sections else "", body), *doc.sections[1:]))  # a bodiless letter has no section yet
 
 
 def paragraph_indexes(keys: Iterable[str]) -> list[int]:

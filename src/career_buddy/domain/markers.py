@@ -127,12 +127,13 @@ def clean_document(doc: Document) -> tuple[Document, list[Change]]:
             tuple(b for b in map(line, item.bullets) if b.text.strip()),
         )
 
+    sections = (Section(s.title, tuple(map(entry, s.entries))) for s in doc.sections)
     return (
         replace(
             doc,
             name=line(doc.name),
             intro=tuple(map(line, doc.intro)),
-            sections=tuple(Section(s.title, tuple(map(entry, s.entries))) for s in doc.sections),
+            sections=tuple(s for s in sections if s.title or any(e.lines() for e in s.entries)),  # a letter nobody wrote has no body
         ),
         changes,
     )

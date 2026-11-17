@@ -155,18 +155,16 @@ def test_an_override_wins_over_a_later_fact_edit(client: TestClient) -> None:
     assert file(client, record, "txt").text.startswith("J. Doe\n")
 
 
-def test_letter_paragraphs_sent_with_a_save_replace_the_template_body_and_stay_editable_slots(client: TestClient, tmp_path: Path) -> None:
+def test_letter_paragraphs_sent_with_a_save_are_the_whole_body_and_stay_editable_slots(client: TestClient, tmp_path: Path) -> None:
     paragraphs = {"para:1": "I build data platforms.", "para:2": "Acme would get that from me."}
     record = client.post("/api/saved-documents", json={**LETTER, "overrides": paragraphs}).json()
     assert json.loads(stored(tmp_path, record, "overrides.json").read_text()) == paragraphs
     html = stored(tmp_path, record, "document.html").read_text()
     assert 'data-slot="para:1"' in html and 'data-slot="para:2"' in html and "I build data platforms" not in html
-    out = file(client, record, "txt").text.splitlines()
-    assert out[0] == "Jane Doe" and "Dear Hiring Team," in out and "I build data platforms." in out
-    assert out.index("Dear Hiring Team,") < out.index("I build data platforms.") < out.index("Acme would get that from me.") < out.index("Sincerely,")
-    assert "I am writing to apply" not in "\n".join(out)
+    out = [line for line in file(client, record, "txt").text.splitlines() if line]
+    assert out == ["Jane Doe", "Lisbon, Portugal", "I build data platforms.", "Acme would get that from me."]
     slots = client.get(f"/api/saved-documents/{record['id']}/content").json()["slots"]
-    assert slots["para:1"] == "I build data platforms." and slots["greeting"] == "Dear Hiring Team," and slots["signature"] == "Jane Doe"
+    assert slots["para:1"] == "I build data platforms." and slots["para:2"] == paragraphs["para:2"] and not {"greeting", "closing", "signature"} & slots.keys()
 
 
 def test_the_list_is_newest_first_and_survives_a_restart(tmp_path: Path) -> None:

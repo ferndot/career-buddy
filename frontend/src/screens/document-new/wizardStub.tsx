@@ -27,13 +27,13 @@ const preview = (missing: string[]) => ({
   ats: { format: 'docx', passes: true, issues: [] },
 })
 
-// A cover letter as the backend lays it out: greeting, two template paragraphs (para:1, para:2), sign-off and name.
+// A cover letter as a draft stub lays it out: two placeholder paragraphs (para:1, para:2) and the name. Stub text, not app output.
 const letter = (missing: string[]) => ({
   ...preview(missing),
   document: {
     name: line('Ada', 'person', 'title'), intro: [], label: 'Cover Letter',
     sections: [{ title: '', entries: [
-      ['Dear Hiring Team,', 'greeting'], ['I am writing to apply.', ''], ['Thank you for your consideration.', ''], ['Sincerely,', 'closing'], ['Ada', 'title'],
+      ['Paragraph one', ''], ['Paragraph two', ''], ['Ada', 'title'],
     ].map(([text, field]) => ({ heading: null, paragraph: line(text, 'person', field), bullets: [] })) }],
   },
 })

@@ -134,7 +134,7 @@ def test_each_resume_keeps_its_own_length_and_regenerating_uses_it_unless_given_
     assert [m["caps"]["pages"] for m in model.payloads] == [1, 2, 3, 3]
 
 
-def test_regenerating_a_letter_gives_it_the_models_paragraphs_between_the_greeting_and_the_sign_off(tmp_path: Path) -> None:
+def test_regenerating_a_letter_gives_it_the_models_paragraphs_under_the_header_and_nothing_else(tmp_path: Path) -> None:
     def write(p):
         senior = find(p, "Senior Engineer", "position")
         return {"paragraphs": [{"text": "I am applying for the Engineer role at Acme because reliability is the work I enjoy.", "fact_ids": [senior]},
@@ -142,12 +142,11 @@ def test_regenerating_a_letter_gives_it_the_models_paragraphs_between_the_greeti
 
     with open_client(tmp_path, Model(write)) as client:
         record = save(client, LETTER)
-        assert "I am writing to apply" in txt(client, record)  # the template's own sentences until a writer is asked
+        assert txt(client, record).split() == ["Jane", "Doe", "Lisbon,", "Portugal"]  # no code writes a letter: only the header until a writer is asked
         assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={}).status_code == 200
-        lines = txt(client, record).splitlines()
-    assert "I am writing to apply" not in "\n".join(lines)
-    assert lines.index("Dear Hiring Team,") < lines.index("I would welcome a conversation about the role.") < lines.index("Sincerely,")
-    assert any(line.startswith("I am applying for the Engineer role at Acme") for line in lines)
+        lines = [line for line in txt(client, record).splitlines() if line]
+    assert lines[:2] == ["Jane Doe", "Lisbon, Portugal"] and len(lines) == 4
+    assert lines[2].startswith("I am applying for the Engineer role at Acme") and lines[3] == "I would welcome a conversation about the role."
 
 
 def test_regenerating_without_a_model_or_a_source_or_a_good_answer_changes_nothing(tmp_path: Path) -> None:

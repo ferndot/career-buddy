@@ -24,7 +24,7 @@ export function NewDocumentScreen() {
     setW((prev) => ({ ...prev, docs: { ...prev.docs, [kind]: { ...prev.docs[kind], ...patch } } }))
   useEffect(() => saveDraft(w), [w]) // the draft saves itself
 
-  const { templates, profile, missing, loading, hasJob } = useWizardData(w, setW)
+  const { templates, profile, review, loading, hasJob } = useWizardData(w, setW)
   const { save, saved } = useSaved(w, templates.data)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
@@ -55,7 +55,7 @@ export function NewDocumentScreen() {
     failed ? <Text color="app.muted">Could not load your profile and templates.</Text> : <LoadingState text="Loading your profile and templates..." />
   ) :w.step === 3 ? (
     <>
-      <MissingPane w={w} missing={missing} set={set} />
+      <MissingPane w={w} review={review} set={set} />
       {profile.data && <FactsPicker doc={w.docs[active]} setDoc={setDoc(active)} profile={profile.data} hasJob={hasJob} loading={loading} />}
     </>
   ) : w.step === 4 ? (

@@ -11,6 +11,7 @@ from career_buddy.domain.document import Document, Style
 from career_buddy.domain.events import Event
 from career_buddy.domain.generation import Brief, Claim, Generated, Rejection
 from career_buddy.domain.model import Fact, FactBatch
+from career_buddy.domain.review import Review
 
 
 class FactExtractor(Protocol):
@@ -99,6 +100,13 @@ class DocumentWriter(Protocol):
 
     async def repair(self, brief: Brief, failed: Sequence[Rejection]) -> dict[str, Claim]:
         """One more try at the claims that failed, by slot id. Only those slots come back."""
+
+
+class JobReviewer(Protocol):
+    """LLM that reads a job posting, and nothing else, for what it requires. Its output is never trusted: it goes through
+    `domain.review.validate`. LLMUnavailable when the model cannot answer."""
+
+    async def review(self, posting: str) -> Review: ...
 
 
 class ObjectNotFound(Exception):

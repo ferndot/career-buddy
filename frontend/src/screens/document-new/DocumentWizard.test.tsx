@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { DOCS_QUESTION } from './DocsStep'
+import { stubReview } from './reviewStub'
 import { openAt, stubApi } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
@@ -60,7 +61,8 @@ test('the chosen documents become side tabs in steps 3 to 5, and not before', as
 })
 
 test('a requirement the career lacks asks Do you have it: No records it and moves on', async () => {
-  const calls = stubApi(['Kubernetes', 'Terraform'])
+  const calls = stubApi()
+  stubReview({ must_have: ['Python', 'Kubernetes', 'Terraform'], missing_must_have: ['Kubernetes', 'Terraform'] })
   await openAt(3)
   expect(await screen.findByText('Do you have Kubernetes?')).toBeInTheDocument()
   expect(screen.getByText('Do you have Terraform?')).toBeInTheDocument()
@@ -70,8 +72,39 @@ test('a requirement the career lacks asks Do you have it: No records it and move
   expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/facts'))).toBe(false) // No creates nothing
 })
 
+test('the review is asked about the posting only, and only the requirements the facts lack are listed', async () => {
+  stubApi()
+  const posted = stubReview({ must_have: ['Python', 'Terraform'], missing_must_have: ['Terraform'] })
+  await openAt(3)
+  expect(await screen.findByText('Do you have Terraform?')).toBeInTheDocument()
+  expect(screen.queryByText('Do you have Python?')).not.toBeInTheDocument() // a must-have the facts cover is not asked
+  expect(posted).toEqual([{ job_text: 'Python engineer with Kubernetes' }])
+})
+
+test('nice-to-have requirements sit in a separate group that starts collapsed', async () => {
+  stubApi()
+  stubReview({ missing_must_have: ['Terraform'], missing_nice_to_have: ['Rust'] })
+  await openAt(3)
+  const group = (await screen.findByText('Nice to have (1)')).closest('details')!
+  expect(group).not.toHaveAttribute('open')
+  expect(group).toContainElement(screen.getByText('Do you have Rust?'))
+  expect(group).not.toContainElement(screen.getByText('Do you have Terraform?'))
+})
+
+test('without a model the pane suggests nothing and links to Settings', async () => {
+  stubApi(['Kubernetes', 'Terraform']) // even the preview names missing terms: they are no longer used
+  stubReview('unavailable')
+  await openAt(3)
+  expect(await screen.findByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
+  expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+  expect(screen.queryByText(/Do you have/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Nice to have/)).not.toBeInTheDocument()
+  await waitFor(() => expect(nextButton()).toBeEnabled()) // the facts are still chosen and the wizard goes on
+})
+
 test('Yes opens the skill form with the requirement filled in, and adds it as a skill fact', async () => {
-  const calls = stubApi(['Kubernetes'])
+  const calls = stubApi()
+  stubReview({ missing_must_have: ['Kubernetes'] })
   await openAt(3)
   fireEvent.click(await screen.findByRole('button', { name: 'Yes, Kubernetes' }))
   const name = await screen.findByPlaceholderText('TypeScript')

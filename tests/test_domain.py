@@ -1,10 +1,10 @@
-"""Unit tests for the pure parts: text splitting, ranking, and the heuristic extractor."""
+"""Unit tests for the pure parts: text splitting and the heuristic extractor."""
 
 import asyncio
 
 from career_buddy.adapters.inference.heuristic import HeuristicExtractor
 from career_buddy.domain.model import FactKind
-from career_buddy.domain.profile import PositionView, Profile, assemble_profile, rank_for_job
+from career_buddy.domain.profile import assemble_profile
 from career_buddy.domain.text import split_bullets
 
 
@@ -12,20 +12,6 @@ def test_split_bullets_separates_prose_from_bullets() -> None:
     bullets, prose = split_bullets("Led a team.\n- Shipped v2\n• Hired 3")
     assert bullets == ("Shipped v2", "Hired 3")
     assert prose == "Led a team."
-
-
-def test_rank_prefers_positions_matching_the_job() -> None:
-    profile = Profile(
-        name="X",
-        positions=(
-            PositionView("Designer", "A", achievements=("Drew logos",)),
-            PositionView("Data Engineer", "B", achievements=("Built Spark pipelines",), skills=("Spark",)),
-        ),
-        skills=("Spark", "Painting"),
-    )
-    positions, skills = rank_for_job(profile, "Looking for a data engineer who knows Spark")
-    assert positions[0].title == "Data Engineer"
-    assert skills == ["Spark"]
 
 
 def test_heuristic_extracts_positions_bullets_and_skills() -> None:

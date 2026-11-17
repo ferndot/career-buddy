@@ -74,7 +74,8 @@ async def build_app(
     # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
     llm = LLMConnections(data_dir, llm_transport)
     model = llm.inference()
-    extractor, rewriter, writer = (model.extractor, model.rewriter, model.writer) if model else (HeuristicExtractor(), None, None)
+    extractor, rewriter, writer, reviewer = ((model.extractor, model.rewriter, model.writer, model.reviewer) if model
+                                             else (HeuristicExtractor(), None, None, None))
 
     readers = {
         "markdown": PlainTextReader(),
@@ -96,5 +97,5 @@ async def build_app(
     }
     documents = DocumentService(projector, renderers, readers, rewriter, merged=projector)
     generation = DocumentGeneration(documents, writer)
-    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates), documents,
+    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=reviewer), documents,
                SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm)

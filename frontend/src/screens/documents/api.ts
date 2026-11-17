@@ -26,7 +26,15 @@ export type Profile = {
   skills: string[]
   skill_ids: string[] // parallel to skills
 }
-export type Fit = { positions: string[]; matched_skills: string[] }
+/** The model's review of a job posting. `missing_*` are the terms none of the career facts cover. */
+export type Fit = {
+  title: string
+  company: string
+  must_have: string[]
+  nice_to_have: string[]
+  missing_must_have: string[]
+  missing_nice_to_have: string[]
+}
 export type Issue = { code: string; message: string }
 export type DocLine = { text: string; source_fact_id: string | null; origin: string; field: string; cites: string[] } // field and cites place the line in a saved layout (see slotDoc)
 export type DocEntry = { heading: DocLine | null; paragraph: DocLine | null; bullets: DocLine[] }

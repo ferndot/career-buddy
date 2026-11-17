@@ -326,10 +326,6 @@ def create_app(
         out = await documents(body, app().documents.render(body.template, body.format))
         return Response(out.data, media_type=out.media_type)
 
-    @api.post("/api/cover-letter", response_class=Response)
-    async def cover_letter(body: JobText) -> Response:
-        return Response(await app().queries.cover_letter(body.job_text), media_type="text/plain")
-
     @api.post("/api/fit")
     async def fit(body: JobText) -> dict[str, object]:
         return await app().queries.fit(body.job_text)

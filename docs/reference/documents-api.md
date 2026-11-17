@@ -39,8 +39,8 @@ template is `404`. Nothing is stored. A model is required: there is no text made
   "flags": { "bullet:x": { "code": "not_rewritten", "reasons": ["..."] }, "summary": { "code": "rejected", "reasons": ["..."] } } }
 ```
 
-- A resume gets `summary`, `bullet:<achievement id>` and `skills`; a letter gets `para:<n>` (a greeting and sign-off are the
-  layout's). The ids are the slot ids of [saved documents](saved-documents-api.md). A slot that is absent keeps what the facts say.
+- A resume gets `summary`, `bullet:<achievement id>` and `skills`; a letter gets `para:<n>` (a letter is its header and these paragraphs: no code writes its words).
+  The ids are the slot ids of [saved documents](saved-documents-api.md). A slot that is absent keeps what the facts say.
 - The model is sent every fact the document prints, as `{id, kind, text, position_id, started, finished}`: the summary, each
   position, each ticked achievement (its text includes its result), each ticked skill and education entry. A position's period
   goes with it and with its achievements. A fact the user did not tick, or hid, is not sent, and what the model writes for an id it
@@ -59,3 +59,14 @@ template is `404`. Nothing is stored. A model is required: there is no text made
   `{"detail", "code": "ungrounded", "rejected": [{"slot", "reasons"}]}`: more than 30% of the written texts (not counting pinned
   ones) were still rejected after the repair, or none was kept. The client keeps its last draft.
 - To keep a draft, send it as `generated` when saving.
+
+## Reviewing a job posting
+
+`POST /api/fit` with `{job_text}` asks the connected model what the posting requires. Only the posting is sent (cut to 6000
+characters), never a fact. It answers `{title, company, must_have, nice_to_have, missing_must_have, missing_nice_to_have}`.
+
+- Each term is a skill, tool, qualification or credential as the posting names it, at most 12 must-have and 8 nice-to-have.
+  A term the posting does not contain, the company or title, a one-word generic term (`domain/review.py`) or a duplicate is dropped.
+- `missing_*` are the terms whose meaningful words no career fact uses. The wizard asks about those only.
+- With no model, or one that does not answer, the answer is 503 with `code: "llm_unavailable"`. There is no keyword fallback.
+- The prompt is `adapters/inference/prompts/job_review_v1.txt`.

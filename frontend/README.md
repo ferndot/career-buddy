@@ -33,4 +33,4 @@ Screens: `sources` (`/sources`), `career` (`/career`), `documents` (`/documents`
 
 Use Chakra components for UI and the `app.*` tokens for color so light and dark both work.
 Data fetching: `useQuery`/`useMutation` with `apiFetch(endpoints.x.y())`. For file downloads
-(`/api/resume/{fmt}`, `/api/cover-letter`) use `apiUrl(path)` with a plain `fetch` or link.
+(`/api/resume/{fmt}`) use `apiUrl(path)` with a plain `fetch` or link.

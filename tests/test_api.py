@@ -59,10 +59,6 @@ def test_import_then_resume_and_letter(tmp_path: Path) -> None:
         assert html.headers["content-type"].startswith("text/html")
         assert "Cut build times by 60%" in html.text
 
-        letter = client.post("/api/cover-letter", json={"job_text": "We need Kubernetes and build speed experts"})
-        assert "Senior Engineer at Acme Corp" in letter.text
-        assert "Kubernetes" in letter.text
-
 
 def test_repeated_import_is_idempotent(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path)) as client:

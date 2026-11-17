@@ -88,15 +88,12 @@ export function clearDraft(): void {
   }
 }
 
-/** Starting selection: every skill and education entry; bullets narrowed to the positions the AI found fitting. */
-export function prefill(profile: Profile, positions: string[] | null): Partial<DocDraft> {
-  const wantedPositions = positions && new Set(positions)
+/** Starting selection: every skill, education entry and bullet. */
+export function prefill(profile: Profile): Partial<DocDraft> {
   return {
     headline: profile.attributes.headline ?? '',
     skillIds: profile.skill_ids,
-    bullets: profile.positions
-      .filter((p) => !wantedPositions || wantedPositions.has(p.title))
-      .flatMap((p) => p.achievement_ids),
+    bullets: profile.positions.flatMap((p) => p.achievement_ids),
     education: profile.education.map((e) => e.id),
     seeded: true,
   }
