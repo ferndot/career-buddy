@@ -14,6 +14,7 @@ The documentation follows the four Diataxis quadrants.
 - [Run the development servers](how-to/run-the-dev-servers.md)
 - [Run the tests](how-to/run-the-tests.md)
 - [Connect a model](how-to/connect-a-model.md)
+- [Override the writing rules](how-to/override-the-writing-rules.md)
 - [Store originals in S3](how-to/store-originals-in-s3.md)
 - [Bootstrap a SpecOps project](how-to/bootstrap-project.md)
 

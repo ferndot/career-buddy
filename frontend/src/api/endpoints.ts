@@ -64,4 +64,8 @@ export const endpoints = {
     active: () => '/api/llm/active', // PUT
     test: () => '/api/llm/test', // POST
   },
+  writing: {
+    rules: () => '/api/writing/rules', // GET
+    kind: (kind: 'resume' | 'letter') => `/api/writing/rules/${kind}`, // PUT, DELETE (204)
+  },
 } as const

@@ -6,6 +6,7 @@ import { AddConnectionDialog } from './AddConnectionDialog'
 import { AppearanceSettings } from './AppearanceSettings'
 import { ConnectionCard } from './ConnectionCard'
 import { useConnections, useProviders, type Connection } from './llmApi'
+import { WritingSettings } from './WritingSettings'
 
 export function SettingsScreen() {
   const [adding, setAdding] = useState(false)
@@ -26,9 +27,10 @@ export function SettingsScreen() {
       <PageHeader
         title="Settings"
       />
-      <Tabs.Root defaultValue="connections" variant="line">
+      <Tabs.Root defaultValue="connections" variant="line" lazyMount>
         <Tabs.List mb="5">
           <Tabs.Trigger value="connections">LLM connections</Tabs.Trigger>
+          <Tabs.Trigger value="writing">Writing</Tabs.Trigger>
           <Tabs.Trigger value="appearance">Appearance</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="connections">
@@ -45,6 +47,9 @@ export function SettingsScreen() {
               onEdit={setEditing} />
           ))}
           {items.length > 0 && addButton}
+        </Tabs.Content>
+        <Tabs.Content value="writing">
+          <WritingSettings />
         </Tabs.Content>
         <Tabs.Content value="appearance">
           <AppearanceSettings />

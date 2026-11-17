@@ -40,6 +40,7 @@ from career_buddy.domain.model import FactKind, InvalidFact
 from career_buddy.domain.templates import TEMPLATES
 from career_buddy.web.document_routes import document_router
 from career_buddy.web.llm_routes import llm_router
+from career_buddy.web.writing_routes import writing_router
 from career_buddy.web.requests import DocumentRequest, PreviewRequest, SuggestRequest, TailorRequest
 from career_buddy.web.saved_document_routes import saved_document_router
 from career_buddy.paths import default_data_dir
@@ -173,6 +174,7 @@ def create_app(
         return JSONResponse({"detail": f"Missing required input: {error}"}, status_code=422)
 
     api.include_router(llm_router(lambda: app().llm, rebuild))
+    api.include_router(writing_router(lambda: app().rules))
     api.include_router(saved_document_router(lambda: app().saved))
     api.include_router(document_router(lambda: app().generation))
     api.include_router(source_log_router(source_log, lambda: app().queries.sources()))

@@ -103,10 +103,12 @@ skills, education), each a list of items:
 in the template's order; cited ids the context lacks are dropped; empty items go; bullets over the cap, skills over the cap and
 paragraphs over six go; a bullet that rests on no achievement of its position (or of a position its item condenses) is dropped; positions are in the career's order.
 
+**Writing rules routes.** `GET /api/writing/rules` returns `{resume, letter}`, each `{rules, default, custom}`: `rules` is what the writer uses now, `default` the built-in list, `custom` whether the person saved their own. `PUT /api/writing/rules/{kind}` (`resume` or `letter`) with `{rules: [string]}` saves them and returns that kind's entry; each rule is trimmed, 1 to 300 characters, at most 20 rules, otherwise `422`; an empty list means the default. `DELETE /api/writing/rules/{kind}` returns the kind to the default (`204`). An unknown kind is `422`. They are stored in `writing-rules.json` in the data folder.
+
 **General rules.** `domain/writing_rules.py` holds the defaults as plain data: a tuple of rule strings per document kind
 (`DEFAULT_RULES["resume"]`, `DEFAULT_RULES["letter"]`). The generate use case puts the kind's tuple in `Brief.rules` and the writer adds
-it to the system message as "General rules for a resume/letter"; a different tuple (a person's own, later) replaces the default and an empty one adds
-none. The resume rules: plain headings and one date format; 3 to 6 bullets a role (5 to 8 for the current or most relevant role, 1 to 3
+it to the system message as "General rules for a resume/letter"; a different tuple replaces the default and an empty one adds
+none. A person's own rules (Settings > Writing) are saved per kind and read at each generate request; none saved means the default. See [Override the writing rules](../how-to/override-the-writing-rules.md). The resume rules: plain headings and one date format; 3 to 6 bullets a role (5 to 8 for the current or most relevant role, 1 to 3
 for older ones), each one or two lines; a strong, varied action verb first and results quantified where the facts give numbers; the most
 space for the last 10 to 15 years, older roles condensed into an "Earlier" line or left out; one page under about 10 years, two for 10 or
 more; no claim beyond the facts. The letter rules: 250 to 400 words in three or four short paragraphs, not repeating the resume, the exact

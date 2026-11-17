@@ -27,6 +27,7 @@ from career_buddy.adapters.readers.pdf_text import PdfTextReader
 from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
 from career_buddy.adapters.storage.local_object_store import LocalObjectStore
 from career_buddy.adapters.storage.s3_object_store import S3ObjectStore
+from career_buddy.adapters.storage.writing_rules_store import WritingRulesStore
 from career_buddy.application.documents import DocumentService
 from career_buddy.application.generation import DocumentGeneration
 from career_buddy.application.jobs import SourceJobs
@@ -45,6 +46,7 @@ class App:
     saved: SavedDocuments
     generation: DocumentGeneration
     llm: LLMConnections
+    rules: WritingRulesStore
 
 
 def object_store(data_dir: Path) -> ObjectStore:
@@ -100,6 +102,7 @@ async def build_app(
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
     documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
-    generation = DocumentGeneration(documents, current("writer"))
+    rules = WritingRulesStore(data_dir)
+    generation = DocumentGeneration(documents, current("writer"), rules.rules)
     return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer")), documents,
-               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm)
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules)

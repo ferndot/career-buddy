@@ -62,18 +62,20 @@ class Draft:
         return {"sections": sections, "slots": texts(self.doc), "flags": {k: asdict(f) for k, f in self.flags.items()}}
 
 
-def _brief(t: Tailored, options: TailorOptions, instructions: str, pinned: Collection[str], pages: int, template_instructions: str) -> Brief:
+def _brief(t: Tailored, rules: tuple[str, ...], options: TailorOptions, instructions: str, pinned: Collection[str], pages: int, template_instructions: str) -> Brief:
     """What the document prints, as the writer reads it. No name or contact details leave the machine."""
     keys = tuple(k for k, _ in t.spec.sections) if t.spec.kind == "resume" else (LETTER,)
     return Brief(t.spec.kind, brief_facts(t.profile, t.facts, t.absorbed), t.report.matched, t.report.missing,
                  options.inputs.get("company", ""), options.inputs.get("role", ""), instructions,
-                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys, DEFAULT_RULES[t.spec.kind])
+                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys, rules)
 
 
 class DocumentGeneration:
-    def __init__(self, documents: DocumentService, writer: Callable[[], DocumentWriter | None] = lambda: None) -> None:
+    def __init__(self, documents: DocumentService, writer: Callable[[], DocumentWriter | None] = lambda: None,
+                 rules: Callable[[str], tuple[str, ...]] = lambda kind: DEFAULT_RULES[kind]) -> None:  # type: ignore[index]
         self._documents = documents
         self._writer = writer
+        self._rules = rules  # read at each request: Settings can change them
 
     async def generate(self, template: str, options: TailorOptions, instructions: str = "",
                        pinned: Collection[str] = (), pages: int = 1, template_instructions: str = "") -> Draft:
@@ -87,7 +89,7 @@ class DocumentGeneration:
         writer = self._writer()  # asked at each request: a model can be connected after start
         if writer is None:
             raise LLMUnavailable(NO_MODEL)
-        brief = _brief(t, options, instructions.strip(), pinned, pages, template_instructions.strip())
+        brief = _brief(t, self._rules(t.spec.kind), options, instructions.strip(), pinned, pages, template_instructions.strip())
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]
