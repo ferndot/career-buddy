@@ -6,6 +6,7 @@ import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -74,8 +75,11 @@ async def build_app(
     # Inference adapter: the active LLM connection if there is one, otherwise the offline heuristic.
     llm = LLMConnections(data_dir, llm_transport)
     model = llm.inference()
-    extractor, rewriter, writer, reviewer = ((model.extractor, model.rewriter, model.writer, model.reviewer) if model
-                                             else (HeuristicExtractor(), None, None, None))
+    extractor = model.extractor if model else HeuristicExtractor()
+
+    def current(part: str) -> Callable[[], Any]:
+        """The active connection's rewriter, writer or reviewer, read at each request and never kept: Settings can change it."""
+        return lambda: getattr(m, part) if (m := llm.inference()) else None
 
     readers = {
         "markdown": PlainTextReader(),
@@ -95,7 +99,7 @@ async def build_app(
     renderers = {
         r.format: r for r in (MarkdownRenderer(), HtmlRenderer(), TextRenderer(), DocxRenderer(), PdfRenderer(), *extra_renderers)
     }
-    documents = DocumentService(projector, renderers, readers, rewriter, merged=projector)
-    generation = DocumentGeneration(documents, writer)
-    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=reviewer), documents,
+    documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
+    generation = DocumentGeneration(documents, current("writer"))
+    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer")), documents,
                SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm)

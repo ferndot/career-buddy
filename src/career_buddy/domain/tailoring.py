@@ -1,6 +1,6 @@
-"""Tailoring (plan-v2, "Tailoring"): pick and order what the profile already says for one job. Pure.
+"""Tailoring (plan-v2, "Tailoring"): order what the profile already says for one job. Pure.
 
-Nothing is invented. Bullets and skills are only selected and reordered, the summary is kept verbatim, and terms the
+Nothing is invented. Bullets and skills are only reordered, the summary is kept verbatim, and terms the
 profile lacks are reported as missing for the user to add if true.
 """
 
@@ -13,7 +13,6 @@ from dataclasses import dataclass, replace
 from career_buddy.domain.dates import parse
 from career_buddy.domain.document import Document, Entry, Line, Origin
 from career_buddy.domain.profile import PositionView, Profile
-from career_buddy.domain.templates import TemplateSpec
 
 # Generic English plus the filler of job postings. Plain data: extend freely.
 STOPWORDS = frozenset(
@@ -120,22 +119,16 @@ def _when(pos: PositionView) -> tuple[tuple[int, int], tuple[int, int]]:
     return _year_month(end) or _OPEN_END, _year_month(start) or (0, 0)
 
 
-def _pick(pos: PositionView, terms: list[Term], limit: int, selection: frozenset[str] | None) -> PositionView:
+def _pick(pos: PositionView, terms: list[Term]) -> PositionView:
     base = _weight(terms, grams(" ".join([pos.title, *pos.skills])))
     ids = pos.achievement_ids or ("",) * len(pos.achievements)
     items = [(base + _weight(terms, grams(text)), text, aid) for text, aid in zip(pos.achievements, ids)]
-    if selection is not None:
-        items = [item for item in items if item[2] in selection]
     items.sort(key=lambda item: -item[0])  # stable: ties keep their original order
-    if selection is None:
-        items = items[: max(1, limit)]
     return replace(pos, achievements=tuple(i[1] for i in items),
                    achievement_ids=tuple(i[2] for i in items) if pos.achievement_ids else ())
 
 
-def _skills(
-    profile: Profile, job_text: str, limit: int, selection: frozenset[str] | None = None
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _skills(profile: Profile, job_text: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
     lowered = job_text.lower()
     used = Counter(s.lower() for p in profile.positions for s in set(p.skills))
     ids = profile.skill_ids or ("",) * len(profile.skills)
@@ -149,8 +142,7 @@ def _skills(
     matched = sorted((r for r in rows if r[0] >= 0), key=lambda r: r[0])
     rest = sorted((r for r in rows if r[0] < 0), key=lambda r: -used[r[1].lower()])
     ordered = matched + rest
-    chosen = ordered[:limit] if selection is None else [r for r in ordered if r[2] in selection]  # a chosen set is not capped
-    return tuple(r[1] for r in chosen), tuple(r[2] for r in chosen) if profile.skill_ids else ()
+    return tuple(r[1] for r in ordered), tuple(r[2] for r in ordered) if profile.skill_ids else ()
 
 
 def _texts(profile: Profile) -> list[str]:
@@ -166,24 +158,12 @@ def _report(source: Profile, shown: Profile, terms: list[Term]) -> Report:
                   tuple(t.label for t in ranked if t.key not in have)[:REPORT_LIMIT])
 
 
-def tailor(
-    profile: Profile,
-    job_text: str,
-    spec: TemplateSpec,
-    selection: frozenset[str] | None = None,
-    skill_selection: frozenset[str] | None = None,
-    education_selection: frozenset[str] | None = None,
-) -> tuple[Profile, Report]:
-    """The profile reduced to what the template shows for this job, and the report.
-
-    `selection` is bullet ids, `skill_selection` skill ids, `education_selection` education ids. None keeps the
-    template's own choice; a set keeps exactly those that exist, ignoring the template's caps.
-    """
+def tailor(profile: Profile, job_text: str) -> tuple[Profile, Report]:
+    """The profile with every visible fact kept, bullets and skills ordered by how well they match the job, and the report."""
     terms = job_terms(job_text)
-    positions = tuple(_pick(p, terms, spec.bullets, selection) for p in sorted(profile.positions, key=_when, reverse=True))
-    skills, skill_ids = _skills(profile, job_text, spec.skills, skill_selection)
-    education = profile.education if education_selection is None else tuple(e for e in profile.education if e.id in education_selection)
-    tailored = replace(profile, positions=positions, education=education, skills=skills, skill_ids=skill_ids)
+    positions = tuple(_pick(p, terms) for p in sorted(profile.positions, key=_when, reverse=True))
+    skills, skill_ids = _skills(profile, job_text)
+    tailored = replace(profile, positions=positions, skills=skills, skill_ids=skill_ids)
     return tailored, _report(profile, tailored, terms)
 
 

@@ -6,7 +6,7 @@ caller saves the document with it as generated text.
 
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -50,7 +50,7 @@ def _brief(t: Tailored, options: TailorOptions, instructions: str, pinned: Colle
 
 
 class DocumentGeneration:
-    def __init__(self, documents: DocumentService, writer: DocumentWriter | None = None) -> None:
+    def __init__(self, documents: DocumentService, writer: Callable[[], DocumentWriter | None] = lambda: None) -> None:
         self._documents = documents
         self._writer = writer
 
@@ -61,15 +61,16 @@ class DocumentGeneration:
         KeyError: unknown template. MissingInputs: a letter without company or role. LLMUnavailable: no model, or it did not
         answer. UngroundedDraft: the model's text failed the facts."""
         t = await self._documents.tailored(template, options)
-        if self._writer is None:
+        writer = self._writer()  # asked at each request: a model can be connected after start
+        if writer is None:
             raise LLMUnavailable(NO_MODEL)
         brief = _brief(t, options, instructions.strip(), pinned, pages)
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]
-        kept, rejected = ground(brief, claims_of(brief, await self._writer.write(brief)), skills, protected)
+        kept, rejected = ground(brief, claims_of(brief, await writer.write(brief)), skills, protected)
         if rejected:
-            kept, rejected = await self._repaired(brief, kept, rejected, skills, protected)
+            kept, rejected = await self._repaired(writer, brief, kept, rejected, skills, protected)
         written = [slot for slot in kept if slot != "skills"]
         if not written or len(rejected) > MAX_REJECTED * (len(written) + len(rejected)):
             raise UngroundedDraft(rejected)
@@ -80,12 +81,12 @@ class DocumentGeneration:
             slots[r.slot] = titles.get(r.slot.removeprefix("bullet:"), "") if r.slot.startswith("bullet:") else ""
         return Draft(slots, {slot: list(claim.fact_ids) for slot, claim in kept.items()}, flags)
 
-    async def _repaired(self, brief: Brief, kept: dict[str, Claim], rejected: list[Rejection], skills: Sequence[str],
+    async def _repaired(self, writer: DocumentWriter, brief: Brief, kept: dict[str, Claim], rejected: list[Rejection], skills: Sequence[str],
                         protected: Sequence[str]) -> tuple[dict[str, Claim], list[Rejection]]:
         """One repair call for the failed slots only. What it does not fix, or does not answer, stays rejected."""
         failed = {r.slot: r for r in rejected}
         try:
-            retry = {slot: claim for slot, claim in (await self._writer.repair(brief, rejected)).items() if slot in failed}
+            retry = {slot: claim for slot, claim in (await writer.repair(brief, rejected)).items() if slot in failed}
         except LLMUnavailable:
             retry = {}
         fixed, still = ground(brief, retry, skills, protected)

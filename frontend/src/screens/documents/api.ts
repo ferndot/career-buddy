@@ -9,23 +9,6 @@ export type Template = {
   required: string[]
   optional: string[]
 }
-export type Position = {
-  id: string
-  title: string
-  organization: string
-  attributes: Record<string, string>
-  achievements: string[]
-  achievement_ids: string[]
-}
-export type Education = { id: string; school: string; degree: string }
-export type Profile = {
-  name: string
-  attributes: Record<string, string>
-  positions: Position[]
-  education: Education[]
-  skills: string[]
-  skill_ids: string[] // parallel to skills
-}
 /** The model's review of a job posting. `missing_*` are the terms none of the career facts cover. */
 export type Fit = {
   title: string
@@ -49,9 +32,6 @@ export type Preview = {
 export type TailorBody = {
   template: string
   job_text: string
-  selection?: string[]
-  skill_ids?: string[]
-  education_ids?: string[]
   inputs: Record<string, string>
   overrides?: Record<string, string> // the user's own wording, by slot id ("summary", "bullet:<fact id>", "para:<n>", "headline", ...)
 }
@@ -60,7 +40,6 @@ export type TailorBody = {
 export const previewQuery = (body: TailorBody) => ({ queryKey: ['details-preview', body], queryFn: () => getPreview(body) })
 
 export const getTemplates = () => apiFetch<Template[]>(endpoints.templates.list())
-export const getProfile = () => apiFetch<Profile>(endpoints.profile.get())
 export const getFit = (job_text: string) =>
   apiFetch<Fit>(endpoints.documents.fit(), { method: 'POST', body: { job_text } })
 export const getPreview = (body: TailorBody, format = 'docx') =>
@@ -90,10 +69,7 @@ export type SavedDocument = {
   created_at: string
   ats_issues: string[]
 }
-export type SaveBody = Omit<TailorBody, 'selection' | 'skill_ids' | 'education_ids'> & {
-  selection: string[] | null
-  skill_ids: string[] | null
-  education_ids: string[] | null
+export type SaveBody = TailorBody & {
   overrides: Record<string, string> // the user's own wording by slot id
   generated: Record<string, string> // the writer's text by slot id, kept apart so regenerating never touches an override
   instructions: string // the directions given to the writer, kept for regenerating

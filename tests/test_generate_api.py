@@ -144,26 +144,32 @@ def test_the_writer_is_sent_every_printed_fact_with_its_dates_and_no_name_or_con
     assert "Jane" not in text and "Portugal" not in text and "Platform engineer" not in text  # no name, location or headline
 
 
-def test_a_fact_that_is_not_ticked_or_is_hidden_is_not_sent_and_cannot_be_printed(tmp_path: Path) -> None:
-    model = Model(lambda p: {"bullets": [{"fact_id": "unticked", "text": "x"}], "summary": {"text": "Platform engineer.", "fact_ids": ["unticked"]}})
+def test_every_visible_fact_is_sent_even_when_a_position_has_many(tmp_path: Path) -> None:
+    model = Model(good)
+    with open_client(tmp_path, model) as client:
+        senior = ids(client)["Senior Engineer"]
+        extra = [client.post("/api/facts", json={"kind": "Achievement", "title": f"Extra task {n}", "parent_id": senior}).json()["id"] for n in range(8)]
+        generate(client, RESUME)
+    assert set(extra) <= {f["id"] for f in model.payloads[0]["facts"]}  # a position with eleven achievements: all eleven are in the request
+
+
+def test_a_hidden_fact_is_not_sent_and_cannot_be_printed(tmp_path: Path) -> None:
+    model = Model()
     with open_client(tmp_path, model) as client:
         known = ids(client)
         hide(client, known[ETL])
-        body = {**RESUME, "selection": [known[CUT]], "skill_ids": [known["Python"]], "education_ids": []}
-        generate(client, body, 502)  # nothing the model wrote cites a printed fact
-        sent = model.payloads[0]
-        texts = {f["text"].split("\n")[0] for f in sent["facts"]}
-        assert CUT in texts and "Python" in texts
-        assert not texts & {MIGRATED, ETL, "Kubernetes", "BSc Computer Science, University of Lisbon"}  # unticked, or hidden
-        assert all(f["id"] != known[ETL] for f in sent["facts"])
+        hide(client, known["Kubernetes"])
 
-        def names_them(p):  # the model writes bullets for facts it was not sent
-            return {"bullets": [{"fact_id": known[MIGRATED], "text": "Moved 40 services"}, {"fact_id": known[ETL], "text": "Built ETL"},
-                                {"fact_id": known[CUT], "text": "Reduced build times by 60%"}],
+        def names_them(p):  # the model writes bullets and skills for facts it was not sent
+            return {"bullets": [{"fact_id": known[ETL], "text": "Built ETL"}, {"fact_id": known[CUT], "text": "Reduced build times by 60%"}],
                     "skill_ids": [known["Kubernetes"], known["Python"]], "summary": {"text": "Engineer.", "fact_ids": [known[CUT]]}}
 
         model.write = names_them
-        draft = generate(client, body)
+        draft = generate(client, RESUME)
+    sent = model.payloads[0]["facts"]
+    texts = {f["text"].split("\n")[0] for f in sent}
+    assert {CUT, MIGRATED, "Python"} <= texts and not texts & {ETL, "Kubernetes"}
+    assert not {known[ETL], known["Kubernetes"]} & {f["id"] for f in sent}
     assert set(draft["slots"]) == {"summary", f"bullet:{known[CUT]}", "skills"}
     assert draft["slots"]["skills"] == "Python" and draft["flags"] == {}  # dropped, not flagged
 
@@ -308,7 +314,7 @@ def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_repaired_
     model = Model(write, lambda p: {"slots": [{"slot": "summary", "text": "Platform engineer.", "fact_ids": [find(p, CUT)]}]})
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
-    assert model.payloads[1]["failed"][0]["reasons"] == ["cites no selected fact"] and len(model.payloads[1]["facts"]) == 9  # none cited: all
+    assert model.payloads[1]["failed"][0]["reasons"] == ["cites no fact"] and len(model.payloads[1]["facts"]) == 9  # none cited: all
     assert draft["slots"]["summary"] == "Platform engineer." and draft["flags"] == {} and "not-a-fact" not in json.dumps(draft)
 
 

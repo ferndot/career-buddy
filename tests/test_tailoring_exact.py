@@ -4,7 +4,6 @@ import pytest
 
 from career_buddy.domain.profile import PositionView, Profile
 from career_buddy.domain.tailoring import is_tech, job_terms, stem, tailor
-from career_buddy.domain.templates import RESUME_CLASSIC, TemplateSpec
 
 
 @pytest.mark.parametrize(
@@ -76,7 +75,7 @@ def pos(title: str, **attrs: str) -> PositionView:
 
 def order(*positions: PositionView, skills: tuple[str, ...] = ()) -> list[str]:
     profile = Profile(name="X", positions=positions, skills=skills)
-    return [p.title for p in tailor(profile, "", RESUME_CLASSIC)[0].positions]
+    return [p.title for p in tailor(profile, "")[0].positions]
 
 
 def test_newer_positions_come_first_by_year_then_month() -> None:
@@ -106,28 +105,26 @@ def test_started_without_an_end_is_current() -> None:
     assert order(pos("Done", finished="2019"), pos("Open", started="2015")) == ["Open", "Done"]
 
 
-def test_bullet_limits_and_ids() -> None:
+def test_every_bullet_is_kept_and_ids_stay_empty_without_ids() -> None:
     position = PositionView("T", "O", achievements=("a", "b", "c"))
-    out, _ = tailor(Profile("X", positions=(position,)), "", TemplateSpec("t", bullets=0))
-    assert out.positions[0].achievements == ("a",) and out.positions[0].achievement_ids == ()
-    out, _ = tailor(Profile("X", positions=(position,)), "", TemplateSpec("t", bullets=1))
-    assert out.positions[0].achievements == ("a",)
+    out, _ = tailor(Profile("X", positions=(position,)), "")
+    assert out.positions[0].achievements == ("a", "b", "c") and out.positions[0].achievement_ids == ()
 
 
 def test_skills_matched_by_the_job_come_first_in_job_order() -> None:
     profile = Profile("X", skills=("Alpha", "Zeta", "Mu"), skill_ids=("1", "2", "3"))
-    skills, _ = tailor(profile, "Zeta then Alpha", RESUME_CLASSIC)[0].skills, None
+    skills, _ = tailor(profile, "Zeta then Alpha")[0].skills, None
     assert skills == ("Zeta", "Alpha", "Mu")
-    assert tailor(profile, "Zeta then Alpha", RESUME_CLASSIC)[0].skill_ids == ("2", "1", "3")
+    assert tailor(profile, "Zeta then Alpha")[0].skill_ids == ("2", "1", "3")
 
 
 def test_a_skill_at_the_very_start_of_the_job_is_matched_once() -> None:
     profile = Profile("X", skills=("Python", "Rust"))
-    out = tailor(profile, "Python developer", RESUME_CLASSIC)[0]
+    out = tailor(profile, "Python developer")[0]
     assert out.skills == ("Python", "Rust") and out.skill_ids == ()
 
 
 def test_the_report_lists_the_heaviest_terms_first() -> None:
     profile = Profile("X", positions=(PositionView("T", "O", achievements=("python rust",)),))
-    _, report = tailor(profile, "python rust rust", RESUME_CLASSIC)
+    _, report = tailor(profile, "python rust rust")
     assert report.matched[:2] == ("rust", "python")

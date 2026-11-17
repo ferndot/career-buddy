@@ -1,4 +1,4 @@
-"""Saved documents over HTTP: saved once as html, downloaded in any format. Skill / education selection in rendered documents."""
+"""Saved documents over HTTP: saved once as html, downloaded in any format. Every visible skill and education entry is printed."""
 
 import json
 import re
@@ -219,30 +219,9 @@ def render_text(client: TestClient, **extra) -> str:
     return render(client, "markdown", **extra).text
 
 
-def test_a_skill_selection_decides_which_skills_are_printed(client: TestClient) -> None:
+def test_every_visible_skill_and_education_entry_is_printed_in_renders_and_saved_documents(client: TestClient) -> None:
     ids = skill_ids(client)
     assert {"Python", "Kubernetes"} <= ids.keys()
-    assert "Python" in render_text(client) and "Kubernetes" in render_text(client)
-    only = render_text(client, skill_ids=[ids["Kubernetes"]])
-    assert "Kubernetes" in only and "Python" not in only.split("Skills")[-1]
-    assert "Skills" not in render_text(client, skill_ids=[])
-
-
-def test_an_education_selection_decides_which_entries_are_printed(client: TestClient) -> None:
-    education = client.get("/api/profile").json()["education"]
-    assert education and "University of Lisbon" in render_text(client)
-    assert "University of Lisbon" not in render_text(client, education_ids=[])
-    assert "University of Lisbon" in render_text(client, education_ids=[education[0]["id"]])
-
-
-def test_selections_reach_saved_documents_too(client: TestClient) -> None:
-    record = save(client, skill_ids=[skill_ids(client)["Kubernetes"]], education_ids=[]).json()
-    saved = file(client, record, "txt").text
-    assert "University of Lisbon" not in saved and "Python" not in saved.split("Skills")[-1]
-
-
-def test_preview_honours_the_same_selection(client: TestClient) -> None:
-    res = client.post("/api/documents/preview", json={"template": "resume-classic", "education_ids": [], "skill_ids": []})
-    assert res.status_code == 200
-    text = "\n".join(res.json()["lines"])
-    assert "University of Lisbon" not in text
+    saved = file(client, save(client).json(), "txt").text
+    for text in (render_text(client), saved, " ".join(client.post("/api/documents/preview", json={"template": "resume-classic"}).json()["lines"])):
+        assert "Python" in text and "Kubernetes" in text and "University of Lisbon" in text

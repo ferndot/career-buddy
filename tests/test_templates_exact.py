@@ -8,7 +8,7 @@ JOB = ("company", "role")
 
 
 def letter(id: str, label: str, optional=()) -> TemplateSpec:
-    return TemplateSpec(id, label, (), 2, 5, "letter", JOB, optional)
+    return TemplateSpec(id, label, (), "letter", JOB, optional)
 
 
 def test_every_letter_template_has_its_exact_spec() -> None:

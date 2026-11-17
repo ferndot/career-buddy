@@ -108,3 +108,45 @@ def test_without_a_model_the_review_is_503_with_a_stable_code_and_no_terms(tmp_p
 
 def test_a_model_that_fails_is_503_too(tmp_path: Path) -> None:
     refused(tmp_path, Model(status=500))
+
+
+def started_without_a_model(tmp_path: Path, model: Model) -> TestClient:
+    client = TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(model.respond)))
+    client.__enter__()
+    seed_jane(client)
+    return client
+
+
+def fit_status(client: TestClient) -> int:
+    return client.post("/api/fit", json={"job_text": POSTING}).status_code
+
+
+def test_a_model_connected_in_settings_after_start_is_used_and_disconnecting_it_is_503_again(tmp_path: Path) -> None:
+    model = Model({"title": "Platform Engineer", "company": "Initech", "must_have": ["Terraform"]})
+    client = started_without_a_model(tmp_path, model)
+    try:
+        assert fit_status(client) == 503
+        conn_id = connect_mock(client)
+        res = client.post("/api/fit", json={"job_text": POSTING})
+        assert res.status_code == 200 and res.json()["missing_must_have"] == ["Terraform"]
+        assert client.put("/api/llm/active", json={"id": None}).status_code == 200
+        refusal = client.post("/api/fit", json={"job_text": POSTING})
+        assert refusal.status_code == 503 and refusal.json()["detail"] == NO_MODEL
+        client.put("/api/llm/active", json={"id": conn_id})
+        assert fit_status(client) == 200
+    finally:
+        client.__exit__(None, None, None)
+
+
+def test_the_active_model_is_read_at_each_request_not_when_the_app_starts(tmp_path: Path, monkeypatch) -> None:
+    # A connection that appears with no call to the settings API (here the environment's) is used by the very next request.
+    model = Model({"title": "Platform Engineer", "company": "Initech", "must_have": ["Terraform"]})
+    client = started_without_a_model(tmp_path, model)
+    try:
+        assert fit_status(client) == 503
+        monkeypatch.setenv("CAREER_BUDDY_LLM_BASE_URL", "http://llm.test/v1")
+        assert fit_status(client) == 200
+        monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL")
+        assert fit_status(client) == 503
+    finally:
+        client.__exit__(None, None, None)

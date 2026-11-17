@@ -18,7 +18,6 @@ export function DocTabs({ w, templates, saved, onSelect }: Props) {
         const d = w.docs[k]
         const on = k === w.active
         const done = [
-          ['Facts', d.seeded && d.skillIds.length + d.bullets.length + d.education.length > 0],
           ['Template', !missingInputs(d, templates.find((t) => t.id === d.templateId))],
           ['Saved', saved.includes(k)],
         ] as const

@@ -2,7 +2,7 @@
 
 A writer (an LLM) fills text slots of the saved layout: the resume's summary, bullets and skills, or a cover letter's
 paragraphs. It never changes the layout. Every claim names the facts it comes from. The writer is sent exactly the facts the
-document prints: a fact the person did not tick, or hid, is not in the brief and so cannot be in the output.
+document prints: every fact the person can see. A hidden fact is not in the brief and so cannot be in the output.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ class Rejection:
 
 
 def brief_facts(profile: Profile, facts: Mapping[str, Fact], absorbed: Mapping[str, Sequence[Fact]]) -> tuple[BriefFact, ...]:
-    """The facts of a profile as a writer reads them. `profile` is what the document prints: hidden and unticked facts are not in it."""
+    """The facts of a profile as a writer reads them. `profile` is what the document prints: hidden facts are not in it."""
     out = [BriefFact(profile.id, "summary", profile.attributes["summary"])] if profile.id and profile.attributes.get("summary") else []
     for pos in profile.positions:
         when = {"started": pos.attributes.get("started", ""), "finished": pos.attributes.get("finished", "")}

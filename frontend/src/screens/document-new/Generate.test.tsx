@@ -33,13 +33,14 @@ test('generate sends the directions and shows the returned text as the default, 
   expect(await screen.findByLabelText('Edit text: Generated summary')).toHaveValue('Generated summary')
   expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
   expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({
-    template: 'resume-classic', instructions: 'Stress reliability', selection: ['b1'], skill_ids: ['s1', 's2'], education_ids: ['e1'], pinned: [], resume_pages: 1,
+    template: 'resume-classic', instructions: 'Stress reliability', pinned: [], resume_pages: 1,
   })
+  for (const picked of ['selection', 'skill_ids', 'education_ids']) expect(post(calls, '/api/documents/generate')[0].body).not.toHaveProperty(picked) // every visible fact is used
   expect(screen.queryByText('Edited')).not.toBeInTheDocument() // generated text is a default: no override, nothing to reset
   expect(screen.queryByRole('button', { name: /Reset to generated/ })).not.toBeInTheDocument()
   const body = await saved(calls)
   expect(body.generated).toEqual({ summary: 'Generated summary', 'bullet:b1': 'Generated bullet' }) // kept apart from the user's own words
-  expect(body.overrides).toEqual({ headline: 'Engineer' })
+  expect(body.overrides).toEqual({})
   expect(body.instructions).toBe('Stress reliability')
 })
 
@@ -78,7 +79,7 @@ test('an edit is an override keyed by slot id, reset removes it, and generated t
   expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet') // back to the generated text
   fireEvent.change(screen.getByLabelText('Edit text: Generated bullet'), { target: { value: 'My own bullet' } })
   const body = await saved(calls)
-  expect(body.overrides).toEqual({ 'bullet:b1': 'My own bullet', headline: 'Engineer' })
+  expect(body.overrides).toEqual({ 'bullet:b1': 'My own bullet' })
   expect(body.generated).toEqual({ summary: 'Generated summary', 'bullet:b1': 'Generated bullet' })
 })
 
@@ -139,7 +140,7 @@ test('a cover letter paragraph is editable; the saved letter carries every parag
   fireEvent.change(para, { target: { value: 'I would love to join Acme.' } })
   expect(screen.getByLabelText('Edit text: Paragraph one')).toHaveValue('I would love to join Acme.')
   const body = await saved(calls)
-  expect(body.overrides).toEqual({ 'para:1': 'I would love to join Acme.', headline: 'Engineer' })
+  expect(body.overrides).toEqual({ 'para:1': 'I would love to join Acme.' })
   expect(body.generated).toEqual({ 'para:1': 'Paragraph one', 'para:2': 'Paragraph two' })
 })
 
@@ -154,7 +155,7 @@ test('a generated letter is its own paragraphs under the header', async () => {
   expect(screen.queryByLabelText('Edit text: Paragraph one')).not.toBeInTheDocument() // replaced, not overlaid
   fireEvent.change(screen.getByLabelText('Edit text: Generated two'), { target: { value: 'Second, mine' } })
   const body = await saved(calls)
-  expect(body.overrides).toEqual({ 'para:2': 'Second, mine', headline: 'Engineer' })
+  expect(body.overrides).toEqual({ 'para:2': 'Second, mine' })
   expect(body.generated).toEqual({ 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' })
 })
 

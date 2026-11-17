@@ -1,5 +1,5 @@
 """A saved document is live: it keeps its layout, the user's overrides, the writer's generated text and what it was built from
-(the ticked facts and settings). Everything else is found from the facts at every download."""
+(the settings). Everything else is found from the facts at every download."""
 
 import json
 from pathlib import Path
@@ -34,19 +34,17 @@ def patch(client: TestClient, fact_id: str, title: str) -> None:
     assert client.patch(f"/api/facts/{fact_id}", json={"title": title}).status_code == 200
 
 
-def test_a_save_keeps_the_ticked_facts_and_the_settings_and_none_of_the_text(tmp_path: Path) -> None:
+def test_a_save_keeps_the_settings_and_none_of_the_text(tmp_path: Path) -> None:
     with open_client(tmp_path) as client:
-        known = ids(client)
-        record = save(client, selection=[known[CUT]], skill_ids=[known["Python"]], education_ids=[], job_text="Python platform",
+        record = save(client, job_text="Python platform",
                       inputs={"company": "Acme"}, instructions="  Warm  ", font="serif", paper="a4")
         assert content(client, record)["source"] == {"template": "resume-classic", "job_text": "Python platform", "inputs": {"company": "Acme"},
-                                                     "selection": [known[CUT]], "skill_ids": [known["Python"]], "education_ids": [], "instructions": "Warm",
-                                                     "resume_pages": 1}
+                                                     "instructions": "Warm", "resume_pages": 1}
         raw = stored(tmp_path, record, "source.json").read_text()
         assert "Jane" not in raw and CUT not in raw
         assert json.loads(stored(tmp_path, record, "meta.json").read_text())["paper"] == "a4"
         out = txt(client, record)
-    assert CUT in out and MIGRATED not in out and "Python" in out and "Kubernetes" not in out and "University of Lisbon" not in out  # only the ticked facts print
+    assert all(text in out for text in (CUT, MIGRATED, "Python", "Kubernetes", "University of Lisbon"))  # every visible fact prints
 
 
 def test_the_writers_text_is_kept_apart_from_the_users_overrides_and_is_not_in_the_layout(tmp_path: Path) -> None:

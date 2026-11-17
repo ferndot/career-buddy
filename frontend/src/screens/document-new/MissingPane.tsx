@@ -8,16 +8,16 @@ import type { Wizard } from './state'
 
 /** What the model's review of the posting found that the facts lack. `unavailable`: there is no review (no model, or it did not answer). */
 export type MissingReview = { missing: string[]; nice: string[]; unavailable: boolean }
-type Props = { w: Wizard; review: MissingReview; set: (patch: Partial<Wizard>) => void }
+type Props = { w: Wizard; review: MissingReview; set: (patch: Partial<Wizard>) => void; loading: boolean; hasJob: boolean }
 
 const frame = { bg: 'app.surface2', borderWidth: '1px', borderColor: 'app.border', borderRadius: 'lg', p: '4', mb: '5' } as const
 
 /**
- * One row per requirement the posting names that the career facts do not cover, must-haves first and nice-to-haves in a
+ * Step 3. One row per requirement the posting names that the career facts do not cover, must-haves first and nice-to-haves in a
  * collapsed group. Yes opens the skill form with the name filled in (the fact is created when the form is saved); No
  * records it as missing and moves on. Without a review there is nothing to ask, and no guessing from the text.
  */
-export function MissingPane({ w, review, set }: Props) {
+export function MissingPane({ w, review, set, loading, hasJob }: Props) {
   const qc = useQueryClient()
   const person = useFacts().data?.find((f) => f.kind === 'Person')
   const [adding, setAdding] = useState<string | null>(null)
@@ -34,7 +34,9 @@ export function MissingPane({ w, review, set }: Props) {
       </Box>
     )
   }
-  if (!open.length && !openNice.length && !none.length && !adding) return null
+  if (!open.length && !openNice.length && !none.length && !adding) {
+    return <Text role="status" fontSize="sm" color="app.muted" mb="5">{loading ? 'Reading the posting...' : hasJob ? 'Your career covers every requirement in the posting.' : 'No job posting was given, so there is nothing to check.'}</Text>
+  }
   const row = (t: string) => (
     <Box key={t} display="flex" alignItems="center" gap="3" flexWrap="wrap" py="1">
       <Text flex="1 1 200px" minW="0" fontSize="sm" color="app.text">Do you have {t}?</Text>
@@ -61,7 +63,7 @@ export function MissingPane({ w, review, set }: Props) {
           onClose={() => setAdding(null)}
           onAdded={() => {
             reply(adding, 'yes')
-            void qc.invalidateQueries({ queryKey: ['profile'] }) // the new skill reaches the picker
+            void qc.invalidateQueries({ queryKey: ['details-preview'] }) // the new skill reaches the preview
           }}
         />
       )}

@@ -103,21 +103,21 @@ def test_rendering_and_previewing_leave_the_facts_unchanged(client) -> None:
     assert DIRTY in {f["title"] for f in before}
 
 
-def test_selection_and_overrides_shape_the_document_without_touching_facts(client) -> None:
+def test_overrides_shape_the_document_without_touching_facts(client) -> None:
     senior = position(client, "Senior Engineer")
     cut = senior["achievement_ids"][senior["achievements"].index(CUT)]
-    out = preview(client, selection=[cut], overrides={cut: "Cut build times by 61%", senior["id"]: "Chief"})
-    assert "Cut build times by 61%" in out["lines"] and KUBE not in out["lines"]
+    out = preview(client, overrides={cut: "Cut build times by 61%", senior["id"]: "Chief"})
+    assert "Cut build times by 61%" in out["lines"] and KUBE in out["lines"]
     assert not any("Chief" in line for line in out["lines"])
     assert CUT in {f["title"] for f in client.get("/api/facts").json()}
 
 
-def test_compact_template_keeps_three_bullets_per_position(client) -> None:
-    for n in range(5):
+def test_every_visible_bullet_of_a_position_is_printed(client) -> None:
+    for n in range(8):
         add_bullet(client, f"Extra task {n}")
-    out = client.post("/api/documents/preview", json={"template": "resume-compact"}).json()
+    out = preview(client)
     experience = next(s for s in out["document"]["sections"] if s["title"] == "Experience")
-    assert max(len(e["bullets"]) for e in experience["entries"]) == 3
+    assert max(len(e["bullets"]) for e in experience["entries"]) >= 10
 
 
 def test_unknown_template_is_404(client) -> None:

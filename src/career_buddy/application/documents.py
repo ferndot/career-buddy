@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 
 from career_buddy.application.ports import (
@@ -31,14 +32,11 @@ class Rendered:
 
 @dataclass(frozen=True)
 class TailorOptions:
-    """What the user chose for one document: the job, which bullets to keep, and their own wording."""
+    """What the user chose for one document: the job and their own wording."""
 
     job_text: str = ""
-    selection: frozenset[str] | None = None  # bullet fact ids; None means the template's top-k
     overrides: dict[str, str] = field(default_factory=dict)  # bullet fact id -> user text
     inputs: dict[str, str] = field(default_factory=dict)  # template inputs: company, role, ...
-    skills: frozenset[str] | None = None  # skill fact ids; None means the template's top-k
-    education: frozenset[str] | None = None  # education fact ids; None means all
 
 
 @dataclass(frozen=True)
@@ -91,7 +89,7 @@ class DocumentService:
         graph: FactView,
         renderers: dict[str, DocumentRenderer],
         readers: dict[str, TextReader],
-        rewriter: Rewriter | None = None,
+        rewriter: Callable[[], Rewriter | None] = lambda: None,  # asked at each request: a model can be connected after start
         merged: MergedView | None = None,
     ) -> None:
         self._graph = graph
@@ -105,7 +103,7 @@ class DocumentService:
         if missing := [name for name in spec.required if not options.inputs.get(name, "").strip()]:
             raise MissingInputs(", ".join(missing))
         profile = assemble_profile(await self._graph.snapshot())
-        tailored, report = tailor(profile, options.job_text, spec, options.selection, options.skills, options.education)
+        tailored, report = tailor(profile, options.job_text)
         tailored = override_paragraphs(tailored, options.overrides)
         doc, markers = clean_document(apply_overrides(build_document(tailored, spec, options.inputs), options.overrides))
         return doc, Preview(doc, report, markers), profile
@@ -115,7 +113,7 @@ class DocumentService:
         if missing := [name for name in spec.required if not options.inputs.get(name, "").strip()]:
             raise MissingInputs(", ".join(missing))
         batch = await self._graph.snapshot()
-        profile, report = tailor(assemble_profile(batch), options.job_text, spec, options.selection, options.skills, options.education)
+        profile, report = tailor(assemble_profile(batch), options.job_text)
         return Tailored(spec, profile, report, {f.id: f for f in batch.facts}, await self._merged.absorbed())
 
     async def lookup(self) -> dict[tuple[str, str], str]:
@@ -164,12 +162,13 @@ class DocumentService:
     async def suggest(self, template_id: str, options: TailorOptions) -> Suggestions:
         """LLM wording for the bullets the document would show, written from each achievement's knowledge.
         Only those that pass the verifier come back."""
-        if self._rewriter is None:
+        rewriter = self._rewriter()
+        if rewriter is None:
             raise LLMUnavailable("No LLM is configured")
         spec = get_template(template_id)
         batch = await self._graph.snapshot()
         profile = assemble_profile(batch)
-        tailored, report = tailor(profile, options.job_text, spec, options.selection, options.skills, options.education)
+        tailored, report = tailor(profile, options.job_text)
         skills = [*profile.skills, *(s for p in profile.positions for s in p.skills)]
         protected = [*(t for p in profile.positions for t in (p.title, p.organization)),
                      *(t for e in profile.education for t in (e.degree, e.school))]
@@ -183,7 +182,7 @@ class DocumentService:
 
         async def reword(aid: str, shown: str) -> tuple[str, list[str]]:
             source = source_of(aid, shown)
-            text, _ = clean(await self._rewriter.rewrite(source, report.matched, options.job_text), Origin.SUGGESTION)
+            text, _ = clean(await rewriter.rewrite(source, report.matched, options.job_text), Origin.SUGGESTION)
             return text, verify_rewording(source, text, skills, protected, report.missing)
 
         results = await asyncio.gather(*(reword(aid, text) for aid, text in rows))

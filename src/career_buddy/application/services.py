@@ -298,8 +298,8 @@ class CareerQueries:
 
     def __init__(self, graph: Projector, jobs: SourceJobs,
                  skill_matcher: Callable[[FactBatch], Awaitable[list[tuple[str, str, float]]]] | None = None,
-                 reviewer: JobReviewer | None = None) -> None:
-        self._reviewer = reviewer  # reads job postings; none means no model is connected
+                 reviewer: Callable[[], JobReviewer | None] = lambda: None) -> None:
+        self._reviewer = reviewer  # asked at each request, since a model can be connected after start; none means no model is connected
         self._graph = graph
         self._jobs = jobs
         self._skill_matcher = skill_matcher  # finds skill duplicates; none means only organizations and positions
@@ -353,10 +353,11 @@ class CareerQueries:
         """The model's review of the posting, validated against it, and which of its terms no fact covers. Only the posting is sent.
 
         LLMUnavailable: no model is connected, or it did not answer. There is no keyword fallback."""
-        if self._reviewer is None:
+        reviewer = self._reviewer()
+        if reviewer is None:
             raise LLMUnavailable("Connect a model in Settings to check the job posting for requirements.")
         posting = job_text.strip()[:MAX_POSTING]
-        review = validate(await self._reviewer.review(posting), posting)
+        review = validate(await reviewer.review(posting), posting)
         facts = fact_text(await self.profile())
         return {"title": review.title, "company": review.company, "must_have": list(review.must_have),
                 "nice_to_have": list(review.nice_to_have), "missing_must_have": list(uncovered(review.must_have, facts)),

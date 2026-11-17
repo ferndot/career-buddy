@@ -28,11 +28,11 @@ export function JobStep({ w, set }: Props) {
   const run = (url: string) => {
     latest.current = url
     setStatus('loading')
-    set({ jobText: '', prefilled: false })
+    set({ jobText: '' })
     fetchJobText(url)
       .then((r) => {
         if (latest.current !== url) return // a newer URL replaced this one
-        set({ jobText: r.text, prefilled: false })
+        set({ jobText: r.text })
         setStatus('ok')
       })
       .catch(() => latest.current === url && setStatus('error'))
@@ -97,7 +97,7 @@ export function JobStep({ w, set }: Props) {
           placeholder="Paste the full text of the posting"
           value={w.jobText}
           onChange={(e) => {
-            set({ jobText: e.target.value, prefilled: false })
+            set({ jobText: e.target.value })
             setPasteOpen(true)
             setStatus(e.target.value.trim() ? 'ok' : 'idle')
           }}

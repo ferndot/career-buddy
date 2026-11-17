@@ -33,21 +33,20 @@ test('step 2 asks in a bubble below the robot and lets several documents be chos
   expect(nextButton()).toBeDisabled()
 })
 
-test('the chosen documents become side tabs in steps 3 to 5, and not before', async () => {
+test('the chosen documents become side tabs in steps 4 and 5, and not before', async () => {
   stubApi()
   await openAt(2)
   expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
   fireEvent.click(screen.getByRole('checkbox', { name: 'Cover letter' }))
   fireEvent.click(nextButton())
-  await screen.findByLabelText('SQL')
-  const tabs = () => screen.getAllByRole('tab').map((t) => t.textContent?.split(/Facts|Template|Saved/)[0])
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 3 of 5 · Missing requirements')
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument() // what the posting needs is asked once, not per document
+  fireEvent.click(nextButton())
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 4 of 5 · Template and preview')
+  const tabs = () => screen.getAllByRole('tab').map((t) => t.textContent?.split(/Template|Saved/)[0])
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
   expect(screen.getByRole('tab', { name: /Resume/ })).toHaveAttribute('aria-selected', 'true')
-  await waitFor(() => expect(nextButton()).toBeEnabled())
-  expect(screen.getByRole('tab', { name: /Resume/ })).toHaveTextContent('Facts done') // progress shows on the tab
-  fireEvent.click(nextButton())
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 4 of 5 · Template')
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
   fireEvent.click(screen.getByRole('tab', { name: /Cover letter/ }))
   expect(screen.getByRole('tab', { name: /Cover letter/ })).toHaveAttribute('aria-selected', 'true')
@@ -58,6 +57,17 @@ test('the chosen documents become side tabs in steps 3 to 5, and not before', as
   fireEvent.click(nextButton())
   expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 5 of 5 · Download')
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
+})
+
+test('the wizard has five steps and none of them picks facts', async () => {
+  stubApi()
+  stubReview({ must_have: ['Python'] })
+  await openAt(3)
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 3 of 5 · Missing requirements')
+  expect(await screen.findByText('Your career covers every requirement in the posting.')).toBeInTheDocument()
+  expect(screen.queryAllByRole('checkbox')).toHaveLength(0) // no skill, bullet or education to tick
+  expect(screen.queryByLabelText('Headline')).not.toBeInTheDocument()
+  expect(nextButton()).toBeEnabled()
 })
 
 test('a requirement the career lacks asks Do you have it: No records it and moves on', async () => {
@@ -99,7 +109,7 @@ test('without a model the pane suggests nothing and links to Settings', async ()
   expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   expect(screen.queryByText(/Do you have/)).not.toBeInTheDocument()
   expect(screen.queryByText(/Nice to have/)).not.toBeInTheDocument()
-  await waitFor(() => expect(nextButton()).toBeEnabled()) // the facts are still chosen and the wizard goes on
+  expect(nextButton()).toBeEnabled() // nothing to answer: the wizard goes on
 })
 
 test('Yes opens the skill form with the requirement filled in, and adds it as a skill fact', async () => {
@@ -136,10 +146,10 @@ test('step 4 edits are overrides on the document: reset to generated removes the
   await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))).toBe(true))
   const save = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))!
   expect(save.body).toMatchObject({
-    template: 'resume-classic', skill_ids: ['s1', 's2'], education_ids: ['e1'], selection: ['b1'],
-    overrides: { 'bullet:b1': 'Shipped it to 1M users', summary: 'Builds reliable things', headline: 'Engineer' },
+    template: 'resume-classic',
+    overrides: { 'bullet:b1': 'Shipped it to 1M users', summary: 'Builds reliable things' },
   })
-  expect(save.body).not.toHaveProperty('format')
+  for (const key of ['format', 'selection', 'skill_ids', 'education_ids']) expect(save.body).not.toHaveProperty(key)
   const previews = calls.filter((c) => c.url.includes('preview') && c.body?.template === 'resume-classic')
   for (const p of previews) expect(p.body?.overrides ?? {}).not.toHaveProperty('bullet:b1') // the preview shows generated text
 })

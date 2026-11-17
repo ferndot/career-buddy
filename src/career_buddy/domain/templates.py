@@ -15,8 +15,6 @@ class TemplateSpec:
     id: str
     label: str = ""  # shown in the template picker
     sections: tuple[tuple[str, str], ...] = ()  # resumes: (section key, fixed ATS heading label)
-    bullets: int = 5  # most bullets kept per position
-    skills: int = 15  # most skills listed
     kind: Literal["resume", "letter"] = "resume"
     required: tuple[str, ...] = ()  # input names the caller must give
     optional: tuple[str, ...] = ()
@@ -25,13 +23,13 @@ class TemplateSpec:
 _SUMMARY, _EXPERIENCE, _EDUCATION, _SKILLS = (
     ("summary", "Summary"), ("experience", "Experience"), ("education", "Education"), ("skills", "Skills"))
 RESUME_CLASSIC = TemplateSpec("resume-classic", "Classic resume", (_SUMMARY, _EXPERIENCE, _EDUCATION, _SKILLS))
-RESUME_COMPACT = TemplateSpec("resume-compact", "Compact resume", RESUME_CLASSIC.sections, bullets=3, skills=10)
+RESUME_COMPACT = TemplateSpec("resume-compact", "Compact resume", RESUME_CLASSIC.sections)
 RESUME_HYBRID = TemplateSpec("resume-hybrid", "Hybrid resume", (_SUMMARY, _SKILLS, _EXPERIENCE, _EDUCATION))
 _JOB = ("company", "role")
 
 
 def _letter(id: str, label: str, optional: tuple[str, ...] = ()) -> TemplateSpec:
-    return TemplateSpec(id, label, bullets=2, skills=5, kind="letter", required=_JOB, optional=optional)
+    return TemplateSpec(id, label, kind="letter", required=_JOB, optional=optional)
 
 
 TEMPLATES = (

@@ -94,7 +94,7 @@ def ground(
         if not text:
             reasons = ["empty"]
         elif not ids:
-            reasons = ["cites no selected fact"]
+            reasons = ["cites no fact"]
         elif slot.startswith("bullet:"):
             reasons = verify_rewording(texts[ids[0]], text, skills, protected, brief.missing)
         else:

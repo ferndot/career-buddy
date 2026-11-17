@@ -51,7 +51,7 @@ def test_an_unknown_id_is_dropped_from_a_claim_and_a_claim_left_with_none_is_rej
                                      Claim("I cut build times by 60%.", ())))
     kept, rejected = checked(BRIEF, written)
     assert kept == {"para:1": Claim("I cut build times by 60% for Acme.", ("a1",))}
-    assert [(r.slot, r.reasons) for r in rejected] == [("para:2", ("cites no selected fact",)), ("para:3", ("cites no selected fact",))]
+    assert [(r.slot, r.reasons) for r in rejected] == [("para:2", ("cites no fact",)), ("para:3", ("cites no fact",))]
     assert rejected[0].claim == Claim("I cut build times by 60%.", ())  # what the repair call is shown
 
 

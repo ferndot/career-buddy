@@ -5,11 +5,6 @@ import { renderApp } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
 
 const line = (text: string, id: string | null = null, field = '') => ({ text, source_fact_id: id, origin: 'fact', field, cites: [] })
-const profile = {
-  name: 'Ada', attributes: { headline: 'Engineer' }, skills: ['Python', 'SQL'], skill_ids: ['s1', 's2'],
-  positions: [{ id: 'p1', title: 'Engineer', organization: 'Acme', attributes: {}, achievements: ['Shipped it'], achievement_ids: ['b1'] }],
-  education: [{ id: 'e1', school: 'MIT', degree: 'BS' }],
-}
 const templates = [
   { id: 'resume-classic', kind: 'resume', label: 'Classic resume', formats: ['docx', 'pdf'], required: [], optional: [] },
   { id: 'cover-letter', kind: 'letter', label: 'Cover letter', formats: ['docx', 'pdf'], required: ['role', 'company'], optional: [] },
@@ -65,7 +60,6 @@ export function stubApi(missing: string[] = [], model = true, generate?: (asked:
     if (method === 'POST' && u.endsWith('/api/facts')) return new Response(JSON.stringify({ id: 'new' }), { status: 201 })
     if (u.includes('/file')) return new Response('data', { headers: { 'Content-Disposition': 'attachment; filename="resume.txt"' } })
     const body = u.includes('templates') ? templates
-      : u.includes('/api/profile') ? profile
       : u.includes('preview') ? preview(missing)
       : u.endsWith('/api/facts') ? [{ id: 'person', kind: 'Person', title: 'Ada', attributes: {}, source: '' }]
       : u.includes('/api/fit') ? { positions: ['Engineer'], matched_skills: [] }
@@ -86,9 +80,7 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   if (step === 2) return
   for (const k of kinds) fireEvent.click(screen.getByRole('checkbox', { name: k }))
   next()
-  if (step === 3) return screen.findByLabelText('SQL')
-  await screen.findByLabelText('SQL')
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
+  if (step === 3) return
   next()
   if (step === 4) return
   if (kinds.includes('Cover letter')) {

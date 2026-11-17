@@ -2,7 +2,7 @@
 
 A saved document is live. It keeps a layout of restricted HTML plus CSS (`document.html`, `document.css`), what the user
 wrote (`overrides.json`, by slot id), what a writer generated (`generated.json`) and what it was built from (`source.json`:
-the ticked facts and the settings). The text of every other slot is found when the document is read (domain/slots.py), so a
+the settings). The text of every other slot is found when the document is read (domain/slots.py), so a
 later edit to a fact shows in the next download. The document is converted to the requested format at download time.
 """
 
@@ -59,29 +59,20 @@ class SavedMeta:
 
 @dataclass(frozen=True)
 class SavedSource:
-    """What a document was built from: which facts were ticked, and the job and directions. No text of its own."""
+    """What a document was built from: the job, the inputs and the directions. No text of its own."""
 
     template: str
     job_text: str = ""
     inputs: dict[str, str] = field(default_factory=dict)
-    selection: list[str] | None = None  # bullet fact ids; None means the template's own choice
-    skill_ids: list[str] | None = None
-    education_ids: list[str] | None = None
     instructions: str = ""  # the user's directions for the writer
     resume_pages: int = 1  # how long a resume should be: 1, 2 or 3 pages
 
     @staticmethod
     def of(template: str, options: TailorOptions, instructions: str, resume_pages: int) -> SavedSource:
-        def ids(chosen: frozenset[str] | None) -> list[str] | None:
-            return None if chosen is None else sorted(chosen)
-
-        return SavedSource(template, options.job_text, options.inputs, ids(options.selection), ids(options.skills), ids(options.education), instructions, resume_pages)
+        return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages)
 
     def options(self, overrides: dict[str, str]) -> TailorOptions:
-        def ids(chosen: list[str] | None) -> frozenset[str] | None:
-            return None if chosen is None else frozenset(chosen)
-
-        return TailorOptions(self.job_text, ids(self.selection), overrides, self.inputs, ids(self.skill_ids), ids(self.education_ids))
+        return TailorOptions(self.job_text, overrides, self.inputs)
 
 
 @dataclass(frozen=True)
