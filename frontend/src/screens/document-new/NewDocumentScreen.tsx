@@ -69,7 +69,7 @@ export function NewDocumentScreen() {
         <StepIndicator current={w.step} />
         <Flex alignItems="center" gap="3">
           {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
-          {w.step >= 4 && !logOpen && (
+          {!logOpen && !reviewing.active && (
             <Button variant="ghost" color="app.link" onClick={() => setLogOpen(true)}>
               Logs
             </Button>
@@ -95,7 +95,7 @@ export function NewDocumentScreen() {
             </Box>
           )}
         </Box>
-        {logOpen && ((w.step === 1 && reviewing.active) || w.step >= 4) && (
+        {logOpen && (
           <ActivityLog
             docked
             title={w.step === 1 ? 'Job posting review' : 'Document activity'}

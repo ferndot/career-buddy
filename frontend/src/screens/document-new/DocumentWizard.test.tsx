@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
@@ -230,6 +230,8 @@ test('with no model (503) the user goes on to step 2 and step 3 links to Setting
   fireEvent.click(nextButton())
   expect(screen.getByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
   expect(posted).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
+  expect(within(screen.getByRole('log')).getByText(/No answer from the model: Connect a model in Settings/)).toBeInTheDocument()
 })
 
 test('another failure keeps the page up: Try again reads the posting, Continue without requirements goes on', async () => {
