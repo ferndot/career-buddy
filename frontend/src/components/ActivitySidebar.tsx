@@ -73,13 +73,13 @@ function Panel() {
       p="4"
       bg="app.surface"
       borderColor="app.border"
-      borderWidth={{ base: '1px 0 0', xl: '0 0 0 1px' }}
+      borderWidth="0 0 0 1px"
       flexShrink={0}
-      // Wide screens: a column of the page that takes its width out of the content and stays in view. Phones: a block below it.
-      w={{ base: 'full', xl: 'var(--log-width)' }}
-      position={{ base: 'relative', xl: 'sticky' }}
-      top={{ xl: '0' }}
-      h={{ xl: '100vh' }}
+      // Always beside the page: a column that takes its width out of the content and stays in view.
+      w="var(--log-width)"
+      position="sticky"
+      top="0"
+      h="100vh"
       style={{ '--log-width': `${width}px` } as CSSProperties}
     >
       <Box
@@ -91,7 +91,7 @@ function Panel() {
         aria-valuemax={max}
         tabIndex={0}
         {...handle}
-        display={{ base: 'none', xl: 'block' }}
+        display="block"
         position="absolute"
         left="-3px"
         top="0"

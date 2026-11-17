@@ -29,8 +29,8 @@ export function AppShell() {
         </Flex>
         <SidebarNav />
       </Flex>
-      {/* The activity sidebar takes its width out of the page on wide screens and sits below the page on phones. */}
-      <Flex flex="1" minW="0" direction={{ base: 'column', xl: 'row' }}>
+      {/* The activity sidebar always sits beside the page and takes its width out of it. */}
+      <Flex flex="1" minW="0">
         <Box as="main" flex="1" minW="0" px={{ base: '4', md: '10' }} py={{ base: '5', md: '8' }}>
           <Outlet />
         </Box>
