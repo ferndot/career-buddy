@@ -40,7 +40,7 @@ const letter = (missing: string[]) => ({
 
 const text = (slot: string, t: string, fact_ids: string[] = []) => ({ slot, text: t, fact_ids })
 const item = (x: { slot?: string; text?: string; fact_ids?: string[]; position_id?: string; heading?: string; bullets?: ReturnType<typeof text>[] }) =>
-  ({ slot: '', text: '', fact_ids: [], position_id: '', heading: '', bullets: [], ...x })
+  ({ slot: '', text: '', fact_ids: [], position_id: '', heading: '', also: [], also_headings: [], bullets: [], ...x })
 
 /** What the writer returns, by kind of document: the document as sections of items, each text with its slot id. A letter is one `body` block of paragraphs. */
 export const DRAFTS = {

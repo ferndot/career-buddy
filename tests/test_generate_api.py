@@ -253,6 +253,14 @@ def test_the_resume_length_of_the_request_sets_the_caps_and_is_one_page_when_lef
     assert "2 pages long. At most 5 bullets for each position and 15 skills" in model.systems[0]
     assert "3 pages long. At most 7 bullets for each position and 20 skills" in model.systems[1]
     assert all("caps" not in m for m in model.payloads)
+    assert all("General rules for a resume" in m and "3 to 6 bullets" in m for m in model.systems)  # the default rules for the kind go with every resume
+
+
+def test_a_letter_gets_the_letter_rules_and_not_the_resume_ones(tmp_path: Path) -> None:
+    model = Model(lambda p: letter_answer(("I am applying for the Engineer role at Acme.", [find(p, "Senior Engineer", "position")])))
+    with open_client(tmp_path, model) as client:
+        generate(client, LETTER)
+    assert "General rules for a letter" in model.systems[0] and "250 to 400 words" in model.systems[0] and "3 to 6 bullets" not in model.systems[0]
 
 
 def test_a_letter_is_one_body_block_of_the_models_paragraphs_with_the_company_and_role_named(tmp_path: Path) -> None:

@@ -15,6 +15,7 @@ from career_buddy.application.ports import DocumentWriter, LLMUnavailable, Missi
 from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, Rejection, brief_facts, caps_for
 from career_buddy.domain.grounding import claims_of, ground
 from career_buddy.domain.templates import position_heading
+from career_buddy.domain.writing_rules import DEFAULT_RULES
 from career_buddy.domain.written import LETTER, Item, WrittenDocument, mapped, numbered, texts, validated
 
 NO_MODEL = "No model is set up. Connect one in Settings to generate text."
@@ -54,7 +55,8 @@ class Draft:
             return {"slot": i.slot, "text": i.text, "fact_ids": list(i.fact_ids)}
 
         def item(i: Item) -> dict[str, object]:
-            return {**node(i), "position_id": i.position_id, "heading": self.headings.get(i.position_id, ""), "bullets": [node(b) for b in i.bullets]}  # type: ignore[arg-type]
+            return {**node(i), "position_id": i.position_id, "heading": self.headings.get(i.position_id, ""), "also": list(i.also),
+                    "also_headings": [self.headings.get(p, "") for p in i.also], "bullets": [node(b) for b in i.bullets]}  # type: ignore[arg-type]
 
         sections = [{"key": s.key, "title": self.labels.get(s.key, ""), "items": [item(i) for i in s.items]} for s in numbered(self.doc).sections]
         return {"sections": sections, "slots": texts(self.doc), "flags": {k: asdict(f) for k, f in self.flags.items()}}
@@ -65,7 +67,7 @@ def _brief(t: Tailored, options: TailorOptions, instructions: str, pinned: Colle
     keys = tuple(k for k, _ in t.spec.sections) if t.spec.kind == "resume" else (LETTER,)
     return Brief(t.spec.kind, brief_facts(t.profile, t.facts, t.absorbed), t.report.matched, t.report.missing,
                  options.inputs.get("company", ""), options.inputs.get("role", ""), instructions,
-                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys)
+                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys, DEFAULT_RULES[t.spec.kind])
 
 
 class DocumentGeneration:

@@ -20,9 +20,12 @@ from redstring import LlmProvider, RedstringError
 
 from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.generation import Brief, BriefFact, Claim, Rejection
+from career_buddy.domain.writing_rules import rules_text
+from career_buddy.domain.writing_rules import rules_text
+from career_buddy.domain.writing_rules import rules_text
 from career_buddy.domain.written import WrittenDocument
 
-PROMPT = "document_writer_v6"
+PROMPT = "document_writer_v7"
 _SECTIONS = dict(re.findall(r"^### (\w+)\n(.*?)(?=^### |\Z)", (Path(__file__).parent / "prompts" / f"{PROMPT}.txt").read_text(encoding="utf-8"), re.M | re.S))
 
 
@@ -37,14 +40,14 @@ class Repaired(BaseModel):
 
 
 def system_prompt(brief: Brief, repair: bool = False) -> str:
-    """The rules, the document kind's section shapes, then what is particular to this template: its section list, its own instructions
+    """The rules, the document kind's section shapes and general rules (`brief.rules`), then what is particular to this template: its section list, its own instructions
     and the resume's length. A repair gets the rules and the repair instructions only."""
     template = [f"Template: write these sections, in this order: {', '.join(brief.sections)}."] if brief.sections else []
     if brief.template_instructions:
         template.append(f"Template instructions: {brief.template_instructions}")
     if brief.kind == "resume":
         template.append(f"Length: this resume is {brief.caps.pages} page{'s' * (brief.caps.pages != 1)} long. At most {brief.caps.bullets} bullets for each position and {brief.caps.skills} skills in all.")
-    parts = [_SECTIONS["rules"], *([] if repair else [_SECTIONS[brief.kind]]), "\n".join(template), _SECTIONS["repair" if repair else "output"]]
+    parts = [_SECTIONS["rules"], *([] if repair else [_SECTIONS[brief.kind], rules_text(brief.rules, brief.kind)]), "\n".join(template), _SECTIONS["repair" if repair else "output"]]
     return "\n".join(p.strip() for p in parts if p.strip())
 
 

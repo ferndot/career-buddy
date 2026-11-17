@@ -62,34 +62,57 @@ The model does not fill fixed slots. It is given the context and writes **the be
     { "key": "summary", "title": "Summary", "items": [{ "slot": "summary", "text": "...", "fact_ids": ["<fact id>"] }] },
     { "key": "experience", "title": "Experience", "items": [
         { "position_id": "<position id>", "heading": "Senior Engineer, Acme (2019 - 2023)",
+          "also": ["<older position id>"], "also_headings": ["Engineer, Acme (2016 - 2019)"],
           "bullets": [{ "slot": "bullet:<achievement id>", "text": "...", "fact_ids": ["<achievement id>", "..."] }] } ] },
     { "key": "skills", "title": "Skills", "items": [{ "slot": "skills", "text": "Languages: Python, Go", "fact_ids": ["<skill id>"] }] } ],
   "slots": { "summary": "...", "bullet:<id>": "..." },
   "flags": { "bullet:x": { "code": "not_rewritten", "reasons": ["..."] }, "summary": { "code": "rejected", "reasons": ["..."] } } }
 ```
 
-**What the model is sent (the context).** The system message: the rules, the document kind's section shapes, the template's section
-list, the template's and the chosen letter style's instructions, and the resume length (`resume_pages`: how many bullets a position
+**What the model is sent (the context).** The system message: the rules, the document kind's section shapes, the **general rules**
+for the kind (below), the template's section list, the template's and the chosen letter style's instructions, and the resume length (`resume_pages`: how many bullets a position
 and skills a resume may hold: 1 page is 3 bullets per position and 10 skills, 2 pages 5 and 15, 3 pages 7 and 20). The user
 message (JSON): every fact the document prints as `{id, kind, text, position_id, started, finished}` (summary, positions with
 their dates, achievements with their result, skills, education; a hidden fact is not sent), the `sections` to write, the
 company and role, the `directions`, the posting (cut to 6000 characters), the job terms the facts cover (`job_terms`) and lack
 (`missing_terms`) and the `pinned` slot ids. No name or contact details are sent. The prompt is the versioned text file
-`adapters/inference/prompts/document_writer_v6.txt`.
+`adapters/inference/prompts/document_writer_v7.txt`.
 
 **What it writes.** The template's sections in the template's order (a resume's `sections`: for example summary, experience,
 skills, education), each a list of items:
 
 - `summary`: one item. `skills`: lines, each naming the skills it cites. `education`: one line per entry, each citing its education fact.
-- `experience`: one item per position, `{position_id, bullets}`. The model chooses how many bullets a position gets (up to the cap)
+- `experience`: one item per position, `{position_id, also, bullets}`. The model chooses how many bullets a position gets (up to the cap)
   and how each reads, and may join achievements. A bullet cites the facts it rests on in `fact_ids`, an achievement of its own
   position first. A position's heading is the facts' own words, never the model's.
+- **Several positions at one company.** The model decides the layout from the facts. *Same role family* (Analyst, Senior Analyst,
+  Manager): it **condenses** them into one item, `position_id` the newest and `also` the older ones, with one combined set of
+  bullets, the newest role's achievements first. *A big change of function* (Assistant Editor, then Web Developer): **separate**
+  items, each with its own bullets and an empty `also`. *A very long tenure* (10+ years, several titles): **hybrid**, one item with
+  full bullets for the current role and one or two for each earlier title. Every position keeps its own title and dates in every
+  layout. `validated` sorts a group newest first, keeps a position in one item only, accepts a bullet that rests on an achievement
+  of any position of its item, and allows the cap plus one bullet for each further position of the group. A condensed item prints
+  one heading line per position (`<title>, <company> (<dates>)`, from the facts) and then its bullets, in the preview and in every
+  download; the company name is repeated on each line, not printed once on its own. Slot ids are unchanged: `heading:<position id>`
+  for each heading, `bullet:<first cited achievement id>` for a bullet, so saved documents and overrides keep working, and an item
+  without `also` is what saved documents always held. The draft sends `also` (ids) and `also_headings` (their heading lines).
 - A **cover letter is one block**: a single section `body` whose items are its paragraphs, in order. A paragraph is `para:<n>`,
   its index in the body (counting from 1). There is no per-paragraph section, greeting or sign-off.
 
 `domain/written.validated` makes the answer fit to print before anything is checked: only the template's sections, each once,
 in the template's order; cited ids the context lacks are dropped; empty items go; bullets over the cap, skills over the cap and
-paragraphs over six go; a bullet that rests on no achievement of its position is dropped; positions are in the career's order.
+paragraphs over six go; a bullet that rests on no achievement of its position (or of a position its item condenses) is dropped; positions are in the career's order.
+
+**General rules.** `domain/writing_rules.py` holds the defaults as plain data: a tuple of rule strings per document kind
+(`DEFAULT_RULES["resume"]`, `DEFAULT_RULES["letter"]`). The generate use case puts the kind's tuple in `Brief.rules` and the writer adds
+it to the system message as "General rules for a resume/letter"; a different tuple (a person's own, later) replaces the default and an empty one adds
+none. The resume rules: plain headings and one date format; 3 to 6 bullets a role (5 to 8 for the current or most relevant role, 1 to 3
+for older ones), each one or two lines; a strong, varied action verb first and results quantified where the facts give numbers; the most
+space for the last 10 to 15 years, older roles condensed into an "Earlier" line or left out; one page under about 10 years, two for 10 or
+more; no claim beyond the facts. The letter rules: 250 to 400 words in three or four short paragraphs, not repeating the resume, the exact
+company and role from the posting, no cliches, no "To Whom It May Concern", no greeting or sign-off unless the template asks. They shape
+style and selection only: the grounding rules are the prompt's, are unchanged, and the template's instructions and length win where they
+differ. They are not sent for a repair call.
 
 **Slot ids and the user's edits.** Every text has a slot id, the key of the user's own words (`overrides`) and of the saved layout:
 `summary`, `skills`, `edu:<first cited education id>`, `para:<n>` and, for a bullet, `bullet:<first cited achievement id>`

@@ -9,13 +9,17 @@ export type SlotDoc = { name: SlotLine; intro: SlotLine[]; sections: { title: st
 const line = (slot: string, t: Pick<GenText, 'text'> & Partial<GenText>, source: string | null = null): SlotLine =>
   ({ slot, text: t.text, source_fact_id: source, origin: 'suggestion', field: '', cites: t.fact_ids ?? [] })
 
-/** One section of the writer's document as the sheet draws it: a position is its heading and bullets; any other item is a paragraph. */
+/**
+ * One section of the writer's document as the sheet draws it: a position is its heading and bullets; any other item is a paragraph.
+ * A company's condensed positions are one heading line each, and the item's bullets come after the last (as the backend prints them).
+ */
 function entries(s: GenSection): SlotEntry[] {
-  return s.items.map((i) =>
-    s.key === 'experience'
-      ? { heading: line(`heading:${i.position_id}`, { text: i.heading }, i.position_id), paragraph: null, bullets: i.bullets.map((b) => line(b.slot, b)) }
-      : { heading: null, paragraph: line(i.slot, i), bullets: [] },
-  )
+  return s.items.flatMap((i): SlotEntry[] => {
+    if (s.key !== 'experience') return [{ heading: null, paragraph: line(i.slot, i), bullets: [] }]
+    const held = [i.position_id, ...i.also]
+    const heading = (id: string, n: number) => line(`heading:${id}`, { text: n ? i.also_headings[n - 1] ?? '' : i.heading }, id)
+    return held.map((id, n) => ({ heading: heading(id, n), paragraph: null, bullets: n === held.length - 1 ? i.bullets.map((b) => line(b.slot, b)) : [] }))
+  })
 }
 
 /**

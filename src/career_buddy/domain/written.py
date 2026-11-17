@@ -5,8 +5,11 @@ of that answer and the rules that make it safe to print:
 
 - `summary`: one item `{text, fact_ids}`. `skills`: items `{text, fact_ids}` naming skills. `education`: items `{text, fact_ids}`,
   each citing an education entry. `body` (a letter): paragraph items `{text, fact_ids}`.
-- `experience`: one item per position `{position_id, bullets: [{text, fact_ids}]}`. The writer chooses how many bullets a
-  position gets and how they read. A bullet rests on at least one achievement of its position, which it cites first.
+- `experience`: one item per position `{position_id, also, bullets: [{text, fact_ids}]}`. The writer chooses how many bullets a
+  position gets and how they read. A bullet rests on at least one achievement of its position, which it cites first. When
+  several positions at one company are condensed, one item names the newest as `position_id` and the older ones as `also`: it
+  prints one heading line per position (each its own title and dates) and then the item's one combined set of bullets, which may
+  cite the achievements of any of them.
 
 Every text has a slot id, the key of the user's own wording and of the saved layout (domain/slots.py): `summary`, `skills`,
 `edu:<first cited education id>`, `para:<n>` and, for a bullet, `bullet:<first cited achievement id>`; a repeat gets `#2`, `#3`.
@@ -45,7 +48,8 @@ class Bullet(_Written):
 class Item(_Written):
     text: str = ""
     fact_ids: tuple[str, ...] = ()
-    position_id: str = ""  # experience: the position this item is about
+    position_id: str = ""  # experience: the position this item is about (the newest, when it condenses several)
+    also: tuple[str, ...] = ()  # experience: older positions condensed under it, same company
     bullets: tuple[Bullet, ...] = ()  # experience: its bullets
     slot: SkipJsonSchema[str] = ""
 
@@ -123,15 +127,27 @@ def _ids(brief: Brief, ids: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _experience(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> list[Item]:
-    """One item per position, in the brief's order, with its bullets: those resting on one of the position's achievements, up to the cap."""
-    by_position: dict[str, list[Bullet]] = {f.id: [] for f in brief.facts if f.kind == "position"}
+    """One item per position or, where the writer condensed several under one (`also`), per group, in the brief's order. A group's
+    positions are sorted newest first and a position belongs to one item only. Bullets: those resting on an achievement of the item's
+    positions, up to the cap per position plus one for each further position of a group."""
+    order = {f.id: n for n, f in enumerate(f for f in brief.facts if f.kind == "position")}
+    members: dict[str, list[str]] = {}  # the item's lead position -> its positions
+    claimed: dict[str, str] = {}  # position -> the lead of the item it belongs to
+    bullets: dict[str, list[Bullet]] = {}
     for item in section.items:
+        ids = sorted({p for p in (item.position_id, *item.also) if p in order}, key=order.__getitem__)
+        if not ids or claimed.get(ids[0], ids[0]) != ids[0]:
+            continue
+        lead = ids[0]
+        group = members.setdefault(lead, [])
+        group += [p for p in ids if claimed.setdefault(p, lead) == lead and p not in group]
         for b in item.bullets:
-            ids = _ids(brief, b.fact_ids)
-            own = tuple(i for i in ids if facts[i].kind == "achievement" and facts[i].position_id == item.position_id)
-            if item.position_id in by_position and own and b.text.strip():
-                by_position[item.position_id].append(Bullet(text=b.text.strip(), fact_ids=(*own, *(i for i in ids if i not in own))))
-    return [Item(position_id=pid, bullets=tuple(bullets[: brief.caps.bullets])) for pid, bullets in by_position.items() if bullets]
+            cited = _ids(brief, b.fact_ids)
+            own = tuple(i for i in cited if facts[i].kind == "achievement" and facts[i].position_id in group)
+            if own and b.text.strip():
+                bullets.setdefault(lead, []).append(Bullet(text=b.text.strip(), fact_ids=(*own, *(i for i in cited if i not in own))))
+    return [Item(position_id=lead, also=tuple(sorted(members[lead], key=order.__getitem__)[1:]),
+                 bullets=tuple(bullets[lead][: brief.caps.bullets + len(members[lead]) - 1])) for lead in sorted(bullets, key=order.__getitem__)]
 
 
 def _items(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> list[Item]:
@@ -158,7 +174,7 @@ def _items(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> li
 def validated(brief: Brief, doc: WrittenDocument) -> WrittenDocument:
     """What the writer wrote, made fit to check and print: the brief's sections only, in the template's order, a section's first
     answer only; cited ids the brief lacks dropped; empty and over-cap items dropped (bullets per position, skills, paragraphs);
-    no bullet without an achievement of its position behind it. Then the person's pinned slots are put back (see `pinned`)."""
+    no bullet without an achievement of its position (or of a position its item condenses) behind it. Then the person's pinned slots are put back (see `pinned`)."""
     facts = {f.id: f for f in brief.facts}
     first = {s.key: s for s in reversed(doc.sections)}
     kept = {key: (_experience if key == "experience" else _items)(brief, first[key], facts) for key in brief.sections if key in first}
@@ -186,7 +202,7 @@ def pinned(brief: Brief, doc: WrittenDocument) -> WrittenDocument:
             paragraphs += [Item()] * (int(rest) - len(paragraphs))
         elif key == "bullet" and "experience" in brief.sections and facts.get(rest) and facts[rest].kind == "achievement":
             items = by_key.setdefault("experience", [])
-            at = next((n for n, i in enumerate(items) if i.position_id == facts[rest].position_id), None)
+            at = next((n for n, i in enumerate(items) if facts[rest].position_id in (i.position_id, *i.also)), None)
             if at is None:
                 items.append(Item(position_id=facts[rest].position_id))
                 at = len(items) - 1
@@ -208,11 +224,12 @@ def to_document(base: Document, spec: TemplateSpec, doc: WrittenDocument, headin
         if s.key == LETTER:
             printed.append(PrintedSection("", tuple(Entry(paragraph=Line(i.text, None, Origin.BOILERPLATE, slot=i.slot)) for i in s.items)))
         elif s.key == "experience":
-            entries = tuple(
-                Entry(heading=Line(headings[i.position_id], i.position_id, field="heading"),
-                      bullets=tuple(Line(b.text, b.fact_ids[0], field="title", cites=b.fact_ids, slot=b.slot) for b in i.bullets if b.fact_ids))
-                for i in s.items if i.position_id in headings)
-            printed.append(PrintedSection(labels[s.key], entries))
+            entries: list[Entry] = []
+            for i in s.items:  # a condensed item: a heading line for each position, its bullets after the last
+                held = [p for p in (i.position_id, *i.also) if p in headings]
+                lines = tuple(Line(b.text, b.fact_ids[0], field="title", cites=b.fact_ids, slot=b.slot) for b in i.bullets if b.fact_ids)
+                entries += [Entry(heading=Line(headings[p], p, field="heading"), bullets=lines if n == len(held) - 1 else ()) for n, p in enumerate(held)]
+            printed.append(PrintedSection(labels[s.key], tuple(entries)))
         elif s.key == "education":
             printed.append(PrintedSection(labels[s.key], (Entry(bullets=tuple(Line(i.text, i.fact_ids[0], field="label", cites=i.fact_ids, slot=i.slot) for i in s.items if i.fact_ids)),)))
         else:  # summary, skills

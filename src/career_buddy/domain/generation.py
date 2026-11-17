@@ -62,6 +62,7 @@ class Brief:
     pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: their text replaces the writer's
     template_instructions: str = ""  # how the chosen template and style want the text written
     sections: tuple[str, ...] = ()  # the section keys to write, in order: a resume's summary, experience, ..., or a letter's `body`
+    rules: tuple[str, ...] = ()  # the general rules for this kind of document (domain/writing_rules.py): style and selection, never grounding
 
 
 @dataclass(frozen=True)

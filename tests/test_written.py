@@ -10,9 +10,12 @@ from pydantic import ValidationError
 from career_buddy.adapters.inference.document_writer import payload, system_prompt
 from career_buddy.adapters.outputs.render_html import stored_html
 from career_buddy.adapters.readers.html_document import read_slots
-from career_buddy.domain.document import Document, Line
+from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
+from career_buddy.adapters.outputs.render_text import TextRenderer
+from career_buddy.domain.document import Document, Line, Style
 from career_buddy.domain.generation import Brief, BriefFact, Caps
 from career_buddy.domain.templates import RESUME_MODERN, get_template
+from career_buddy.domain.writing_rules import DEFAULT_RULES
 from career_buddy.domain.written import LETTER, Bullet, Item, Section, WrittenDocument, mapped, nodes, numbered, texts, to_document, validated
 
 MODERN = tuple(k for k, _ in RESUME_MODERN.sections)
@@ -73,6 +76,19 @@ def test_the_writer_reads_each_position_with_its_achievements_together_and_is_no
     assert "one bullet per achievement is not the goal" in resume and "never write one item per fact" in resume and "not a paragraph per fact" in letter
 
 
+def test_the_general_rules_for_the_kind_are_in_the_system_message_and_come_from_the_brief() -> None:
+    resume = system_prompt(Brief("resume", FACTS, sections=MODERN, rules=DEFAULT_RULES["resume"]))
+    letter = system_prompt(Brief("letter", FACTS, sections=(LETTER,), rules=DEFAULT_RULES["letter"]))
+    assert "General rules for a resume" in resume and "3 to 6 bullets" in resume and "vary the verbs" in resume and "250 to 400 words" not in resume
+    assert "General rules for a letter" in letter and "250 to 400 words" in letter and "Dear Sir or Madam" in letter and "3 to 6 bullets" not in letter
+    assert "Use only the given facts" in resume and "Use only the given facts" in letter  # the grounding rules stay
+    own = system_prompt(Brief("resume", FACTS, sections=MODERN, rules=("Keep every bullet under ten words.",)))
+    assert "Keep every bullet under ten words." in own and "3 to 6 bullets" not in own  # a person's own set replaces the default
+    assert "General rules" not in system_prompt(Brief("resume", FACTS, sections=MODERN))
+    assert "General rules" not in system_prompt(Brief("resume", FACTS, rules=DEFAULT_RULES["resume"]), repair=True)
+    assert "CONDENSE" in resume and "SEPARATE" in resume and "HYBRID" in resume and "CONDENSE" not in letter
+
+
 # --- what is fit to print ---
 
 def test_sections_come_back_in_the_templates_order_once_and_only_the_templates() -> None:
@@ -92,6 +108,54 @@ def test_a_position_gets_the_bullets_the_writer_chose_up_to_the_cap_each_resting
     assert [(i.position_id, [(b.slot, b.fact_ids) for b in i.bullets]) for i in written.sections[0].items] == [
         ("p1", [("bullet:a1", ("a1", "s1")), ("bullet:a2", ("a2", "a3")), ("bullet:a3", ("a3",))]),  # the position's own achievement first, then the rest; the cap is 3
         ("p2", [("bullet:b1", ("b1",))])]  # the brief's order, not the writer's
+
+
+SAME_COMPANY = (BriefFact("p1", "position", "Senior Analyst at Acme", started="2021", finished="2024"), BriefFact("a1", "achievement", "Led the forecasting model", "p1"),
+                BriefFact("a2", "achievement", "Cut report time by half", "p1"),
+                BriefFact("p3", "position", "Analyst at Acme", started="2017", finished="2021"), BriefFact("c1", "achievement", "Built the weekly sales report", "p3"),
+                BriefFact("c2", "achievement", "Cleaned the customer data", "p3"))
+SAME = Brief("resume", SAME_COMPANY, sections=("experience",), caps=Caps(1, 3, 5))
+
+
+def experience(*items: Item) -> WrittenDocument:
+    return doc(Section(key="experience", items=items))
+
+
+def test_positions_at_one_company_can_be_condensed_into_one_item_with_one_set_of_bullets() -> None:
+    written = validated(SAME, experience(Item(position_id="p3", also=("p1", "ghost", "p3"), bullets=(
+        bullet("Led the forecasting model", "a1"), bullet("Built the weekly sales report", "c1"), bullet("Cleaned the data", "c2"), bullet("Cut report time", "a2"), bullet("x", "ghost")))))
+    [item] = written.sections[0].items
+    assert (item.position_id, item.also) == ("p1", ("p3",))  # the newest leads, whatever order the writer named them in
+    assert [(b.slot, b.fact_ids) for b in item.bullets] == [("bullet:a1", ("a1",)), ("bullet:c1", ("c1",)), ("bullet:c2", ("c2",)), ("bullet:a2", ("a2",))]  # the cap of 3, plus one for the second title
+
+
+def test_positions_the_writer_keeps_apart_stay_separate_items_with_their_own_bullets() -> None:
+    written = validated(SAME, experience(Item(position_id="p3", bullets=(bullet("Built the report", "c1"), bullet("Not mine", "a1"))), Item(position_id="p1", bullets=(bullet("Led it", "a1"),))))
+    assert [(i.position_id, i.also, [b.fact_ids for b in i.bullets]) for i in written.sections[0].items] == [("p1", (), [("a1",)]), ("p3", (), [("c1",)])]
+
+
+def test_a_position_belongs_to_one_item_only() -> None:
+    written = validated(SAME, experience(Item(position_id="p1", also=("p3",), bullets=(bullet("Led it", "a1"),)), Item(position_id="p3", bullets=(bullet("Built the report", "c1"),))))
+    assert [(i.position_id, i.also, len(i.bullets)) for i in written.sections[0].items] == [("p1", ("p3",), 1)]  # the second item is p3's again: dropped
+
+
+def test_a_pinned_bullet_of_a_condensed_position_goes_to_its_item() -> None:
+    brief = Brief("resume", SAME_COMPANY, sections=("experience",), caps=Caps(1, 3, 5), pinned=frozenset({"bullet:c2"}))
+    written = validated(brief, experience(Item(position_id="p1", also=("p3",), bullets=(bullet("Led it", "a1"),))))
+    assert [(i.position_id, [b.slot for b in i.bullets]) for i in written.sections[0].items] == [("p1", ["bullet:a1", "bullet:c2"])]
+
+
+def test_a_condensed_item_prints_a_heading_line_for_each_title_then_its_bullets_in_every_format() -> None:
+    written = validated(SAME, experience(Item(position_id="p1", also=("p3",), bullets=(bullet("Led it", "a1"), bullet("Built the report", "c1")))))
+    headings = {"p1": "Senior Analyst, Acme (2021 - 2024)", "p3": "Analyst, Acme (2017 - 2021)"}
+    printed = to_document(Document(Line("Jane", "person", field="title")), RESUME_MODERN, written, headings)
+    entries = printed.sections[0].entries
+    assert [(e.heading.text, [b.text for b in e.bullets]) for e in entries if e.heading] == [(headings["p1"], []), (headings["p3"], ["Led it", "Built the report"])]
+    html = stored_html(printed, get_template("resume-modern").layout)
+    assert [s.id for s in read_slots(html) if s.id != "name"] == ["heading:p1", "heading:p3", "bullet:a1", "bullet:c1"]
+    for rendered in (TextRenderer().render(printed, Style()), MarkdownRenderer().render(printed, Style())):
+        out = rendered.decode()
+        assert out.index("Senior Analyst") < out.index("Analyst, Acme (2017") < out.index("Led it")
 
 
 def test_the_same_fact_twice_gets_a_suffix_and_a_unknown_citation_is_dropped() -> None:
@@ -133,6 +197,7 @@ ids = st.sampled_from([f.id for f in FACTS] + ["ghost", "a9"])
 words = st.text("abc xyz", max_size=8)
 bullets_ = st.builds(Bullet, text=words, fact_ids=st.lists(ids, max_size=4).map(tuple))
 items = st.builds(Item, text=words, fact_ids=st.lists(ids, max_size=4).map(tuple), position_id=st.sampled_from(["p1", "p2", "ghost", "a1", ""]),
+                  also=st.lists(st.sampled_from(["p1", "p2", "ghost"]), max_size=2).map(tuple),
                   bullets=st.lists(bullets_, max_size=7).map(tuple))
 sections = st.builds(Section, key=st.sampled_from([*MODERN, LETTER, "x"]), items=st.lists(items, max_size=4).map(tuple))
 briefs = st.builds(lambda b, s, pins: Brief("resume", FACTS, sections=MODERN, caps=Caps(1, b, s), pinned=frozenset(pins)),
@@ -151,11 +216,12 @@ def test_whatever_the_writer_answers_the_document_fits_the_template_the_facts_an
     for s in written.sections:
         assert all(known.get(i) for it in s.items for i in (*it.fact_ids, *(x for b in it.bullets for x in b.fact_ids)))  # every cited id is a fact of the brief
         if s.key == "experience":
-            assert len({it.position_id for it in s.items}) == len(s.items) and all(known[it.position_id].kind == "position" for it in s.items)
+            held = [p for it in s.items for p in (it.position_id, *it.also)]
+            assert len(set(held)) == len(held) and all(known[p].kind == "position" for p in held)  # a position is in one item only
             for it in s.items:
                 free = [b for b in it.bullets if b.text]  # a pinned placeholder has no text
-                assert len(free) <= brief.caps.bullets
-                assert all(b.fact_ids and known[b.fact_ids[0]].kind == "achievement" and known[b.fact_ids[0]].position_id == it.position_id for b in it.bullets)
+                assert len(free) <= brief.caps.bullets + len(it.also)
+                assert all(b.fact_ids and known[b.fact_ids[0]].kind == "achievement" and known[b.fact_ids[0]].position_id in (it.position_id, *it.also) for b in it.bullets)
         if s.key == "skills":
             assert len({i for it in s.items for i in it.fact_ids if known[i].kind == "skill"}) <= brief.caps.skills
         if s.key == "education":
