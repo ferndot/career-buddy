@@ -1,14 +1,19 @@
-"""Renders a Document as DOCX with built-in styles. No tables, text boxes or images; header and footer stay empty."""
+"""Renders a Document as DOCX with built-in styles. No tables, text boxes or images; header and footer stay empty.
+
+The template's header is kept (centered, or a shaded band); a side column is not: it would need a table, which an ATS
+reads badly, so its sections stay in one column, after the main ones."""
 
 from __future__ import annotations
 
 import io
 
 from docx import Document as DocxDocument
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
-from career_buddy.domain.document import Document, Style
+from career_buddy.domain.document import Document, Layout, Style
 
 MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _FONTS = {"sans": "Calibri", "serif": "Times New Roman"}
@@ -23,6 +28,23 @@ def _set_font(style: object, name: str, size: int) -> None:
     rfonts = style.element.rPr.rFonts  # type: ignore[attr-defined]
     for attr in [a for a in rfonts.attrib if "Theme" in a]:  # theme fonts would override the name
         del rfonts.attrib[attr]
+
+
+_BAND = "1F3A5F"
+
+
+def _head(out: object, text: str, layout: Layout, style: str | None = None) -> None:
+    """A line of the header, laid out as the template says."""
+    p = out.add_paragraph(text, style=style)  # type: ignore[attr-defined]
+    if layout.header == "centered":
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    elif layout.header == "band":
+        shade = OxmlElement("w:shd")
+        shade.set(qn("w:val"), "clear")
+        shade.set(qn("w:fill"), _BAND)
+        p._p.get_or_add_pPr().append(shade)
+        for run in p.runs:
+            run.font.color.rgb = RGBColor(255, 255, 255)
 
 
 class DocxRenderer:
@@ -40,9 +62,9 @@ class DocxRenderer:
         out.core_properties.author = ""
         out.core_properties.title = f"{doc.name.text} - {doc.label}"
 
-        out.add_paragraph(doc.name.text, style="Title")
+        _head(out, doc.name.text, doc.layout, "Title")
         for line in doc.intro:
-            out.add_paragraph(line.text)
+            _head(out, line.text, doc.layout)
         for sec in doc.sections:
             if sec.title:
                 out.add_paragraph(sec.title, style="Heading 1")

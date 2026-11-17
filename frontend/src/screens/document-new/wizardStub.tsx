@@ -29,14 +29,12 @@ const preview = (missing: string[]) => ({
   ats: { format: 'docx', passes: true, issues: [] },
 })
 
-// A cover letter as a draft stub lays it out: two placeholder paragraphs (para:1, para:2) and the name. Stub text, not app output.
+// A cover letter as the preview endpoint returns it before anyone wrote it: the name and no sections.
 const letter = (missing: string[]) => ({
   ...preview(missing),
   document: {
     name: line('Ada', 'person', 'title'), intro: [], label: 'Cover Letter',
-    sections: [{ title: '', entries: [
-      ['Paragraph one', ''], ['Paragraph two', ''], ['Ada', 'title'],
-    ].map(([text, field]) => ({ heading: null, paragraph: line(text, 'person', field), bullets: [] })) }],
+    sections: [], // as the backend sends an unwritten letter: its empty body section is dropped
   },
 })
 

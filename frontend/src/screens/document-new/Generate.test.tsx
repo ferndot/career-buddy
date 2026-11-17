@@ -152,6 +152,13 @@ test('a generated letter is its own paragraphs under the header', async () => {
   expect(body.generated).toEqual({ 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' })
 })
 
+test('the letter preview shows the written body although the backend sends an unwritten letter with no sections', async () => {
+  stubApi()
+  await openAt(4, ['Cover letter'])
+  generate()
+  for (const text of ['Generated one', 'Generated two', 'Generated three']) expect(await screen.findByLabelText(`Edit text: ${text}`)).toHaveValue(text)
+})
+
 test('without a model the template step says where to connect one', async () => {
   stubApi([], false)
   await openAt(4)

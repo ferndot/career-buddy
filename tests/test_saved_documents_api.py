@@ -234,3 +234,35 @@ def test_a_saved_resume_keeps_its_templates_layout_in_its_html_and_css(client: T
     assert ".side{" in stored["css"]
     assert 'class="side"' not in client.get(f"/api/saved-documents/{save(client).json()['id']}/content").json()["html"].split('<div class="main">')[0]
     assert "Education" in file(client, saved, "txt").text  # a download is unchanged by the layout
+
+
+def test_the_page_a_pdf_prints_carries_the_templates_layout_like_the_preview_shows_it() -> None:
+    from career_buddy.adapters.outputs.render_html import HtmlRenderer
+    from career_buddy.domain.document import Document, Entry, Line, Section, Style
+    from career_buddy.domain.templates import get_template
+
+    def page(template: str, doc_sections: tuple[Section, ...]) -> str:
+        spec = get_template(template)
+        return HtmlRenderer().render(Document(Line("Jane"), (), doc_sections, layout=spec.layout), Style()).decode()
+
+    sections = (Section("Experience", (Entry(paragraph=Line("Built it")),)), Section("Education", (Entry(paragraph=Line("MSc")),)))
+    sidebar = page("resume-sidebar", sections)
+    assert "<div class='side'><h2>Education</h2>" in sidebar and ".side{flex:0 0 28%" in sidebar and "<header class='plain'>" in sidebar
+    assert "class='side'" not in page("resume-classic", sections)
+    band = page("cover-letter-modern", (Section("", (Entry(paragraph=Line("Hello Acme.")),)),))
+    assert "<header class='band'>" in band and "background:#1f3a5f" in band and "<p>Hello Acme.</p>" in band
+
+
+def test_a_saved_letters_download_is_its_paragraphs_in_its_templates_layout(client: TestClient) -> None:
+    record = client.post("/api/saved-documents", json={**LETTER, "template": "cover-letter-modern", "overrides": {"para:1": "Hello Acme."}}).json()
+    assert [line for line in file(client, record, "txt").text.splitlines() if line] == ["Jane Doe", "Lisbon, Portugal", "Hello Acme."]
+
+
+def test_a_docx_download_keeps_the_templates_header_in_one_column(client: TestClient) -> None:
+    from docx import Document as Docx
+    import io
+
+    doc = Docx(io.BytesIO(file(client, save(client, template="resume-modern").json(), "docx").content))
+    assert doc.paragraphs[0].text == "Jane Doe" and "w:shd" in doc.paragraphs[0]._p.xml and not doc.tables
+    centered = Docx(io.BytesIO(file(client, save(client).json(), "docx").content))
+    assert centered.paragraphs[0].alignment == 1

@@ -17,7 +17,7 @@ from redstring import LlmProvider, RedstringError
 from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.generation import Brief, BriefFact, Bullet, Claim, Generated, Rejection
 
-PROMPT = "document_writer_v3"
+PROMPT = "document_writer_v4"
 _SECTIONS = dict(re.findall(r"^### (\w+)\n(.*?)(?=^### |\Z)", (Path(__file__).parent / "prompts" / f"{PROMPT}.txt").read_text(encoding="utf-8"), re.M | re.S))
 
 
@@ -46,8 +46,9 @@ class Repaired(BaseModel):
     slots: list[SlotOut] = []
 
 
-def system_prompt(kind: str, repair: bool = False) -> str:
-    return "\n".join(s.strip() for s in (_SECTIONS["rules"], _SECTIONS[kind], *([_SECTIONS["repair"]] if repair else [])))
+def system_prompt(section: str, repair: bool = False) -> str:
+    """The rules, the section's own instructions (summary, experience, skills or letter) and, for a repair, how to repair."""
+    return "\n".join(s.strip() for s in (_SECTIONS["rules"], _SECTIONS[section], *([_SECTIONS["repair"]] if repair else [])))
 
 
 def _fact(f: BriefFact) -> dict[str, str]:
@@ -56,7 +57,7 @@ def _fact(f: BriefFact) -> dict[str, str]:
 
 def payload(brief: Brief, facts: Sequence[BriefFact], failed: Sequence[Rejection] = ()) -> str:
     out: dict[str, object] = {
-        "kind": brief.kind, "company": brief.company, "role": brief.role, "directions": brief.instructions, "posting": brief.posting,
+        "kind": brief.kind, "section": brief.section, "company": brief.company, "role": brief.role, "directions": brief.instructions, "posting": brief.posting,
         "job_terms": list(brief.terms), "missing_terms": list(brief.missing), "pinned": sorted(brief.pinned), "facts": [_fact(f) for f in facts],
     }
     if brief.template_instructions:
@@ -82,7 +83,7 @@ class ProviderDocumentWriter:
 
     async def write(self, brief: Brief) -> Generated:
         try:
-            answer = await self._provider.extract(payload(brief, brief.facts), Written, system_prompt=system_prompt(brief.kind))
+            answer = await self._provider.extract(payload(brief, brief.facts), Written, system_prompt=system_prompt(brief.section))
         except RedstringError as error:
             raise unavailable(error) from error
         return Generated(
@@ -96,7 +97,7 @@ class ProviderDocumentWriter:
         """One new try at the failed slots only. The answer is a claim by slot id, to be checked again."""
         try:
             answer = await self._provider.extract(payload(brief, _repair_facts(brief, failed), failed), Repaired,
-                                                  system_prompt=system_prompt(brief.kind, repair=True))
+                                                  system_prompt=system_prompt(brief.section, repair=True))
         except RedstringError as error:
             raise unavailable(error) from error
         return {s.slot: Claim(s.text, tuple(s.fact_ids)) for s in answer.slots}

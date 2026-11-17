@@ -1,12 +1,11 @@
-"""Renders a Document as single-column HTML. The PDF renderer prints this same page."""
+"""Renders a Document as HTML in its template's layout. The PDF renderer prints this same page."""
 
 from __future__ import annotations
 
 from html import escape
 
-from career_buddy.domain.document import Document, Line, Style
+from career_buddy.domain.document import Document, Layout, Line, Style
 from career_buddy.domain.slots import Role, slot_for
-from career_buddy.domain.templates import Layout
 
 _FONTS = {"sans": "Helvetica, Arial, sans-serif", "serif": "'Times New Roman', Times, serif"}
 
@@ -20,6 +19,7 @@ def document_css(style: Style, layout: Layout | None = None, extra_css: str = ""
     )
 
 
+_ATS_CSS = "h2{text-transform:none}"  # printed capitals would read back as other headings: the ATS check wants them as the template names them
 NL = chr(10)
 
 
@@ -65,9 +65,13 @@ def stored_html(doc: Document, layout: Layout | None = None) -> str:
 
 
 def html_page(doc: Document, style: Style, extra_css: str = "") -> str:
-    e = escape
-    parts = [f"<h1>{e(doc.name.text)}</h1>", *(f"<p>{e(line.text)}</p>" for line in doc.intro)]
+    """The page as the template lays it out: the header, then the sections in `.main` and the layout's side headings in `.side`."""
+    e, layout = escape, doc.layout
+    head = [f"<h1>{e(doc.name.text)}</h1>", *(f"<p>{e(line.text)}</p>" for line in doc.intro)]
+    main: list[str] = []
+    side: list[str] = []
     for section in doc.sections:
+        parts = side if section.title in layout.side else main
         if section.title:
             parts.append(f"<h2>{e(section.title)}</h2>")
         for entry in section.entries:
@@ -77,9 +81,11 @@ def html_page(doc: Document, style: Style, extra_css: str = "") -> str:
                 parts.append(f"<p>{e(entry.paragraph.text)}</p>")
             if entry.bullets:
                 parts.append("<ul>" + "".join(f"<li>{e(b.text)}</li>" for b in entry.bullets) + "</ul>")
+    columns = f"<div class='main'>{''.join(main)}</div>" + (f"<div class='side'>{''.join(side)}</div>" if side else "")
     return (
         f"<!doctype html><html lang='en'><head><meta charset='utf-8'><title>{e(doc.name.text)} - {e(doc.label)}</title>"
-        f"<style>{document_css(style, None, extra_css)}</style></head><body>{''.join(parts)}</body></html>"
+        f"<style>{document_css(style, layout, _ATS_CSS + extra_css)}</style></head>"
+        f"<body><header class='{layout.header}'>{''.join(head)}</header><div class='cols'>{columns}</div></body></html>"
     )
 
 

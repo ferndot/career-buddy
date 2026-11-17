@@ -1,4 +1,4 @@
-"""Generating the text of a document: ask the writer once, check every claim against the facts, repair what failed once.
+"""Generating the text of a document: ask the writer once for each section, check every claim against the facts, repair what failed once.
 
 The result is a draft, keyed by the slot ids of the saved layout (domain/slots.py). It is not stored. To keep a draft the
 caller saves the document with it as generated text.
@@ -6,13 +6,14 @@ caller saves the document with it as generated text.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Collection, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from career_buddy.application.documents import DocumentService, TailorOptions, Tailored
 from career_buddy.application.ports import DocumentWriter, LLMUnavailable, MissingInputs
-from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, Rejection, brief_facts, caps_for
+from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, Rejection, brief_facts, caps_for, section_of, sections_of
 from career_buddy.domain.grounding import claims_of, ground
 
 NO_MODEL = "No model is set up. Connect one in Settings to generate text."
@@ -70,7 +71,11 @@ class DocumentGeneration:
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]
-        kept, rejected = ground(brief, claims_of(brief, await writer.write(brief)), skills, protected)
+        parts = [replace(brief, section=s) for s in sections_of(brief.kind)]  # one request per section: the writer sees the whole section
+        claims: dict[str, Claim] = {}
+        for part, written in zip(parts, await asyncio.gather(*(writer.write(p) for p in parts))):
+            claims |= claims_of(part, written)
+        kept, rejected = ground(brief, claims, skills, protected)
         if rejected:
             kept, rejected = await self._repaired(writer, brief, kept, rejected, skills, protected)
         written = [slot for slot in kept if slot != "skills"]
@@ -85,11 +90,18 @@ class DocumentGeneration:
 
     async def _repaired(self, writer: DocumentWriter, brief: Brief, kept: dict[str, Claim], rejected: list[Rejection], skills: Sequence[str],
                         protected: Sequence[str]) -> tuple[dict[str, Claim], list[Rejection]]:
-        """One repair call for the failed slots only. What it does not fix, or does not answer, stays rejected."""
+        """One repair call for each section with failed slots, those slots only. What it does not fix, or does not answer, stays rejected."""
+        sections = {section_of(r.slot) for r in rejected}
+        results = await asyncio.gather(*(self._repaired_section(writer, replace(brief, section=s), [r for r in rejected if section_of(r.slot) == s], skills, protected)
+                                         for s in sections_of(brief.kind) if s in sections))
+        return {**kept, **{k: v for fixed, _ in results for k, v in fixed.items()}}, [r for _, still in results for r in still]
+
+    async def _repaired_section(self, writer: DocumentWriter, brief: Brief, rejected: list[Rejection], skills: Sequence[str],
+                                protected: Sequence[str]) -> tuple[dict[str, Claim], list[Rejection]]:
         failed = {r.slot: r for r in rejected}
         try:
             retry = {slot: claim for slot, claim in (await writer.repair(brief, rejected)).items() if slot in failed}
         except LLMUnavailable:
             retry = {}
         fixed, still = ground(brief, retry, skills, protected)
-        return {**kept, **fixed}, [r for r in (failed | {r.slot: r for r in still}).values() if r.slot not in fixed]
+        return fixed, [r for r in (failed | {r.slot: r for r in still}).values() if r.slot not in fixed]

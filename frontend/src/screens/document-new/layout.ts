@@ -59,11 +59,12 @@ export function shown(preview: PreviewDoc, d: Pick<DocDraft, 'generated' | 'over
   const base = slotDoc(preview)
   const defaults: Record<string, string> = Object.fromEntries(allLines(base).map((l) => [l.slot, d.generated[l.slot] ?? l.text]))
   const wrote = kind === 'letter' && (highest(Object.keys(d.generated)) > 0 || highest(Object.keys(d.overrides)) > 0)
-  if (!wrote || !base.sections.length) return { doc: base, defaults, wrote: false }
+  if (!wrote) return { doc: base, defaults, wrote: false }
   const template = allLines(base).filter((l) => l.slot.startsWith(PARA))
   const generated = highest(Object.keys(d.generated))
   const count = Math.max(generated || template.length, highest(Object.keys(d.overrides)))
-  const entries = base.sections[0].entries
+  const first = base.sections[0] ?? { title: '', entries: [] } // a letter nobody has written has no section yet: the backend drops an empty one
+  const entries = first.entries
   const field = (e: SlotEntry) => (e.paragraph && !e.bullets.length ? e.paragraph.field : '')
   const body: SlotEntry[] = Array.from({ length: count }, (_, i) => {
     const slot = `${PARA}${i + 1}`
@@ -75,7 +76,7 @@ export function shown(preview: PreviewDoc, d: Pick<DocDraft, 'generated' | 'over
     ...body,
     ...entries.filter((e) => ['closing', 'title'].includes(field(e))),
   ]
-  return { doc: { ...base, sections: [{ title: base.sections[0].title, entries: kept }, ...base.sections.slice(1)] }, defaults, wrote }
+  return { doc: { ...base, sections: [{ title: first.title, entries: kept }, ...base.sections.slice(1)] }, defaults, wrote }
 }
 
 const filled = (texts: Record<string, string>) => Object.fromEntries(Object.entries(texts).filter(([, v]) => v.trim()))

@@ -103,10 +103,10 @@ class SavedDocuments:
         self._html = html
         self._generation = generation
 
-    async def _document(self, html: str, overrides: Mapping[str, str], generated: Mapping[str, Written]) -> Document:
-        """The layout read with its slots resolved against the facts as they are now."""
+    async def _document(self, template: str, html: str, overrides: Mapping[str, str], generated: Mapping[str, Written]) -> Document:
+        """The layout read with its slots resolved against the facts as they are now, in the template's page arrangement."""
         texts = resolve(self._html.slots(html), overrides, await self._documents.lookup(), generated)
-        return clean_document(self._html.read(html, texts, frozenset(overrides)))[0]
+        return replace(clean_document(self._html.read(html, texts, frozenset(overrides)))[0], layout=get_template(template).layout)
 
     async def _layout(self, template: str, options: TailorOptions, texts: Mapping[str, str]) -> tuple[str, str]:
         """The layout html and the file stem. `texts` is every text kept for the document, the user's and the writer's: a summary
@@ -130,7 +130,7 @@ class SavedDocuments:
         slots = self._html.slots(html)
         overrides = layout_overrides(options.overrides, (slot.id for slot in slots))
         made = written_for(slots, layout_overrides(generated, (slot.id for slot in slots)), await self._documents.lookup())
-        issues = (await self._documents.export(await self._document(html, overrides, made), DEFAULT_FORMAT, style, stem)).issues
+        issues = (await self._documents.export(await self._document(template, html, overrides, made), DEFAULT_FORMAT, style, stem)).issues
         doc_id = uuid.uuid4().hex
         meta = SavedMeta(doc_id, label.strip() or stem, template, stem, datetime.now(UTC).isoformat(),
                          [issue.code for issue in issues], style.font, style.paper)
@@ -179,7 +179,7 @@ class SavedDocuments:
     async def download(self, doc_id: str, fmt: str | None = None) -> Rendered:
         """The file: the layout with its slots resolved now, converted to `fmt` (default docx)."""
         c = self.content(doc_id)
-        doc = await self._document(c.html, c.overrides, c.generated)
+        doc = await self._document(c.meta.template, c.html, c.overrides, c.generated)
         return await self._documents.export(doc, fmt or DEFAULT_FORMAT, Style(c.meta.font, c.meta.paper), c.meta.filename)  # type: ignore[arg-type]
 
     async def regenerate(self, doc_id: str, instructions: str = "", resume_pages: int | None = None) -> Draft:

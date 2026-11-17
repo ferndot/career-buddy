@@ -6,20 +6,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 from career_buddy.domain.dates import format_range
-from career_buddy.domain.document import Document, Entry, Line, Section
+from career_buddy.domain.document import Document, Entry, Layout, Line, Section
 from career_buddy.domain.profile import PositionView, Profile
-
-
-@dataclass(frozen=True)
-class Layout:
-    """How a template arranges its page. Data: the stored html wraps its parts in these classes and `css` styles them
-    (adapters/outputs/render_html.py); the wizard draws the same arrangement from it.
-
-    `side` are the headings of trailing sections that sit in a side column beside the rest."""
-
-    header: Literal["plain", "centered", "band"] = "plain"
-    side: tuple[str, ...] = ()
-    css: str = ""
 
 
 @dataclass(frozen=True)
@@ -146,6 +134,6 @@ def build_document(profile: Profile, spec: TemplateSpec, inputs: dict[str, str] 
     intro = tuple(Line(text, person, field=_own(profile, name)) for name in header if (text := profile.attributes.get(name, "")))
     name = Line(profile.name, person, field=_own(profile, "title"))
     if letter:
-        return Document(name, intro, (Section("", ()),), "Cover Letter")  # the inputs (company, role) are for the writer
+        return Document(name, intro, (Section("", ()),), "Cover Letter", spec.layout)  # the inputs (company, role) are for the writer
     available = _sections(profile)
-    return Document(name, intro, tuple(Section(label, available[key]) for key, label in spec.sections if available[key]))
+    return Document(name, intro, tuple(Section(label, available[key]) for key, label in spec.sections if available[key]), layout=spec.layout)

@@ -23,7 +23,6 @@ export function useSaved(w: Wizard, templates: Template[] | undefined, newLog: (
     return t ? buildSave(w, kind, t, preview?.document) : null
   }
   const save = async (kind: DocKind): Promise<SavedDocument> => {
-    if (kind === 'letter') await qc.ensureQueryData(previewQuery(buildBody(w, kind))).catch(() => undefined)
     const b = body(kind)
     if (!b) return Promise.reject(new Error('Choose a template first.'))
     const sig = JSON.stringify(b)

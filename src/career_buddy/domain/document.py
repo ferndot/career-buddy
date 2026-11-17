@@ -16,6 +16,18 @@ class Origin(StrEnum):
 
 
 @dataclass(frozen=True)
+class Layout:
+    """How a template arranges its page. Data: the stored html wraps its parts in these classes and `css` styles them
+    (adapters/outputs/render_html.py); the wizard draws the same arrangement from it.
+
+    `side` are the headings of trailing sections that sit in a side column beside the rest."""
+
+    header: Literal["plain", "centered", "band"] = "plain"
+    side: tuple[str, ...] = ()
+    css: str = ""
+
+
+@dataclass(frozen=True)
 class Line:
     text: str
     source_fact_id: str | None = None
@@ -49,6 +61,7 @@ class Document:
     intro: tuple[Line, ...] = ()  # contact line first, then headline
     sections: tuple[Section, ...] = ()
     label: str = "Resume"  # what the document is: names the download and the DOCX/HTML title
+    layout: Layout = dataclasses.field(default=Layout(), compare=False)  # the template's page arrangement: html and pdf draw it, docx keeps the header
 
     def lines(self) -> list[str]:
         """Every visible line in reading order. This is what the ATS check expects back."""

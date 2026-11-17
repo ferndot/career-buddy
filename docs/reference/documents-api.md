@@ -69,7 +69,7 @@ template is `404`. Nothing is stored. A model is required: there is no text made
 - Caps come from `resume_pages`, the length of this resume (it is a setting of each resume, not of the app): 1 page (the default)
   is 3 bullets per position and 10 skills, 2 pages is 5 and 15, 3 pages is 7 and 20. Bullets over the cap and skills over the cap are dropped, and skills the
   model names that were not sent are dropped.
-- The prompt is the versioned text file `adapters/inference/prompts/document_writer_v3.txt`.
+- The prompt is the versioned text file `adapters/inference/prompts/document_writer_v4.txt`.
 - Every text must cite sent facts and may not say more than they do. A cited id that was not sent is dropped from the text, and a
   text left with none is rejected. A number, a capitalised name, a skill, a company or role, or a job term the facts lack is
   rejected. All rejected texts go back to the model in **one** repair call, with the reasons; nothing more is asked after it.
