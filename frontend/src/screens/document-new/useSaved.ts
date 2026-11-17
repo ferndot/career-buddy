@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { previewQuery, SAVED_KEY, saveDocument, type Preview, type SaveBody, type SavedDocument, type Template } from '../documents/api'
-import { buildBody, buildSave, type DocKind, type Wizard } from './state'
+import type { Log } from '../../components'
+import { buildBody, buildSave, kindLabel, type DocKind, type Wizard } from './state'
+import { whyFailed } from './whyFailed'
 
 type Pending = { sig: string; doc: Promise<SavedDocument> }
 
@@ -9,7 +11,7 @@ type Pending = { sig: string; doc: Promise<SavedDocument> }
  * Saves each document once. Saving again with the same content returns the same document; changed content saves a new
  * one. Two quick clicks share one request. `saved` lists the kinds whose saved copy matches what is on screen.
  */
-export function useSaved(w: Wizard, templates: Template[] | undefined) {
+export function useSaved(w: Wizard, templates: Template[] | undefined, log: Log) {
   const qc = useQueryClient()
   const pending = useRef<Partial<Record<DocKind, Pending>>>({})
   const [done, setDone] = useState<Partial<Record<DocKind, string>>>({}) // signature of what each kind last saved
@@ -27,13 +29,16 @@ export function useSaved(w: Wizard, templates: Template[] | undefined) {
     const sig = JSON.stringify(b)
     const known = pending.current[kind]
     if (known?.sig === sig) return known.doc
+    log('info', `Saving the ${kindLabel(kind).toLowerCase()}`, 'working')
     const doc = saveDocument(b).then((d) => {
+      log('info', `Saved ${d.label}`, 'done')
       setDone((s) => ({ ...s, [kind]: sig }))
       void qc.invalidateQueries({ queryKey: SAVED_KEY })
       return d
     })
     pending.current[kind] = { sig, doc }
-    doc.catch(() => {
+    doc.catch((e) => {
+      log('error', `Failed: ${whyFailed(e)}`, 'failed')
       if (pending.current[kind]?.doc === doc) delete pending.current[kind] // a failed save can be tried again
     })
     return doc

@@ -1,6 +1,6 @@
 import { Box, Field, Input, Text } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
-import { LoadingState } from '../../components'
+import { LoadingState, type Log } from '../../components'
 import { AtsTag } from '../documents/DocumentsTable'
 import { previewQuery, type Template } from '../documents/api'
 import { Directions } from './Directions'
@@ -8,12 +8,12 @@ import { shown } from './layout'
 import { PreviewEditor } from './PreviewEditor'
 import { buildBody, missingInputs, type DocDraft, type DocKind, type Wizard } from './state'
 
-type Props = { w: Wizard; kind: DocKind; templates: Template[]; setDoc: (patch: Partial<DocDraft>) => void }
+type Props = { w: Wizard; kind: DocKind; templates: Template[]; setDoc: (patch: Partial<DocDraft>) => void; log: Log }
 
 const field = { bg: 'app.surface', borderColor: 'app.borderStrong', color: 'app.text' } as const
 
 /** Template for one document, its inputs, and the generated preview with editable text. */
-export function TemplateStep({ w, kind, templates, setDoc }: Props) {
+export function TemplateStep({ w, kind, templates, setDoc, log }: Props) {
   const doc = w.docs[kind]
   const choices = templates.filter((t) => t.kind === kind)
   const chosen = templates.find((t) => t.id === doc.templateId)
@@ -44,7 +44,7 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
             <Input {...field} value={doc.inputs[f] ?? ''} onChange={(e) => setDoc({ inputs: { ...doc.inputs, [f]: e.target.value } })} />
           </Field.Root>
         ))}
-        <Directions key={kind} w={w} kind={kind} ready={ready} setDoc={setDoc} />
+        <Directions key={kind} w={w} kind={kind} ready={ready} setDoc={setDoc} log={log} />
         {p && (
           <Box display="flex" flexDirection="column" gap="2">
             <Text fontWeight="semibold" fontSize="sm">ATS check</Text>

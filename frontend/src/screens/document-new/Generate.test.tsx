@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { MAX_INSTRUCTIONS } from '../documents/api'
@@ -184,4 +184,27 @@ test('the directions box counts characters and stops Generate above 2000', async
   expect(screen.getByRole('button', { name: 'Generate text' })).toBeDisabled()
   generate()
   expect(post(calls, '/api/documents/generate')).toHaveLength(0)
+})
+
+test('generating adds entries to the activity log: the request, the slots returned, and what was rejected and why', async () => {
+  const draft = { ...DRAFTS.resume, flags: { 'bullet:b1': { code: 'not_rewritten', reasons: ['number not in the source: 90'] } } }
+  stubApi([], true, () => json(draft))
+  await openAt(4)
+  await screen.findByLabelText('Edit text: Shipped it')
+  const log = screen.getByRole('log')
+  expect(within(log).getByText(/Reading the posting/)).toBeInTheDocument() // the review on the way here is already in the log
+  generate()
+  expect(await within(log).findByText(/Received 2 slots/)).toBeInTheDocument()
+  const lines = within(log).getAllByText(/Sent request|Received|rejected/).map((e) => e.textContent!.replace(/^\S+ /, ''))
+  expect(lines).toEqual(['Sent request for the resume', 'Received 2 slots', '1 rejected: number not in the source: 90'])
+  expect(screen.getByText('Done')).toBeInTheDocument()
+})
+
+test('a failed generate is logged with its reason', async () => {
+  stubApi([], true, () => json({ detail: 'The writer is busy.', code: 'x' }, 502))
+  await openAt(4)
+  await screen.findByLabelText('Edit text: Shipped it')
+  generate()
+  expect(await within(screen.getByRole('log')).findByText(/Failed: The writer is busy\./)).toBeInTheDocument()
+  expect(screen.getByText('Failed')).toBeInTheDocument()
 })

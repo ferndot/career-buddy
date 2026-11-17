@@ -1,23 +1,49 @@
 import { Box, Button, Field, NativeSelect, Text, Textarea } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { LoadingState } from '../../components'
+import { ApiError } from '../../api'
+import { LoadingState, type Log } from '../../components'
 import { generateText, MAX_INSTRUCTIONS, type ResumePages } from '../documents/api'
 import { errorMessage, useConnections } from '../settings/llmApi'
-import { buildBody, type DocDraft, type DocKind, type Wizard } from './state'
+import { buildBody, kindLabel, type DocDraft, type DocKind, type Wizard } from './state'
+import { whyFailed } from './whyFailed'
 
-type Props = { w: Wizard; kind: DocKind; ready: boolean; setDoc: (patch: Partial<DocDraft>) => void }
+type Props = { w: Wizard; kind: DocKind; ready: boolean; setDoc: (patch: Partial<DocDraft>) => void; log: Log }
+type Reject = { reasons: string[] }
+
+/** How many slots the writer's text was rejected for, and the distinct reasons (the first few). */
+function logRejected(log: Log, rejected: Reject[]) {
+  if (rejected.length === 0) return
+  const why = [...new Set(rejected.flatMap((r) => r.reasons))].slice(0, 3).join('; ')
+  log('warn', `${rejected.length} rejected${why ? `: ${why}` : ''}`)
+}
 
 /** Directions for the writer, and the button that asks for a draft. The draft becomes the default text of the preview. */
-export function Directions({ w, kind, ready, setDoc }: Props) {
+export function Directions({ w, kind, ready, setDoc, log }: Props) {
   const doc = w.docs[kind]
   const over = doc.instructions.length > MAX_INSTRUCTIONS
   const connections = useConnections()
   const noModel = !!connections.data && !connections.data.active // not while loading: the answer is not known yet
   const gen = useMutation({
     mutationFn: () => generateText({ ...buildBody(w, kind), instructions: doc.instructions, pinned: Object.keys(doc.overrides), resume_pages: doc.resumePages }),
+    onMutate: () => {
+      const pinned = Object.keys(doc.overrides).length
+      log('info', `Sent request for the ${kindLabel(kind).toLowerCase()}${pinned ? `, ${pinned} slot${pinned === 1 ? '' : 's'} kept as written` : ''}`, 'working')
+    },
     // a new draft replaces the generated text, except under the user's own wording, which it never touched. A failed call changes nothing.
-    onSuccess: (draft) => setDoc({ generated: { ...Object.fromEntries(Object.entries(doc.generated).filter(([slot]) => slot in doc.overrides)), ...draft.slots }, flags: draft.flags }),
+    onSuccess: (draft) => {
+      setDoc({ generated: { ...Object.fromEntries(Object.entries(doc.generated).filter(([slot]) => slot in doc.overrides)), ...draft.slots }, flags: draft.flags })
+      const n = Object.keys(draft.slots).length
+      log('info', `Received ${n} slot${n === 1 ? '' : 's'}`, 'done')
+      logRejected(log, Object.values(draft.flags))
+      if (draft.notice) log('info', draft.notice)
+    },
+    onError: (e) => {
+      // an unsupported draft comes back as an error that lists what was rejected
+      const rejected = (e instanceof ApiError ? (e.body as { rejected?: Reject[] } | undefined)?.rejected : undefined) ?? []
+      log('error', `Failed: ${whyFailed(e)}`, 'failed')
+      logRejected(log, rejected)
+    },
   })
   return (
     <Box display="flex" flexDirection="column" gap="3">

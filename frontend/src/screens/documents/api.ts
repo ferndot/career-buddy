@@ -49,11 +49,12 @@ export const fetchJobText = (url: string) =>
 
 /** A slot the person should look at: a bullet the writer could not reword (it shows the fact's own words), or text left empty. */
 export type Flag = { code: 'not_rewritten' | 'rejected'; reasons: string[] }
-/** The writer's draft: slot id -> text. Nothing is stored; saving the document keeps it as generated text. */
+/** The writer's draft: slot id -> text. Nothing is stored; saving the document keeps it as generated text. `notice` is a note about the draft, when one is sent. */
 export type Generated = {
   slots: Record<string, string>
   cites: Record<string, string[]>
   flags: Record<string, Flag>
+  notice?: string
 }
 export const MAX_INSTRUCTIONS = 2000
 export type ResumePages = 1 | 2 | 3

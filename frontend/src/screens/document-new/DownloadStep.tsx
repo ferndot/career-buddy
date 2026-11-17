@@ -2,25 +2,38 @@ import { Box, Button, Text } from '@chakra-ui/react'
 import { useState } from 'react'
 import { LuDownload } from 'react-icons/lu'
 import { RobotMascot } from '../../brand'
+import type { Log } from '../../components'
 import { DOWNLOAD_FORMATS, downloadSaved, type SavedDocument } from '../documents/api'
 import { kindLabel, type DocKind } from './state'
+import { whyFailed } from './whyFailed'
 
 type Props = {
   kind: DocKind
   saved: boolean // the saved copy matches what is on screen
   save: () => Promise<SavedDocument>
+  log: Log
 }
 
 /** Saving creates the saved document once; each format button then downloads it, converted on the fly. */
-export function DownloadStep({ kind, saved, save }: Props) {
+export function DownloadStep({ kind, saved, save, log }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const download = async (doc: SavedDocument, format: string) => {
+    log('info', `Preparing ${DOWNLOAD_FORMATS.find((f) => f.format === format)?.label ?? format}`, 'working')
+    try {
+      await downloadSaved(doc, format)
+      log('info', `Downloaded ${doc.filename}.${format}`, 'done')
+    } catch (e) {
+      log('error', `Failed: ${whyFailed(e)}`, 'failed')
+      throw e
+    }
+  }
   const run = async (format?: string) => {
     setBusy(true)
     setError('')
     try {
       const doc = await save()
-      if (format) await downloadSaved(doc, format)
+      if (format) await download(doc, format)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
     } finally {

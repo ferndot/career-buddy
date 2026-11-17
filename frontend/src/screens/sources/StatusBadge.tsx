@@ -1,19 +1,13 @@
-import { Badge } from '@chakra-ui/react'
+import { StatusBadge as Badge, type ActivityStatus } from '../../components'
 import type { SourceStatus } from './sourcesApi'
 
-const LABEL: Record<SourceStatus, string> = { queued: 'Working', processing: 'Working', ready: 'Parsed', failed: 'Failed' }
-const COLOR: Record<SourceStatus, { bg: string; color: string }> = {
-  queued: { bg: 'app.warnBg', color: 'app.warnText' },
-  processing: { bg: 'app.warnBg', color: 'app.warnText' },
-  ready: { bg: 'app.okBg', color: 'app.okText' },
-  failed: { bg: 'app.missBg', color: 'app.missText' },
+/** A source's status in the shared activity vocabulary, with the wording sources use. */
+export const ACTIVITY: Record<SourceStatus, { status: ActivityStatus; label: string }> = {
+  queued: { status: 'working', label: 'Working' },
+  processing: { status: 'working', label: 'Working' },
+  ready: { status: 'done', label: 'Parsed' },
+  failed: { status: 'failed', label: 'Failed' },
 }
 
 /** The one status label for a source, in the same place on every card. */
-export function StatusBadge({ status }: { status: SourceStatus }) {
-  return (
-    <Badge {...COLOR[status]} borderRadius="full" px="2" flexShrink={0}>
-      {LABEL[status]}
-    </Badge>
-  )
-}
+export const StatusBadge = ({ status }: { status: SourceStatus }) => <Badge {...ACTIVITY[status]} />

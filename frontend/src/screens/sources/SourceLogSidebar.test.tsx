@@ -27,7 +27,7 @@ describe('SourceLogSidebar', () => {
     expect(await screen.findByText(/chunk 1: asking the model/)).toBeInTheDocument()
     expect(screen.getByText('Extracting positions')).toBeInTheDocument()
     expect(screen.getByText('Working')).toBeInTheDocument()
-    expect(screen.getByText(/the model listed no entities/).closest('[data-level]')).toHaveAttribute('data-level', 'WARNING')
+    expect(screen.getByText(/the model listed no entities/).closest('[data-level]')).toHaveAttribute('data-level', 'warn')
     expect(screen.queryByText('No activity yet')).not.toBeInTheDocument()
   })
 

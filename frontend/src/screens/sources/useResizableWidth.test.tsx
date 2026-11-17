@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/react'
 import { queryClient } from '../../api'
 import { renderApp } from '../../test/render'
 import { SourceLogSidebar } from './SourceLogSidebar'
-import { clampWidth, DEFAULT_WIDTH, KEY_STEP, MIN_WIDTH } from './useResizableWidth'
+import { clampWidth, DEFAULT_WIDTH, KEY_STEP, MIN_WIDTH } from '../../components/useResizableWidth'
 
 describe('clampWidth', () => {
   it('keeps the width between 240px and 60% of the viewport', () => {
