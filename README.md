@@ -156,7 +156,7 @@ Tests that call a real model (marked `live`) and the S3 test skip themselves unl
 The project is managed with `spec-ops`, the SpecOps project-management CLI. It is used by `uv run spec-ops health` (file-length check) and `uv run spec-ops docs audit` (documentation check). It is not part of this repo's `uv sync`, so install it once from its own repository:
 
 ```bash
-uv tool install git+https://github.com/ferndot/spec-ops
+uv tool install git+https://github.com/tyevans/spec-ops
 ```
 
 Then run it from the project folder with `uv run spec-ops health` and `uv run spec-ops docs audit`. On Windows, set `PYTHONIOENCODING=utf-8` first or `spec-ops health` fails with `UnicodeEncodeError` (PowerShell: `$env:PYTHONIOENCODING = "utf-8"`). If `uv run spec-ops` says the command is not found, run `uv tool update-shell` and open a new terminal.
