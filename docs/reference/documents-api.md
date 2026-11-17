@@ -6,7 +6,7 @@ All document endpoints take `{template, format?, job_text?, inputs?, overrides?}
   visible fact goes to the writer and into the document: all bullets, skills and education entries. A fact the user hid is
   left out. Bullets and skills are ordered by how well they match `job_text`. A field the body does not name is ignored.
 
-The document wizard has five steps: Job posting, Documents, Missing requirements, Template and preview, Download. They call
+The document wizard has five steps: Job posting, Documents, Missing requirements, Template, Preview and download. Between Template and Preview and download the model writes the text, on its own page that shows any failure and offers a retry. They call
 `POST /api/job/fetch` (see [Import API](import-api.md)), `POST /api/fit`, `POST /api/documents/generate`,
 `POST /api/documents/preview` and `POST /api/documents/render`.
 
