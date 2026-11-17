@@ -62,8 +62,17 @@ export function NewDocumentScreen() {
   )
 
   return (
-    <Flex direction="column" minH="calc(100dvh - 11rem)">
+    <>
       <StepIndicator current={w.step} />
+      <Flex justifyContent="flex-end" alignItems="center" mb="6" gap="3">
+        {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
+        <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
+          Back
+        </Button>
+        <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active} loading={finishing} onClick={next}>
+          {w.step === LAST ? 'Done' : 'Next'}
+        </Button>
+      </Flex>
       {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
       {w.step === 2 && <DocsStep w={w} set={set} />}
       {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
@@ -73,15 +82,6 @@ export function NewDocumentScreen() {
           <Box flex="1" minW="0" w="full">{body}</Box>
         </Box>
       )}
-      <Flex justifyContent="flex-end" alignItems="center" mt="auto" pt="6" gap="3">
-        {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
-        <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
-          Back
-        </Button>
-        <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active} loading={finishing} onClick={next}>
-          {w.step === LAST ? 'Done' : 'Next'}
-        </Button>
-      </Flex>
-    </Flex>
+    </>
   )
 }
