@@ -79,7 +79,7 @@ export function NewDocumentScreen() {
           </Button>
         </Flex>
       </Flex>
-      {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
+      {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} reason={reviewing.reason} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
       {w.step === 2 && <DocsStep w={w} set={set} />}
       {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
       {w.step >= 4 && (

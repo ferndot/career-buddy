@@ -221,16 +221,22 @@ test('Next shows the Fetching job description page, calls /api/fit once, then go
   expect(posted).toHaveLength(1)
 })
 
-test('with no model (503) the user goes on to step 2 and step 3 links to Settings', async () => {
+test('with no model (503) the reading page shows why, with a retry; going on without requirements reaches step 2', async () => {
   stubApi()
   const posted = stubReview('unavailable')
-  await openAt(2)
+  pasteAt1()
+  fireEvent.click(nextButton())
+  expect(await screen.findByText('Connect a model in Settings to check the job posting for requirements.')).toBeInTheDocument()
+  expect(progress()).toHaveTextContent('Step 1 of 5')
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  expect(posted).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without requirements' }))
   expect(progress()).toHaveTextContent('Step 2 of 5 · Documents')
   fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
   fireEvent.click(nextButton())
   expect(screen.getByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
-  expect(posted).toHaveLength(1)
-  openLogs(/Job posting review/)
+  openLogs()
+  fireEvent.click(screen.getAllByRole('button', { name: /Job posting review/ })[0])
   expect(within(screen.getByRole('log')).getByText(/No answer from the model: Connect a model in Settings/)).toBeInTheDocument()
 })
 

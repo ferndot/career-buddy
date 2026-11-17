@@ -76,7 +76,9 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   renderShell(<NewDocumentScreen />)
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Python engineer with Kubernetes' } })
-  next() // the model reads the posting first; step 2 follows
+  next() // the model reads the posting first; step 2 follows, or the reading page waits for a retry without a model
+  await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'Resume' }) ?? screen.queryByRole('button', { name: 'Continue without requirements' })).toBeTruthy())
+  if (screen.queryByRole('button', { name: 'Continue without requirements' })) fireEvent.click(screen.getByRole('button', { name: 'Continue without requirements' }))
   await screen.findByRole('checkbox', { name: 'Resume' })
   if (step === 2) return
   for (const k of kinds) fireEvent.click(screen.getByRole('checkbox', { name: k }))

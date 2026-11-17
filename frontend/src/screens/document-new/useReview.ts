@@ -7,8 +7,8 @@ import { whyFailed } from './whyFailed'
 
 /**
  * Leaving step 1: the model reads the posting, once per posting text, and the result goes in the wizard before step 2.
- * No model or no answer (503) goes on to step 2 with step 3 saying so; the log holds the backend's reason.
- * Any other failure keeps the loading page up (`active`) with a retry and a way on. Each stage is recorded in `log`.
+ * Any failure, including no model (503), keeps the loading page up (`active`) with the reason, a retry and a way on.
+ * Going on without requirements is `skip`, which leads to step 2 with step 3 saying no model answered. Each stage is recorded in `log`.
  */
 export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, newLog: (title: string) => Log) {
   const m = useMutation({ mutationFn: (text: string) => getFit(text) })
@@ -27,8 +27,7 @@ export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, newL
       },
       onError: (e) => {
         if (e instanceof ApiError && e.status === 503) {
-          log('warn', `No answer from the model: ${whyFailed(e)}`, 'unavailable')
-          done('unavailable')
+          log('warn', `No answer from the model: ${whyFailed(e)}`, 'unavailable') // the page stays up: Try again, or go on without requirements
         } else log('error', `Failed: ${whyFailed(e)}`, 'failed')
       },
     })
@@ -37,5 +36,5 @@ export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, newL
     newLog('Job posting review')('info', 'Continued without requirements', 'idle')
     done('unavailable')
   }
-  return { start, skip, active: m.isPending || m.isError, failed: m.isError }
+  return { start, skip, active: m.isPending || m.isError, failed: m.isError, reason: m.error ? whyFailed(m.error) : '' }
 }

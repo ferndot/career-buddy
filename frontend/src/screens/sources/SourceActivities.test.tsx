@@ -56,12 +56,12 @@ describe('sources in the activity sidebar', () => {
     expect(screen.getByText(/the model listed no entities/).closest('[data-level]')).toHaveAttribute('data-level', 'warn')
   })
 
-  it('says so when nothing has been logged', async () => {
+  it('does not list a source that has nothing logged and is not working', async () => {
     stubApi([source({ status: 'ready', progress: 100, step: 'Parsed' })], () => log([], { status: 'ready', progress: 100, step: 'Parsed' }))
     renderShell(<p>x</p>)
-    await show(/resume\.pdf/)
-    expect(screen.getByText('No activity yet', { selector: 'p' })).toBeInTheDocument()
-    expect(screen.getByText('Parsed', { selector: 'p' })).toBeInTheDocument()
+    openLogs()
+    expect(await screen.findByText('No activity yet')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resume.pdf/ })).not.toBeInTheDocument()
   })
 
   it('polls with the cursor while processing and stops once the log says it is done', async () => {
