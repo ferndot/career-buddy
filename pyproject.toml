@@ -1,10 +1,12 @@
 [project]
 name = "career-buddy"
 version = "0.1.0"
-description = "Add your description here"
+description = "Import career data, keep it as a graph of facts, and generate resumes and cover letters from it."
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 readme = "README.md"
 authors = [
-    { name = "Fern", email = "contact@ferns.land" }
+    { name = "Fern", email = "1479244+ferndot@users.noreply.github.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [

@@ -20,7 +20,7 @@ def of(batch: FactBatch, kind: str) -> list:
 def assert_grouped_resume_facts(batch: FactBatch) -> None:
     (person,) = of(batch, "Person")
     assert person.title == "Mira Valdane"
-    assert person.attributes == {"email": "mira.valdane@example.com", "phone": "(206) 574-8690"}
+    assert person.attributes == {"email": "mira.valdane@example.com", "phone": "(206) 555-0142"}
 
     org, other = "Northwind Labs / Contoso Works", "Fabrikam Systems"
     positions = {f.title: f.attributes for f in of(batch, "Position")}
@@ -62,8 +62,8 @@ def test_bullets_attach_to_the_most_recent_title() -> None:
 
 
 def test_a_phone_that_lost_its_opening_parenthesis_is_reported_as_written() -> None:
-    (person,) = of(extract(resume_text("206) 574-8690")), "Person")
-    assert person.attributes["phone"] == "206) 574-8690"
+    (person,) = of(extract(resume_text("206) 555-0142")), "Person")
+    assert person.attributes["phone"] == "206) 555-0142"
 
 
 def test_category_labels_are_not_skills() -> None:

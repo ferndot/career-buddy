@@ -217,7 +217,7 @@ Three steps across the top: **Import, Edit, Create**.
 | `GET /api/templates` | Templates and required inputs |
 | `POST /api/documents/{preview,render,check,suggest}` | `{template, format?, job_text?, inputs, selection?, overrides?}` |
 
-`/api/resume/{fmt}`, `/api/cover-letter` and `/api/fit` stay as aliases. `create_app` gains an optional `llm_client` parameter for HTTP tests that use `MockTransport`.
+`/api/resume/{fmt}` and `/api/fit` stay as aliases. `create_app` gains an optional `llm_client` parameter for HTTP tests that use `MockTransport`.
 
 ## Phases (ordered by risk; each one ships)
 

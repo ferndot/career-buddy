@@ -9,7 +9,7 @@ FFFD = "�"
 SEP = f" {FFFD} "
 
 
-def resume_text(phone: str = "(206) 574-8690") -> str:
+def resume_text(phone: str = "(206) 555-0142") -> str:
     return "\n".join([
         "Mira Valdane",
         "Principal Engineer and Platform Lead",

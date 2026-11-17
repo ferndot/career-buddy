@@ -11,12 +11,25 @@ Requires [Docker](https://docs.docker.com/get-docker/). From the project folder:
 make
 ```
 
-`make` builds the image and starts it in the background. Then open http://localhost:8080. `make stop` shuts it down, and `make logs` follows the log. `make dev` is for development: it runs in the foreground with the API auto-reloading and the UI under hot reload at http://localhost:5173 (Ctrl+C stops it). Without `make`, run `docker compose up --build -d` instead. One container serves the web app and the API; interactive API docs are at `/docs`.
+`make` builds the image and starts it in the background. Then open http://localhost:8080. `make stop` shuts it down, and `make logs` follows the log. `make dev` is for development: it runs in the foreground with the API auto-reloading and the UI under hot reload at http://localhost:5173 (Ctrl+C stops it). Without `make` (the usual case on Windows), run `docker compose up --build -d` instead; `docker compose down` stops it. One container serves the web app and the API; interactive API docs are at `/docs`.
 Your data lives in `./data` on the host, so it survives rebuilds and restarts. Port 8080 is used because 8000 is often
 taken; change it in `docker-compose.yml`. Chromium for PDF output is already in the image.
 
 To use a model, add a connection in Settings (see [LLM connections](#llm-connections)). In the container, `localhost` is
 the container itself, so reach Ollama or LM Studio on your computer at `http://host.docker.internal:11434/v1` (Ollama) or `:1234` (LM Studio).
+
+### Without Docker
+
+Requires Python 3.13+, [uv](https://docs.astral.sh/uv/) and, to build the UI, Node.js with [pnpm](https://pnpm.io). Same commands on Windows, macOS and Linux:
+
+```bash
+uv sync
+uv run career-buddy install-browser   # downloads Chromium for PDF output (about 150 MB)
+cd frontend && pnpm install && pnpm build && cd ..   # builds the UI into src/career_buddy/web/static
+uv run career-buddy                   # serves http://127.0.0.1:8000 and opens it
+```
+
+Data goes to the folder in `CAREER_BUDDY_DATA` (see `src/career_buddy/paths.py` for the default).
 
 ## LLM connections
 
@@ -107,7 +120,8 @@ src/career_buddy/
     storage/       JsonlEventLog                    (append-only event log, the source of truth)
                    KeyStore                         (API keys: OS keychain, or a private file)
                    LocalObjectStore, S3ObjectStore  (original uploads and saved documents; boto3 against MinIO or any S3)
-    graph/         MemoryFactGraph                  (plain in-memory projection)
+    graph/         RedstringGraph                   (redstring in-memory graph store, projection of the log)
+    consolidation/ duplicate-skill candidates (redstring)
     outputs/       Markdown, HTML, TXT, DOCX (python-docx), PDF (Playwright) renderers
     readers/       PDF (pdfminer.six), DOCX (python-docx), Markdown/TXT/HTML text readers
   web/             FastAPI HTTP adapter; serves the React UI (source in `frontend/`, built into `web/static`)
@@ -124,7 +138,8 @@ Adding a source or an output means writing one adapter that implements a port in
 ## Develop
 
 ```bash
-uv run pytest
+uv run pytest                    # backend
+cd frontend && pnpm test         # UI (vitest); pnpm typecheck runs tsc
 ```
 
 Tests drive the HTTP API end to end, plus a few pure-domain unit tests. The development process

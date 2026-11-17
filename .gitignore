@@ -14,3 +14,16 @@ HANDOVER.md
 
 data/
 src/career_buddy/web/static/
+
+# runtime secrets and settings, wherever they land
+secrets.json
+llm-settings.json
+.env
+.env.*
+
+# local tooling and scratch
+.venv/
+node_modules/
+.claude/
+.scratch/
+frontend/_tmp_*
