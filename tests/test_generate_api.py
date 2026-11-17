@@ -84,13 +84,44 @@ def hide(client: TestClient, fact_id: str) -> None:
     assert client.patch(f"/api/facts/{fact_id}", json={"attributes": {**fact["attributes"], "hidden": "true"}}).status_code == 200
 
 
-# a resume of Jane's: a summary, three bullets, two skills. Four written slots, so one rejected slot is 25%.
+def section(key: str, *items: dict) -> dict:
+    return {"key": key, "items": list(items)}
+
+
+def experience(p: dict, *written: tuple[str, str]) -> dict:
+    """The experience section for (achievement id, text) pairs: each position's bullets together, as the model would write them."""
+    position = {f["id"]: f["position_id"] for f in p["facts"]}
+    out: dict[str, list] = {}
+    for fid, text in written:
+        out.setdefault(position[fid], []).append({"text": text, "fact_ids": [fid]})
+    return section("experience", *({"position_id": pid, "bullets": bullets} for pid, bullets in out.items()))
+
+
+def bullets(answer: dict) -> list[dict]:
+    return [b for s in answer["sections"] if s["key"] == "experience" for i in s["items"] for b in i["bullets"]]
+
+
+def items(answer: dict, key: str) -> list[dict]:
+    return next(s for s in answer["sections"] if s["key"] == key)["items"]
+
+
+def nodes(draft: dict, key: str) -> list[dict]:
+    """The texts of a section of a draft: its items, or for experience all the bullets."""
+    got = next((s for s in draft["sections"] if s["key"] == key), {"items": []})["items"]
+    return [b for i in got for b in i["bullets"]] if key == "experience" else got
+
+
+# a resume of Jane's: a summary, three bullets, a skills line. Four written slots (the skills line is not counted), so one rejected slot is 25%.
 def good(p: dict) -> dict:
     cut, kube, etl = find(p, CUT), find(p, MIGRATED), find(p, ETL)
-    return {"summary": {"text": "Platform engineer who cut build times by 60%.", "fact_ids": [find(p, "Senior Engineer", "position"), cut]},
-            "bullets": [{"fact_id": cut, "text": "Reduced build times by 60%"}, {"fact_id": kube, "text": "Moved 40 services to Kubernetes"},
-                        {"fact_id": etl, "text": "Built ETL jobs"}],
-            "skill_ids": [find(p, "Kubernetes", "skill"), find(p, "Python", "skill")]}
+    return {"sections": [
+        section("summary", {"text": "Platform engineer who cut build times by 60%.", "fact_ids": [find(p, "Senior Engineer", "position"), cut]}),
+        experience(p, (cut, "Reduced build times by 60%"), (kube, "Moved 40 services to Kubernetes"), (etl, "Built ETL jobs")),
+        section("skills", {"text": "Kubernetes, Python", "fact_ids": [find(p, "Kubernetes", "skill"), find(p, "Python", "skill")]})]}
+
+
+def letter_answer(*paragraphs: tuple[str, list[str]]) -> dict:
+    return {"sections": [section("body", *({"text": t, "fact_ids": ids_} for t, ids_ in paragraphs))]}
 
 
 # --- without a model ---
@@ -127,7 +158,7 @@ def test_the_writer_is_sent_every_printed_fact_with_its_dates_and_no_name_or_con
     assert len(model.payloads) == 1
     sent = model.payloads[0]
     assert sent["kind"] == "resume" and sent["directions"] == "Warm, and stress Kubernetes" and sent["posting"] == "Python platform engineer, Kubernetes"
-    assert sent["company"] == "Acme" and sent["role"] == "Platform Engineer" and sent["caps"] == {"pages": 1, "bullets_per_position": 3, "skills": 10}
+    assert sent["company"] == "Acme" and sent["role"] == "Platform Engineer" and sent["sections"] == ["summary", "experience", "education", "skills"] and "caps" not in sent
     by_text = {f["text"].split("\n")[0]: f for f in sent["facts"]}
     assert {f["kind"] for f in sent["facts"]} == {"summary", "position", "achievement", "skill", "education"}
     assert {CUT, MIGRATED, ETL, "Python", "Kubernetes", "Senior Engineer at Acme Corp", "Engineer at Globex", "Builds reliable data pipelines",
@@ -161,8 +192,11 @@ def test_a_hidden_fact_is_not_sent_and_cannot_be_printed(tmp_path: Path) -> None
         hide(client, known["Kubernetes"])
 
         def names_them(p):  # the model writes bullets and skills for facts it was not sent
-            return {"bullets": [{"fact_id": known[ETL], "text": "Built ETL"}, {"fact_id": known[CUT], "text": "Reduced build times by 60%"}],
-                    "skill_ids": [known["Kubernetes"], known["Python"]], "summary": {"text": "Engineer.", "fact_ids": [known[CUT]]}}
+            return {"sections": [
+                section("summary", {"text": "Engineer.", "fact_ids": [known[CUT]]}),
+                {"key": "experience", "items": [{"position_id": known["Senior Engineer"], "bullets": [
+                    {"text": "Built ETL", "fact_ids": [known[ETL]]}, {"text": "Reduced build times by 60%", "fact_ids": [known[CUT]]}]}]},
+                section("skills", {"text": "Kubernetes, Python", "fact_ids": [known["Kubernetes"], known["Python"]]})]}
 
         model.write = names_them
         draft = generate(client, RESUME)
@@ -170,8 +204,8 @@ def test_a_hidden_fact_is_not_sent_and_cannot_be_printed(tmp_path: Path) -> None
     texts = {f["text"].split("\n")[0] for f in sent}
     assert {CUT, MIGRATED, "Python"} <= texts and not texts & {ETL, "Kubernetes"}
     assert not {known[ETL], known["Kubernetes"]} & {f["id"] for f in sent}
-    assert set(draft["slots"]) == {"summary", f"bullet:{known[CUT]}", "skills"}
-    assert draft["slots"]["skills"] == "Python" and draft["flags"] == {}  # dropped, not flagged
+    assert set(draft["slots"]) == {"summary", f"bullet:{known[CUT]}"}
+    assert set(draft["flags"]) == {"skills"} and "skills" not in draft["slots"]  # the line naming a hidden skill is rejected and left empty; it does not sink the draft
 
 
 def test_the_posting_is_cut_to_6000_characters_and_pinned_slots_are_left_to_the_user(tmp_path: Path) -> None:
@@ -182,6 +216,7 @@ def test_the_posting_is_cut_to_6000_characters_and_pinned_slots_are_left_to_the_
         draft = generate(client, {**RESUME, "job_text": "p" * 7000, "pinned": pinned})
     assert len(model.payloads[0]["posting"]) == 6000 and model.payloads[0]["pinned"] == sorted(pinned)
     assert "summary" not in draft["slots"] and f"bullet:{known[ETL]}" not in draft["slots"]  # the model wrote them; they are the user's
+    assert nodes(draft, "summary")[0]["slot"] == "summary" and f"bullet:{known[ETL]}" in [b["slot"] for b in nodes(draft, "experience")]  # and keep their place
 
 
 # --- what comes back ---
@@ -194,7 +229,9 @@ def test_the_returned_slots_come_from_the_model_and_cite_their_facts(tmp_path: P
     assert draft["slots"] == {"summary": "Platform engineer who cut build times by 60%.", f"bullet:{known[CUT]}": "Reduced build times by 60%",
                               f"bullet:{known[MIGRATED]}": "Moved 40 services to Kubernetes", f"bullet:{known[ETL]}": "Built ETL jobs",
                               "skills": "Kubernetes, Python"}
-    assert draft["cites"]["summary"] == [known["Senior Engineer"], known[CUT]] and draft["cites"]["skills"] == [known["Kubernetes"], known["Python"]]
+    assert nodes(draft, "summary")[0]["fact_ids"] == [known["Senior Engineer"], known[CUT]] and nodes(draft, "skills")[0]["fact_ids"] == [known["Kubernetes"], known["Python"]]
+    senior = next(i for i in next(s for s in draft["sections"] if s["key"] == "experience")["items"] if i["position_id"] == known["Senior Engineer"])
+    assert senior["heading"].startswith("Senior Engineer, Acme Corp") and [b["fact_ids"] for b in senior["bullets"]][0] == [known[CUT]]  # the heading is the facts' own
 
 
 def test_the_resume_length_of_the_request_sets_the_caps_and_is_one_page_when_left_out(tmp_path: Path) -> None:
@@ -203,24 +240,25 @@ def test_the_resume_length_of_the_request_sets_the_caps_and_is_one_page_when_lef
         for pages in (2, 3):
             generate(client, {**RESUME, "resume_pages": pages})
         assert client.post("/api/documents/generate", json={**RESUME, "resume_pages": 4}).status_code == 422
-    assert [m["caps"] for m in model.payloads] == [{"pages": 2, "bullets_per_position": 5, "skills": 15},
-                                                  {"pages": 3, "bullets_per_position": 7, "skills": 20}]
+    assert "2 pages long. At most 5 bullets for each position and 15 skills" in model.systems[0]
+    assert "3 pages long. At most 7 bullets for each position and 20 skills" in model.systems[1]
+    assert all("caps" not in m for m in model.payloads)
 
 
-def test_a_letter_is_the_models_paragraphs_with_the_company_and_role_named(tmp_path: Path) -> None:
+def test_a_letter_is_one_body_block_of_the_models_paragraphs_with_the_company_and_role_named(tmp_path: Path) -> None:
     def write(p):
         senior, cut = find(p, "Senior Engineer", "position"), find(p, CUT)
-        return {"paragraphs": [
-            {"text": "I am applying for the Engineer role at Acme because platform reliability is the work I enjoy most.", "fact_ids": [senior]},
-            {"text": "As Senior Engineer I cut build times by 60%, which gave every team faster feedback.", "fact_ids": [senior, cut]},
-            {"text": "I would welcome a conversation about the role.", "fact_ids": [senior]}]}
+        return letter_answer(("I am applying for the Engineer role at Acme because platform reliability is the work I enjoy most.", [senior]),
+                             ("As Senior Engineer I cut build times by 60%, which gave every team faster feedback.", [senior, cut]),
+                             ("I would welcome a conversation about the role.", [senior]))
 
     model = Model(write)
     with open_client(tmp_path, model) as client:
         draft = generate(client, LETTER)
-    assert model.payloads[0]["kind"] == "letter" and "caps" not in model.payloads[0] and model.payloads[0]["company"] == "Acme"
+    assert model.payloads[0]["kind"] == "letter" and model.payloads[0]["sections"] == ["body"] and model.payloads[0]["company"] == "Acme"
+    assert [s["key"] for s in draft["sections"]] == ["body"]  # one block
     assert list(draft["slots"]) == ["para:1", "para:2", "para:3"] and draft["flags"] == {}
-    assert draft["slots"]["para:2"].startswith("As Senior Engineer I cut build times by 60%") and len(draft["cites"]["para:2"]) == 2
+    assert draft["slots"]["para:2"].startswith("As Senior Engineer I cut build times by 60%") and len(nodes(draft, "body")[1]["fact_ids"]) == 2
 
 
 # --- grounding, the repair and the thresholds ---
@@ -228,7 +266,7 @@ def test_a_letter_is_the_models_paragraphs_with_the_company_and_role_named(tmp_p
 def test_an_invented_number_is_rejected_and_the_one_repair_call_covers_only_that_slot_and_its_reasons(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["bullets"][0]["text"] = "Reduced build times by 90%"
+        bullets(out)[0]["text"] = "Reduced build times by 90%"
         return out
 
     def repair(p):
@@ -247,24 +285,28 @@ def test_an_invented_number_is_rejected_and_the_one_repair_call_covers_only_that
 
 
 def test_the_prompt_is_the_versioned_file_for_the_kind_and_the_repair_call_adds_the_repair_rules(tmp_path: Path) -> None:
-    model = Model(lambda p: {**good(p), "bullets": [{**good(p)["bullets"][0], "text": "Reduced build times by 90%"}, *good(p)["bullets"][1:]]},
-                  lambda p: {"slots": []})
-    letter = Model(lambda p: {})
+    def write(p):
+        out = good(p)
+        bullets(out)[0]["text"] = "Reduced build times by 90%"
+        return out
+
+    model = Model(write, lambda p: {"slots": []})
+    letter = Model(lambda p: {"sections": []})
     with open_client(tmp_path, model) as client:
         generate(client, RESUME)
     write, repair = model.systems
-    assert write.startswith("You write text for a person's job application") and "Write the most effective resume you can" in write
+    assert write.startswith("You write a person's job application document") and "Write the whole resume at once" in write and "Template instructions:" not in write
     assert "Write the body of a cover letter" not in write and "were rejected for the reasons given" not in write
-    assert "were rejected for the reasons given" in repair and "Write the most effective resume you can" in repair
+    assert "were rejected for the reasons given" in repair and "Write the whole resume at once" not in repair
     with open_client(tmp_path / "letter", letter) as client:
         client.post("/api/documents/generate", json=LETTER)
-    assert "Write the body of a cover letter" in letter.systems[0] and "Write the most effective resume you can" not in letter.systems[0]
+    assert "Write the body of a cover letter" in letter.systems[0] and "Write the whole resume at once" not in letter.systems[0]
 
 
 def test_a_second_failure_is_final_a_bullet_shows_the_facts_own_title_flagged_and_the_rest_is_kept(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["bullets"][0]["text"] = "Reduced build times by 90%"
+        bullets(out)[0]["text"] = "Reduced build times by 90%"
         return out
 
     model = Model(write, lambda p: {"slots": [{"slot": s["slot"], "text": "Reduced build times by 80%", "fact_ids": s["fact_ids"]} for s in p["failed"]]})
@@ -280,14 +322,14 @@ def test_a_second_failure_is_final_a_bullet_shows_the_facts_own_title_flagged_an
 def test_a_summary_that_fails_twice_is_left_empty_and_flagged_with_the_reason(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["summary"]["text"] = "Platform engineer with 12 years at Initech."
+        items(out, "summary")[0]["text"] = "Platform engineer with 12 years at Initech."
         return out
 
     model = Model(write, lambda p: {"slots": []})  # the repair answers nothing
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
     assert len(model.payloads) == 2
-    assert draft["slots"]["summary"] == "" and draft["flags"]["summary"]["code"] == "rejected"
+    assert nodes(draft, "summary")[0]["text"] == "" and "summary" not in draft["slots"] and draft["flags"]["summary"]["code"] == "rejected"
     assert any(r.startswith("number not in the source: 12") for r in draft["flags"]["summary"]["reasons"])
     assert any("Initech" in r for r in draft["flags"]["summary"]["reasons"])  # an employer the facts lack
 
@@ -295,7 +337,7 @@ def test_a_summary_that_fails_twice_is_left_empty_and_flagged_with_the_reason(tm
 def test_a_repair_call_that_fails_leaves_the_slot_flagged_not_a_503(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["bullets"][1]["text"] = "Moved 40 services to Terraform"
+        bullets(out)[1]["text"] = "Moved 40 services to Terraform"
         return out
 
     with open_client(tmp_path, Model(write, repair=None)) as client:
@@ -307,8 +349,8 @@ def test_a_repair_call_that_fails_leaves_the_slot_flagged_not_a_503(tmp_path: Pa
 def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_repaired_with_all_the_facts(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["bullets"].append({"fact_id": "not-a-fact", "text": "Led a team of twelve"})  # dropped: there is nothing to repair
-        out["summary"] = {"text": "Platform engineer.", "fact_ids": ["ghost"]}  # no cited fact is left
+        next(s for s in out["sections"] if s["key"] == "experience")["items"][0]["bullets"].append({"text": "Led a team of twelve", "fact_ids": ["not-a-fact"]})  # dropped: there is nothing to repair
+        items(out, "summary")[0].update({"text": "Platform engineer.", "fact_ids": ["ghost"]})  # no cited fact is left
         return out
 
     model = Model(write, lambda p: {"slots": [{"slot": "summary", "text": "Platform engineer.", "fact_ids": [find(p, CUT)]}]})
@@ -321,8 +363,8 @@ def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_repaired_
 def test_more_than_30_percent_of_the_slots_rejected_after_the_repair_is_a_502(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
-        out["bullets"][0]["text"] = "Reduced build times by 90%"
-        out["bullets"][1]["text"] = "Moved 70 services to Kubernetes"  # two of four written slots
+        bullets(out)[0]["text"] = "Reduced build times by 90%"
+        bullets(out)[1]["text"] = "Moved 70 services to Kubernetes"  # two of four written slots
         return out
 
     model = Model(write, lambda p: {"slots": []})
@@ -333,14 +375,21 @@ def test_more_than_30_percent_of_the_slots_rejected_after_the_repair_is_a_502(tm
 
 
 def test_a_reply_with_nothing_kept_is_a_502(tmp_path: Path) -> None:
-    with open_client(tmp_path, Model(lambda p: {})) as client:
+    with open_client(tmp_path, Model(lambda p: {"sections": []})) as client:
         assert client.post("/api/documents/generate", json=RESUME).status_code == 502
+
+
+def test_an_answer_that_is_not_a_document_is_503_like_any_unreadable_answer(tmp_path: Path) -> None:
+    for answer in ({}, {"sections": "none"}, {"sections": [{"items": []}]}):
+        with open_client(tmp_path / str(len(str(answer))), Model(lambda p, a=answer: a)) as client:
+            res = client.post("/api/documents/generate", json=RESUME)
+        assert res.status_code == 503 and res.json()["code"] == "llm_unavailable"
 
 
 def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_supplies_the_company_and_role(tmp_path: Path) -> None:
     def write(p):
         senior = find(p, "Senior Engineer", "position")
-        return {"paragraphs": [{"text": "I am applying for the Platform Engineer role at Initech to keep building reliable platforms.", "fact_ids": [senior]}]}
+        return letter_answer(("I am applying for the Platform Engineer role at Initech to keep building reliable platforms.", [senior]))
 
     model = Model(write)
     posting = "Initech is hiring a Platform Engineer to run Kubernetes."
@@ -350,19 +399,18 @@ def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_s
     assert model.payloads[0]["posting"] == posting and model.payloads[0]["company"] == "Initech" and model.payloads[0]["role"] == "Platform Engineer"
     assert draft["flags"] == {} and "Initech" in draft["slots"]["para:1"]  # the company in the posting is not an invented name
     assert "not an email" in model.systems[0] and "no subject line" in model.systems[0]
-    assert "template_instructions" not in model.payloads[0]  # nothing is added unless the request carries it
+    assert "Template instructions" not in model.systems[0]  # nothing is added unless the request carries it
 
 
 def test_template_instructions_go_to_the_writer_and_are_kept_for_regenerating(tmp_path: Path) -> None:
     def write(p):
-        return {"paragraphs": [{"text": "I would like to build platforms at Acme.", "fact_ids": [find(p, "Senior Engineer", "position")]}]}
+        return letter_answer(("I would like to build platforms at Acme.", [find(p, "Senior Engineer", "position")]))
 
     model = Model(write)
     style = "Direct and concise: three short paragraphs."
     with open_client(tmp_path, model) as client:
         generate(client, {**LETTER, "template_instructions": style})
-        saved = client.post("/api/saved-documents", json={**LETTER, "template_instructions": style, "generated": {"para:1": "I would like to build platforms at Acme."}})
+        saved = client.post("/api/saved-documents", json={**LETTER, "template_instructions": style, "sections": [section("body", {"text": "I would like to build platforms at Acme.", "fact_ids": []})]})
         assert saved.status_code == 201
         client.post(f"/api/saved-documents/{saved.json()['id']}/regenerate", json={})
-    assert [p["template_instructions"] for p in model.payloads] == [style, style]
-    assert "template_instructions" in model.systems[0]
+    assert len(model.systems) == 2 and all(f"Template instructions: {style}" in system for system in model.systems)  # the template's words go in the system message

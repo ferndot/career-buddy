@@ -57,10 +57,15 @@ export const fetchJobText = (url: string) =>
 
 /** A slot the person should look at: a bullet the writer could not reword (it shows the fact's own words), or text left empty. */
 export type Flag = { code: 'not_rewritten' | 'rejected'; reasons: string[] }
-/** The writer's draft: slot id -> text. Nothing is stored; saving the document keeps it as generated text. `notice` is a note about the draft, when one is sent. */
+/** One text the writer wrote, with the slot id the user's own words are keyed by and the facts it rests on. */
+export type GenText = { slot: string; text: string; fact_ids: string[] }
+/** An item of a section: a summary, a skills or education line or a letter paragraph (`text`), or a position with its `bullets` (`heading` is the facts' own words). */
+export type GenItem = GenText & { position_id: string; heading: string; bullets: GenText[] }
+export type GenSection = { key: string; title: string; items: GenItem[] } // a resume's sections in the template's order; a letter is one section, `body`, whose items are its paragraphs
+/** The writer's draft: the document as sections of items. Nothing is stored; saving the document keeps it. `slots` is slot id -> text. `notice` is a note about the draft, when one is sent. */
 export type Generated = {
+  sections: GenSection[]
   slots: Record<string, string>
-  cites: Record<string, string[]>
   flags: Record<string, Flag>
   notice?: string
 }
@@ -80,7 +85,7 @@ export type SavedDocument = {
 }
 export type SaveBody = TailorBody & {
   overrides: Record<string, string> // the user's own wording by slot id
-  generated: Record<string, string> // the writer's text by slot id, kept apart so regenerating never touches an override
+  sections: GenSection[] // the document the writer wrote: its structure is the saved layout, kept apart from `overrides` so regenerating never touches those
   instructions: string // the directions given to the writer, kept for regenerating
   resume_pages: ResumePages // this resume's length, kept for regenerating
   template_instructions: string // the template's and the chosen style's instructions, kept for regenerating

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '../../api'
 import type { Log } from '../../components'
 import { generateText, type Template } from '../documents/api'
+import { keepPinned } from './layout'
 import { buildBody, kindLabel, writerInstructions, type DocDraft, type DocKind, type Wizard } from './state'
 import { whyFailed } from './whyFailed'
 
@@ -27,7 +28,7 @@ export function useWriting(w: Wizard, setDoc: (kind: DocKind) => (patch: Partial
     log('info', `Sent request for the ${kindLabel(kind).toLowerCase()}${pinned ? `, ${pinned} slot${pinned === 1 ? '' : 's'} kept as written` : ''}`, 'working')
     try {
       const draft = await generateText({ ...buildBody(w, kind), instructions: d.instructions, pinned: Object.keys(d.overrides), resume_pages: d.resumePages, template_instructions: writerInstructions(d, templates.find((t) => t.id === d.templateId)) })
-      setDoc(kind)({ generated: { ...Object.fromEntries(Object.entries(d.generated).filter(([slot]) => slot in d.overrides)), ...draft.slots }, flags: draft.flags, genError: undefined })
+      setDoc(kind)({ sections: keepPinned(draft.sections, d.sections, d.overrides), flags: draft.flags, genError: undefined })
       const n = Object.keys(draft.slots).length
       log('info', `Received ${n} slot${n === 1 ? '' : 's'}`, 'done')
       logRejected(log, Object.values(draft.flags))

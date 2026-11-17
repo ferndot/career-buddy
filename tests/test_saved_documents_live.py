@@ -2,11 +2,12 @@
 (the settings). Everything else is found from the facts at every download."""
 
 import json
+import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from test_generate_api import CUT, ETL, LETTER, MIGRATED, RESUME, Model, find, good, ids, open_client
+from test_generate_api import CUT, ETL, LETTER, MIGRATED, RESUME, Model, experience, find, good, ids, letter_answer, open_client, section
 
 OLD = "Reduced build times by 60%"
 NEW = "Lowered build times by 60%"
@@ -30,6 +31,14 @@ def content(client: TestClient, record: dict) -> dict:
     return client.get(f"/api/saved-documents/{record['id']}/content").json()
 
 
+def written(client: TestClient, summary: str | None = None, **bullets: str) -> list[dict]:
+    """The sections a client sends with a save: an optional summary and one bullet for each fact id (`b<fact id>=text`; "" leaves the fact's own words)."""
+    profile = client.get("/api/profile").json()
+    out = [section("summary", {"text": summary, "fact_ids": []})] if summary is not None else []
+    items = [{"position_id": p["id"], "bullets": [{"text": bullets[a], "fact_ids": [a]} for a in p["achievement_ids"] if a in bullets]} for p in profile["positions"]]
+    return [*out, {"key": "experience", "items": [i for i in items if i["bullets"]]}] if any(i["bullets"] for i in items) else out
+
+
 def patch(client: TestClient, fact_id: str, title: str) -> None:
     assert client.patch(f"/api/facts/{fact_id}", json={"title": title}).status_code == 200
 
@@ -50,8 +59,8 @@ def test_a_save_keeps_the_settings_and_none_of_the_text(tmp_path: Path) -> None:
 def test_the_writers_text_is_kept_apart_from_the_users_overrides_and_is_not_in_the_layout(tmp_path: Path) -> None:
     with open_client(tmp_path) as client:
         known = ids(client)
-        record = save(client, generated={"summary": "Platform engineer who ships.", f"bullet:{known[CUT]}": OLD, "stray": "x"},
-                      overrides={f"bullet:{known[ETL]}": "Wrote the ETL jobs myself"})
+        record = save(client, sections=written(client, "Platform engineer who ships.", **{known[CUT]: OLD, known[ETL]: ""}),
+                      overrides={f"bullet:{known[ETL]}": "Wrote the ETL jobs myself", "bullet:stray": "x"})
         assert json.loads(stored(tmp_path, record, "overrides.json").read_text()) == {f"bullet:{known[ETL]}": "Wrote the ETL jobs myself"}
         assert json.loads(stored(tmp_path, record, "generated.json").read_text()) == {
             "summary": {"text": "Platform engineer who ships.", "source": ""}, f"bullet:{known[CUT]}": {"text": OLD, "source": CUT}}
@@ -69,7 +78,7 @@ def test_a_summary_written_for_a_person_with_none_gets_a_slot_in_the_layout(tmp_
         person = client.get("/api/profile").json()["id"]
         assert client.patch(f"/api/facts/{person}", json={"attributes": {"headline": "Platform engineer"}}).status_code == 200  # no summary now
         assert "Summary" not in txt(client, save(client))
-        record = save(client, generated={"summary": "Platform engineer who ships."})
+        record = save(client, sections=written(client, "Platform engineer who ships."))
         assert 'data-slot="summary"' in stored(tmp_path, record, "document.html").read_text()
         assert "Platform engineer who ships." in txt(client, record)
 
@@ -78,7 +87,7 @@ def test_editing_a_fact_after_saving_changes_the_download_and_an_overridden_slot
     with open_client(tmp_path) as client:
         known = ids(client)
         person = client.get("/api/profile").json()["id"]
-        record = save(client, overrides={"name": "J. Doe"}, generated={f"bullet:{known[CUT]}": OLD, "summary": "Platform engineer who ships."})
+        record = save(client, overrides={"name": "J. Doe"}, sections=written(client, "Platform engineer who ships.", **{known[CUT]: OLD, known[MIGRATED]: ""}))
         before = txt(client, record)
         assert before.startswith("J. Doe\n") and f"- {OLD}" in before and f"- {MIGRATED}" in before
         patch(client, known[MIGRATED], "Migrated 40 services to Kubernetes in a year")  # a slot with no generated text
@@ -93,17 +102,15 @@ def test_editing_a_fact_after_saving_changes_the_download_and_an_overridden_slot
 
 
 def reword(p: dict) -> dict:
-    return {"summary": {"text": "Engineer who ships reliable systems.", "fact_ids": [find(p, CUT)]},
-            "bullets": [{"fact_id": find(p, CUT), "text": NEW}, {"fact_id": find(p, MIGRATED), "text": "Moved 40 services to Kubernetes"},
-                        {"fact_id": find(p, ETL), "text": "Built ETL jobs"}]}
+    return {"sections": [section("summary", {"text": "Engineer who ships reliable systems.", "fact_ids": [find(p, CUT)]}),
+                         experience(p, (find(p, CUT), NEW), (find(p, MIGRATED), "Moved 40 services to Kubernetes"), (find(p, ETL), "Built ETL jobs"))]}
 
 
 def test_regenerating_replaces_generated_text_only_where_there_is_no_override(tmp_path: Path) -> None:
     model = Model(reword)
     with open_client(tmp_path, model) as client:
         known = ids(client)
-        record = save(client, overrides={"summary": "My own summary"}, generated={"summary": "Old summary", f"bullet:{known[CUT]}": OLD},
-                      instructions="Warm")
+        record = save(client, overrides={"summary": "My own summary"}, sections=written(client, "Old summary", **{known[CUT]: OLD}), instructions="Warm")
         mine = stored(tmp_path, record, "overrides.json").read_text()
         res = client.post(f"/api/saved-documents/{record['id']}/regenerate", json={})
         assert res.status_code == 200, res.text
@@ -129,14 +136,14 @@ def test_each_resume_keeps_its_own_length_and_regenerating_uses_it_unless_given_
         assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={}).status_code == 200  # the new length was kept
         assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": 4}).status_code == 422
         assert content(client, short)["source"]["resume_pages"] == 3 and content(client, long)["source"]["resume_pages"] == 2
-    assert [m["caps"]["pages"] for m in model.payloads] == [1, 2, 3, 3]
+    assert [int(re.search(r"this resume is (\d) page", system).group(1)) for system in model.systems] == [1, 2, 3, 3]
 
 
 def test_regenerating_a_letter_gives_it_the_models_paragraphs_under_the_header_and_nothing_else(tmp_path: Path) -> None:
     def write(p):
         senior = find(p, "Senior Engineer", "position")
-        return {"paragraphs": [{"text": "I am applying for the Engineer role at Acme because reliability is the work I enjoy.", "fact_ids": [senior]},
-                               {"text": "I would welcome a conversation about the role.", "fact_ids": [senior]}]}
+        return letter_answer(("I am applying for the Engineer role at Acme because reliability is the work I enjoy.", [senior]),
+                             ("I would welcome a conversation about the role.", [senior]))
 
     with open_client(tmp_path, Model(write)) as client:
         record = save(client, LETTER)
@@ -149,13 +156,41 @@ def test_regenerating_a_letter_gives_it_the_models_paragraphs_under_the_header_a
 
 def test_regenerating_without_a_model_or_a_source_or_a_good_answer_changes_nothing(tmp_path: Path) -> None:
     with open_client(tmp_path) as client:
-        record = save(client, generated={"summary": "Kept"})
+        record = save(client, sections=written(client, "Kept"))
         res = client.post(f"/api/saved-documents/{record['id']}/regenerate", json={})
         assert res.status_code == 503 and res.json()["code"] == "llm_unavailable"
-    with open_client(tmp_path / "other", Model(lambda p: {})) as client:
-        record = save(client, generated={"summary": "Kept"})
+    with open_client(tmp_path / "other", Model(lambda p: {"sections": []})) as client:
+        record = save(client, sections=written(client, "Kept"))
         res = client.post(f"/api/saved-documents/{record['id']}/regenerate", json={})
         assert res.status_code == 502 and res.json()["code"] == "ungrounded" and "Kept" in txt(client, record)  # the last text stays
         stored(tmp_path / "other", record, "source.json").unlink()  # saved before sources were kept
         assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={}).status_code == 409
         assert client.post("/api/saved-documents/" + "0" * 32 + "/regenerate", json={}).status_code == 404
+
+
+def test_a_saved_letter_is_one_body_block_whose_paragraphs_are_keyed_by_their_index_and_edits_survive_a_regenerate(tmp_path: Path) -> None:
+    def write(p):
+        senior = find(p, "Senior Engineer", "position")
+        return letter_answer(("I am applying for the Engineer role at Acme because reliability is the work I enjoy.", [senior]),
+                             ("I would welcome a conversation about the role.", [senior]))
+
+    with open_client(tmp_path, Model(write)) as client:
+        body = section("body", {"text": "First draft one.", "fact_ids": []}, {"text": "First draft two.", "fact_ids": []})
+        record = save(client, LETTER, sections=[body], overrides={"para:2": "My closing."})
+        assert json.loads(stored(tmp_path, record, "generated.json").read_text()) == {"para:1": {"text": "First draft one.", "source": ""}, "para:2": {"text": "First draft two.", "source": ""}}
+        assert "My closing." in txt(client, record) and "First draft two." not in txt(client, record)
+        assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={}).status_code == 200
+        lines = [line for line in txt(client, record).splitlines() if line]
+    assert lines[2].startswith("I am applying for the Engineer role") and lines[3] == "My closing." and len(lines) == 4  # paragraph 2 is the person's: pinned by its index
+
+
+def test_a_regenerated_bullet_the_person_edited_keeps_their_words_even_if_the_writer_drops_it(tmp_path: Path) -> None:
+    def write(p):
+        return {"sections": [section("summary", {"text": "Engineer who ships.", "fact_ids": [find(p, CUT)]}), experience(p, (find(p, MIGRATED), "Moved 40 services to Kubernetes"))]}
+
+    with open_client(tmp_path, Model(write)) as client:
+        known = ids(client)
+        record = save(client, sections=written(client, "Old.", **{known[CUT]: OLD, known[MIGRATED]: "x"}), overrides={f"bullet:{known[CUT]}": "My cut bullet"})
+        assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={}).status_code == 200
+        out = txt(client, record)
+    assert "- My cut bullet" in out and "- Moved 40 services to Kubernetes" in out  # the writer left the cut bullet out; the person's is put back in its position

@@ -1,5 +1,4 @@
-import type { Fit, Flag, PreviewDoc, ResumePages, SaveBody, TailorBody, Template, WritingStyle } from '../documents/api'
-import { saveTexts } from './layout'
+import type { Fit, Flag, GenSection, ResumePages, SaveBody, TailorBody, Template, WritingStyle } from '../documents/api'
 
 export type DocKind = Template['kind']
 
@@ -14,10 +13,10 @@ export type DocDraft = {
   templateId: string
   styleId: string // a letter's writing style; empty is the template's first
   inputs: Record<string, string>
-  overrides: Record<string, string> // the user's own wording by slot id ("summary", "bullet:<fact id>", "para:<n>") -> text. Wins over generated text.
+  overrides: Record<string, string> // the user's own wording by slot id ("summary", "bullet:<fact id>", "para:<n>" for the nth paragraph of a letter) -> text. Wins over written text.
   instructions: string // the user's directions for the writer
   resumePages: ResumePages // how long this resume should be; a letter ignores it
-  generated: Record<string, string> // the writer's draft by slot id: the default text of a slot, never an override
+  sections: GenSection[] // the writer's document: its structure and the default text of each slot, never an override
   flags: Record<string, Flag> // slots of the draft the person should look at, by slot id
   genError?: string // why the last generate failed: the document waits, unsaved, until a generate works
 }
@@ -44,7 +43,7 @@ export const emptyDoc: DocDraft = {
   overrides: {},
   instructions: '',
   resumePages: 1,
-  generated: {},
+  sections: [],
   flags: {},
 }
 
@@ -106,15 +105,14 @@ export function buildBody(w: Wizard, kind: DocKind): TailorBody {
   return { template: d.templateId, job_text: w.jobText, inputs: { ...job, ...d.inputs } }
 }
 
-/** The save request. `preview` is the document's layout, which a letter needs to name its paragraphs. */
-export function buildSave(w: Wizard, kind: DocKind, t: Template, preview?: PreviewDoc): SaveBody {
+/** The save request: the writer's sections (the layout) and the user's own words, kept apart. */
+export function buildSave(w: Wizard, kind: DocKind, t: Template): SaveBody {
   const b = buildBody(w, kind)
   const { role, company } = w.docs[kind].inputs
-  const { overrides, generated } = saveTexts(preview, w.docs[kind], kind)
   return {
     ...b,
-    overrides,
-    generated,
+    overrides: Object.fromEntries(Object.entries(w.docs[kind].overrides).filter(([, v]) => v.trim())),
+    sections: w.docs[kind].sections,
     instructions: w.docs[kind].instructions.trim(),
     resume_pages: w.docs[kind].resumePages,
     template_instructions: writerInstructions(w.docs[kind], t),

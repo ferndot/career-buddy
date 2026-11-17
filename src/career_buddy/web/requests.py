@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from career_buddy.application.documents import TailorOptions
 from career_buddy.domain.document import Style
+from career_buddy.domain.written import Section, WrittenDocument
 
 
 class TailorRequest(BaseModel):
@@ -52,10 +53,14 @@ class SaveRequest(TailorRequest):
     font: Literal["sans", "serif"] = "sans"
     paper: Literal["letter", "a4"] = "letter"
     label: str = ""  # a name for the saved document; empty means the file name
-    generated: dict[str, str] = {}  # what the writer wrote, by slot id: kept apart from `overrides`, which is the user's own wording
+    sections: list[Section] = Field([], max_length=12)  # what the writer wrote (a draft's `sections`): the structure of the document, kept apart from `overrides`, which is the user's own wording
     instructions: str = Field("", max_length=2000)  # the user's directions for the writer, kept for regenerating
     resume_pages: Literal[1, 2, 3] = 1  # this resume's length, kept for regenerating
     template_instructions: str = Field("", max_length=4000)  # the template's instructions, kept for regenerating
+
+    @property
+    def written(self) -> WrittenDocument | None:
+        return WrittenDocument(sections=tuple(self.sections)) if self.sections else None
 
     @property
     def style(self) -> Style:

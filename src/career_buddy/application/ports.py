@@ -9,7 +9,8 @@ from typing import Literal, Protocol
 from career_buddy.domain.ats import Extracted
 from career_buddy.domain.document import Document, Style
 from career_buddy.domain.events import Event
-from career_buddy.domain.generation import Brief, Claim, Generated, Rejection
+from career_buddy.domain.generation import Brief, Claim, Rejection
+from career_buddy.domain.written import WrittenDocument
 from career_buddy.domain.model import Fact, FactBatch
 from career_buddy.domain.review import Review
 
@@ -93,10 +94,11 @@ class Rewriter(Protocol):
 
 
 class DocumentWriter(Protocol):
-    """LLM that writes a resume's summary, bullets and skills or a letter's paragraphs from the facts a document prints. Its
-    output is never trusted: every claim goes through `domain.grounding`. LLMUnavailable when the model cannot answer."""
+    """LLM that writes a whole document, as sections of items in the template's order, from the facts a document prints. Its
+    output is never trusted: it goes through `domain.written.validated` and every claim through `domain.grounding`. LLMUnavailable
+    when the model cannot answer."""
 
-    async def write(self, brief: Brief) -> Generated: ...
+    async def write(self, brief: Brief) -> WrittenDocument: ...
 
     async def repair(self, brief: Brief, failed: Sequence[Rejection]) -> dict[str, Claim]:
         """One more try at the claims that failed, by slot id. Only those slots come back."""

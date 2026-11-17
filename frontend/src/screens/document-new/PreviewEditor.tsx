@@ -9,24 +9,24 @@ type Props = {
   doc: SlotDoc // the layout with slot ids
   layout: TemplateLayout // the template's page arrangement
   title: string // names the sheet: what the document is
-  defaults: Record<string, string> // each slot's text without the user's edits: generated, else the facts'
-  generated: Record<string, string> // the slots whose default is the writer's text
+  defaults: Record<string, string> // each slot's text without the user's edits: the writer's
+  generated: Record<string, string> // the slots that have the writer's text
   flags: Record<string, Flag> // slots the writer could not do properly
   overrides: Record<string, string>
   onChange: (overrides: Record<string, string>) => void
 }
 
-const editable = (slot: string) => slot === 'summary' || slot.startsWith('bullet:') || slot.startsWith('para:')
+const editable = (slot: string) => slot === 'summary' || slot.startsWith('skills') || ['bullet:', 'edu:', 'para:'].some((p) => slot.startsWith(p))
 
 /**
  * The document as a white sheet in the template's layout, with editable text. An edit is an override for that slot id; Reset
- * to generated removes it and the slot follows its default again. Editable: the summary, bullets and a letter's paragraphs.
- * Headings, contact line, skills, greeting and sign-off stay read-only.
+ * to generated removes it and the slot follows its default again. Editable: every text the writer wrote (summary, bullets, skills and
+ * education lines, a letter's paragraphs). Position headings and the contact line are the facts' own and stay read-only.
  */
 export function PreviewEditor({ doc, layout, title, defaults, generated, flags, overrides, onChange }: Props) {
   const slot = (l: SlotLine): ReactNode =>
     editable(l.slot) ? (
-      <Slot fallback={defaults[l.slot] ?? l.text} value={overrides[l.slot]} label={(defaults[l.slot] ?? l.text) || l.slot} generated={l.slot in generated} flag={flags[l.slot]} onChange={(text) => onChange(withOverride(overrides, l.slot, text, defaults[l.slot] ?? l.text))} />
+      <Slot fallback={defaults[l.slot] ?? l.text} value={overrides[l.slot]} label={(defaults[l.slot] ?? l.text) || l.slot} generated={!!generated[l.slot]} flag={flags[l.slot]} onChange={(text) => onChange(withOverride(overrides, l.slot, text, defaults[l.slot] ?? l.text))} />
     ) : (
       <Text minH="1.2em">{l.text}</Text>
     )

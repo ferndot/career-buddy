@@ -10,16 +10,17 @@ when the document is shown or downloaded, in this order:
 
 Slot ids: `name`, `location`, `headline`, `summary`, `skills`, `greeting`, `subject`, `closing`, `signature`,
 `heading:<position id>`, `bullet:<achievement id>`, `edu:<education id>` and, for fixed body lines and a letter's
-paragraphs, `para:<n>`. A second slot that would reuse an id gets `#2`, `#3`, and so on.
+paragraphs, `para:<n>`. A second slot that would reuse an id gets `#2`, `#3`, and so on. A line the writer wrote brings its
+own id (`Line.slot`, from domain/written.py): a bullet is `bullet:<first fact it cites>`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal
 
-from career_buddy.domain.document import Document, Entry, Line, Origin, Section
+from career_buddy.domain.document import Line
 from career_buddy.domain.profile import Profile
 from career_buddy.domain.templates import position_heading
 
@@ -55,7 +56,9 @@ def slot_for(role: Role, line: Line, taken: set[str]) -> Slot:
     """The slot of one line of a layout. `taken` holds the ids given so far and gains this one."""
     fid, field = line.source_fact_id or "", line.field
     bound = field in FACT_FIELDS and bool(fid or line.cites)
-    if bound and field == "title":
+    if line.slot:
+        base = line.slot
+    elif bound and field == "title":
         base = {"name": "name", "paragraph": "signature"}.get(role, f"bullet:{fid}")
     elif bound and field == "heading":
         base = f"heading:{fid}"
@@ -87,7 +90,7 @@ def source_of(slot: Slot, lookup: Lookup) -> str:
 def written_for(slots: Iterable[Slot], texts: Mapping[str, str], lookup: Lookup) -> dict[str, Written]:
     """The generated texts that name a slot of the layout, each with the source it was written from where that matters."""
     by_id = {slot.id: slot for slot in slots}
-    return {k: Written(text.strip(), source_of(by_id[k], lookup) if k.startswith("bullet:") or k == "skills" else "")
+    return {k: Written(text.strip(), source_of(by_id[k], lookup) if k.startswith(("bullet:", "edu:")) or k.startswith("skills") else "")
             for k, text in texts.items() if k in by_id and text.strip()}
 
 
@@ -128,13 +131,3 @@ def layout_overrides(given: Mapping[str, str], slots: Iterable[str]) -> dict[str
         if slot and text.strip():
             out[slot] = text.strip()
     return out
-
-
-def with_paragraphs(doc: Document, count: int) -> Document:
-    """A letter whose body is `count` empty paragraph slots. They get their words from overrides or the writer; none has fixed text."""
-    body = tuple(Entry(paragraph=Line("", None, Origin.BOILERPLATE)) for _ in range(count))
-    return replace(doc, sections=(Section(doc.sections[0].title if doc.sections else "", body), *doc.sections[1:]))  # a bodiless letter has no section yet
-
-
-def paragraph_indexes(keys: Iterable[str]) -> list[int]:
-    return sorted({int(k[len(PARA):]) for k in keys if k.startswith(PARA) and k[len(PARA):].isdigit()})

@@ -6,7 +6,7 @@ from career_buddy.adapters.outputs.render_html import stored_html
 from career_buddy.adapters.readers.html_document import read_document, read_slots
 from career_buddy.domain.document import Line, Origin
 from career_buddy.domain.profile import EducationView, PositionView, Profile
-from career_buddy.domain.slots import FACT_FIELDS, Slot, fact_texts, layout_overrides, paragraph_indexes, resolve, slot_for
+from career_buddy.domain.slots import FACT_FIELDS, Slot, fact_texts, layout_overrides, resolve, slot_for
 from career_buddy.domain.templates import TEMPLATES, build_document
 
 words = st.text("abcdefghijklmnopqrstuvwxyz ", min_size=1, max_size=12).map(lambda s: " ".join(s.split())).filter(bool)
@@ -76,5 +76,8 @@ def test_a_save_keeps_only_overrides_that_name_a_slot(given_: dict[str, str]) ->
     assert set(kept) <= set(slots)
 
 
-def test_paragraph_indexes_read_the_paragraph_keys_only() -> None:
-    assert paragraph_indexes(["para:2", "para:1", "para:x", "bullet:1", "summary"]) == [1, 2]
+def test_a_written_line_brings_its_own_id() -> None:
+    taken: set[str] = set()
+    ids_ = [slot_for("bullet", Line("x", "a1", field="title", cites=("a1", "a2"), slot="bullet:a1"), taken),
+            slot_for("bullet", Line("y", "a1", field="title", cites=("a1",), slot="bullet:a1"), taken)]
+    assert [s.id for s in ids_] == ["bullet:a1", "bullet:a1#2"] and ids_[0].fact_ids == ("a1", "a2")  # a repeat is still numbered; the cites are the slot's facts

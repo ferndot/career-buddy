@@ -35,6 +35,7 @@ class Line:
     # Layout hints for a saved document, not part of what a line says, so they do not take part in comparisons.
     field: str = dataclasses.field(default="", compare=False)  # which value of the source fact this line shows; "" is fixed wording (domain/slots.py)
     cites: tuple[str, ...] = dataclasses.field(default=(), compare=False)  # fact ids behind a line several facts make up, such as the skills list
+    slot: str = dataclasses.field(default="", compare=False)  # the slot id a written line already has (domain/written.py); "" lets the layout number it
 
 
 @dataclass(frozen=True)

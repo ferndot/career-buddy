@@ -1,8 +1,9 @@
-"""Writing a document from facts: what goes to a writer, and what comes back. Pure.
+"""Writing a document from facts: what goes to a writer. Pure.
 
-A writer (an LLM) fills text slots of the saved layout: the resume's summary, bullets and skills, or a cover letter's
-paragraphs. It never changes the layout. Every claim names the facts it comes from. The writer is sent exactly the facts the
-document prints: every fact the person can see. A hidden fact is not in the brief and so cannot be in the output.
+A writer (an LLM) is sent the facts, the posting, the person's directions and the template's section list, and writes the
+whole document as sections of items (domain/written.py). Every text names the facts it comes from. The writer is sent
+exactly the facts the document prints: every fact the person can see. A hidden fact is not in the brief and so cannot be
+in the output.
 """
 
 from __future__ import annotations
@@ -58,28 +59,15 @@ class Brief:
     instructions: str = ""  # the user's free-text directions: tone, length, what to stress
     posting: str = ""  # the job posting, cut to MAX_POSTING
     caps: Caps = CAPS[1]
-    pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: the writer leaves them alone
+    pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: their text replaces the writer's
     template_instructions: str = ""  # how the chosen template and style want the text written
+    sections: tuple[str, ...] = ()  # the section keys to write, in order: a resume's summary, experience, ..., or a letter's `body`
 
 
 @dataclass(frozen=True)
 class Claim:
     text: str
     fact_ids: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class Bullet:
-    fact_id: str
-    text: str
-
-
-@dataclass(frozen=True)
-class Generated:
-    summary: Claim | None = None
-    bullets: tuple[Bullet, ...] = ()
-    skill_ids: tuple[str, ...] = ()
-    paragraphs: tuple[Claim, ...] = ()
 
 
 @dataclass(frozen=True)

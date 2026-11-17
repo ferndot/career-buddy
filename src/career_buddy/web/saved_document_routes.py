@@ -37,7 +37,7 @@ def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
     @router.post("", status_code=201)
     async def save(body: SaveRequest) -> dict[str, object]:
         try:
-            return listed(await saved().save(body.template, body.style, body.options, body.label, body.generated, body.instructions, body.resume_pages, body.template_instructions))
+            return listed(await saved().save(body.template, body.style, body.options, body.label, body.written, body.instructions, body.resume_pages, body.template_instructions))
         except KeyError as error:
             raise HTTPException(404, f"Unknown template: {error.args[0]}") from error
 
@@ -49,7 +49,7 @@ def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
 
     @router.post("/{doc_id}/regenerate")
     async def regenerate(doc_id: str, body: RegenerateRequest) -> dict[str, object]:
-        return asdict(await saved().regenerate(doc_id, body.instructions, body.resume_pages))
+        return (await saved().regenerate(doc_id, body.instructions, body.resume_pages)).json()
 
     @router.get("/{doc_id}/file")
     async def download(doc_id: str, format: Literal["docx", "pdf", "txt"] | None = None) -> Response:

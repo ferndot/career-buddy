@@ -23,7 +23,7 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
             {choices.map((t) => {
               const on = t.id === doc.templateId
               return (
-                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, styleId: '', inputs: {}, generated: {}, flags: {}, genError: undefined })}>
+                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, styleId: '', inputs: {}, sections: [], flags: {}, genError: undefined })}>
                   <Text fontWeight="semibold" fontSize="sm">{t.label}</Text>
                 </Box>
               )
@@ -37,7 +37,7 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
               {chosen.styles.map((s) => {
                 const on = s.id === styleOf(doc, chosen)?.id
                 return (
-                  <Box key={s.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ styleId: s.id, generated: {}, flags: {}, genError: undefined })}>
+                  <Box key={s.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ styleId: s.id, sections: [], flags: {}, genError: undefined })}>
                     <Text fontWeight="semibold" fontSize="sm">{s.label}</Text>
                   </Box>
                 )

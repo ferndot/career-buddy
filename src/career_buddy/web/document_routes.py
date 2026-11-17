@@ -1,10 +1,8 @@
-"""HTTP route that writes the text of a document: a draft keyed by slot id, never stored."""
+"""HTTP route that writes the text of a document: the written document with its slot ids, never stored."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException
 
 from career_buddy.application.generation import DocumentGeneration
@@ -17,7 +15,7 @@ def document_router(generation: Callable[[], DocumentGeneration]) -> APIRouter:
     @router.post("/generate")
     async def generate(body: GenerateRequest) -> dict[str, object]:
         try:
-            return asdict(await generation().generate(body.template, body.options, body.instructions, body.pinned, body.resume_pages, body.template_instructions))
+            return (await generation().generate(body.template, body.options, body.instructions, body.pinned, body.resume_pages, body.template_instructions)).json()
         except KeyError as error:
             raise HTTPException(404, f"Unknown template: {error.args[0]}") from error
 

@@ -5,7 +5,7 @@ career-buddy uses ports and adapters, with writes and reads split (CQRS). Layers
 ```
 src/career_buddy/
   domain/          pure: Fact/Link model, profile assembly, Document model, templates, tailoring,
-                   grounding, ATS check, events
+                   written document, grounding, ATS check, events
   application/     ports (protocols) and services: import, queries, documents, saved documents, generation
   adapters/
     sources/       job link fetcher
@@ -31,7 +31,7 @@ Facts get deterministic IDs (UUIDv5 over kind, title and scope), so importing th
 
 ## How documents are written
 
-A document is built from every visible fact. The model is sent those facts, in one request, and writes the whole document from them: the summary, the bullets, the skills or the letter body, choosing the wording and which facts to use. Each text must cite facts it was sent and may not add claims the facts do not make. Texts that fail are sent back once for repair, and a text that still fails is flagged for the user. See the [Documents API](../reference/documents-api.md) for the exact rules.
+A document is written by the model, not filled from fixed slots. It is sent, in one request, the context: every visible fact (positions with dates, achievements, skills, education), the job posting and the reviewed role and company, the person's directions, and system instructions for the document kind, the template (its own instructions and its section list) and the resume length. It answers with the whole document: the template's sections in order, each a list of items. It chooses the wording, which facts to use and how many bullets each position gets, and a cover letter is one block of paragraphs. Each text cites the facts it rests on (`domain/written.py` is the schema and the rules that make the answer fit to print). Every text must cite facts it was sent and may not add claims the facts do not make (`domain/grounding.py`); texts that fail are sent back once for repair, and a text that still fails is flagged for the user. A saved document keeps the sections as its layout, the model's text, and the person's own words keyed by slot id (`bullet:<first cited fact id>`, `summary`, `para:<n>`), so an edit survives a regenerate. See the [Documents API](../reference/documents-api.md) for the exact rules and an [example of the model's input](../reference/example-writer-input-modern.md).
 
 Every rendered file is read back with the same readers that serve import, and an ATS check reports problems. The check is a warning and never blocks a download.
 

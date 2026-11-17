@@ -38,10 +38,25 @@ const letter = (missing: string[]) => ({
   },
 })
 
-/** What the writer returns, by kind of document. */
+const text = (slot: string, t: string, fact_ids: string[] = []) => ({ slot, text: t, fact_ids })
+const item = (x: { slot?: string; text?: string; fact_ids?: string[]; position_id?: string; heading?: string; bullets?: ReturnType<typeof text>[] }) =>
+  ({ slot: '', text: '', fact_ids: [], position_id: '', heading: '', bullets: [], ...x })
+
+/** What the writer returns, by kind of document: the document as sections of items, each text with its slot id. A letter is one `body` block of paragraphs. */
 export const DRAFTS = {
-  resume: { slots: { summary: 'Generated summary', 'bullet:b1': 'Generated bullet' }, cites: {}, flags: {} },
-  letter: { slots: { 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' }, cites: {}, flags: {} },
+  resume: {
+    sections: [
+      { key: 'summary', title: 'Summary', items: [item(text('summary', 'Generated summary', ['person']))] },
+      { key: 'experience', title: 'Experience', items: [item({ position_id: 'p1', heading: 'Engineer, Acme', bullets: [text('bullet:b1', 'Generated bullet', ['b1'])] })] },
+    ],
+    slots: { summary: 'Generated summary', 'bullet:b1': 'Generated bullet' },
+    flags: {},
+  },
+  letter: {
+    sections: [{ key: 'body', title: '', items: [item(text('para:1', 'Generated one', ['p1'])), item(text('para:2', 'Generated two', ['b1'])), item(text('para:3', 'Generated three', ['p1']))] }],
+    slots: { 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' },
+    flags: {},
+  },
 }
 
 export type Calls = { method: string; url: string; body?: Record<string, unknown> }[]

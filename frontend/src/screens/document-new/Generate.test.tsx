@@ -43,7 +43,7 @@ test('writing sends the directions and shows the returned text as the default, n
   expect(screen.queryByText('Edited')).not.toBeInTheDocument() // generated text is a default: no override, nothing to reset
   expect(screen.queryByRole('button', { name: /Reset to generated/ })).not.toBeInTheDocument()
   const body = await saved(calls)
-  expect(body.generated).toEqual({ summary: 'Generated summary', 'bullet:b1': 'Generated bullet' }) // kept apart from the user's own words
+  expect(body.sections).toEqual(DRAFTS.resume.sections) // the document the writer wrote is the saved layout, kept apart from the user's own words
   expect(body.overrides).toEqual({})
   expect(body.instructions).toBe('Stress reliability')
 })
@@ -81,12 +81,19 @@ test('an edit is an override keyed by slot id, reset removes it, and generated t
   fireEvent.change(screen.getByLabelText('Edit text: Generated bullet'), { target: { value: 'My own bullet' } })
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'bullet:b1': 'My own bullet' })
-  expect(body.generated).toEqual({ summary: 'Generated summary', 'bullet:b1': 'Generated bullet' })
+  expect(body.sections).toEqual(DRAFTS.resume.sections)
 })
 
 test('writing again pins what the user wrote and replaces only the generated text around it', async () => {
   let n = 0
-  const calls = stubApi([], true, () => json(n++ === 0 ? DRAFTS.resume : { slots: { summary: 'Second summary' }, cites: {}, flags: {} }))
+  const second = {
+    ...DRAFTS.resume,
+    sections: [
+      { ...DRAFTS.resume.sections[0], items: [{ ...DRAFTS.resume.sections[0].items[0], text: 'Second summary' }] },
+      { ...DRAFTS.resume.sections[1], items: [{ ...DRAFTS.resume.sections[1].items[0], bullets: [{ slot: 'bullet:b1', text: '', fact_ids: ['b1'] }] }] }, // the pinned bullet comes back blank
+    ],
+  }
+  const calls = stubApi([], true, () => json(n++ === 0 ? DRAFTS.resume : second))
   await openAt(4)
   generate()
   fireEvent.change(await screen.findByLabelText('Edit text: Generated bullet'), { target: { value: 'My own bullet' } })
@@ -100,8 +107,11 @@ test('writing again pins what the user wrote and replaces only the generated tex
 
 test('a bullet the writer could not reword and a slot left empty are flagged with the reasons, until the user writes them', async () => {
   const draft = {
-    slots: { summary: '', 'bullet:b1': 'Shipped it' },
-    cites: {},
+    sections: [
+      { ...DRAFTS.resume.sections[0], items: [{ ...DRAFTS.resume.sections[0].items[0], text: '' }] },
+      { ...DRAFTS.resume.sections[1], items: [{ ...DRAFTS.resume.sections[1].items[0], bullets: [{ slot: 'bullet:b1', text: 'Shipped it', fact_ids: ['b1'] }] }] },
+    ],
+    slots: { 'bullet:b1': 'Shipped it' },
     flags: { summary: { code: 'rejected', reasons: ['number not in the source: 12'] }, 'bullet:b1': { code: 'not_rewritten', reasons: ['number not in the source: 90'] } },
   }
   stubApi([], true, () => json(draft))
@@ -128,7 +138,7 @@ test('a draft the facts did not support is an error, and the document waits on t
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })
 
-test('a cover letter paragraph is editable; the saved letter carries every paragraph, the stub ones as generated text', async () => {
+test('a cover letter paragraph is editable, keyed by its index; the saved letter is one body block of paragraphs', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
   generate()
@@ -137,7 +147,8 @@ test('a cover letter paragraph is editable; the saved letter carries every parag
   expect(screen.getByLabelText('Edit text: Generated one')).toHaveValue('I would love to join Acme.')
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:1': 'I would love to join Acme.' })
-  expect(body.generated).toEqual({ 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' })
+  expect(body.sections).toEqual(DRAFTS.letter.sections)
+  expect((body.sections as { key: string }[]).map((s) => s.key)).toEqual(['body'])
 })
 
 test('a generated letter is its own paragraphs under the header', async () => {
@@ -149,7 +160,7 @@ test('a generated letter is its own paragraphs under the header', async () => {
   fireEvent.change(screen.getByLabelText('Edit text: Generated two'), { target: { value: 'Second, mine' } })
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:2': 'Second, mine' })
-  expect(body.generated).toEqual({ 'para:1': 'Generated one', 'para:2': 'Generated two', 'para:3': 'Generated three' })
+  expect(body.sections).toEqual(DRAFTS.letter.sections)
 })
 
 test('the letter preview shows the written body although the backend sends an unwritten letter with no sections', async () => {

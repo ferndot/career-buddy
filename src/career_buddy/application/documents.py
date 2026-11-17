@@ -19,7 +19,8 @@ from career_buddy.domain.profile import Profile, assemble_profile
 from career_buddy.domain.rewording import verify_rewording
 from career_buddy.domain.slots import fact_texts
 from career_buddy.domain.tailoring import Report, apply_overrides, override_paragraphs, tailor
-from career_buddy.domain.templates import TemplateSpec, build_document, get_template
+from career_buddy.domain.templates import TemplateSpec, build_document, get_template, position_heading
+from career_buddy.domain.written import WrittenDocument, to_document
 
 
 @dataclass(frozen=True)
@@ -137,9 +138,12 @@ class DocumentService:
         doc, preview, _ = await self._build(template_id, options)
         return replace(preview, format=fmt, issues=(await self._file(doc, fmt, style))[2])
 
-    async def compose(self, template_id: str, options: TailorOptions = TailorOptions()) -> tuple[Document, str]:
-        """The document for these options and the stem of its file name, with no file rendered."""
-        doc, _, profile = await self._build(template_id, options)
+    async def compose(self, template_id: str, options: TailorOptions = TailorOptions(), written: WrittenDocument | None = None) -> tuple[Document, str]:
+        """The document for these options and the stem of its file name, with no file rendered. With `written`, its sections are the
+        document's: the header and layout are the template's, the structure and text are the writer's."""
+        doc, _, profile = await self._build(template_id, replace(options, overrides={}) if written else options)
+        if written:
+            doc = to_document(doc, get_template(template_id), written, {p.id: position_heading(p) for p in profile.positions if p.id})
         stem = re.sub(r"[^A-Za-z0-9]+", "-", profile.name).strip("-") or "Candidate"
         return doc, f"{stem}-{re.sub(r'[^A-Za-z0-9]+', '-', doc.label).strip('-')}"
 
