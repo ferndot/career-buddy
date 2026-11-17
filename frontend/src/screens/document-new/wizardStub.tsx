@@ -62,7 +62,7 @@ export function stubApi(missing: string[] = [], model = true, generate?: (asked:
     const body = u.includes('templates') ? templates
       : u.includes('preview') ? preview(missing)
       : u.endsWith('/api/facts') ? [{ id: 'person', kind: 'Person', title: 'Ada', attributes: {}, source: '' }]
-      : u.includes('/api/fit') ? { positions: ['Engineer'], matched_skills: [] }
+      : u.includes('/api/fit') ? { title: '', company: '', must_have: [], nice_to_have: [], missing_must_have: [], missing_nice_to_have: [] }
       : []
     return new Response(JSON.stringify(body))
   }))
@@ -76,7 +76,8 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   renderApp(<NewDocumentScreen />)
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Python engineer with Kubernetes' } })
-  next()
+  next() // the model reads the posting first; step 2 follows
+  await screen.findByRole('checkbox', { name: 'Resume' })
   if (step === 2) return
   for (const k of kinds) fireEvent.click(screen.getByRole('checkbox', { name: k }))
   next()

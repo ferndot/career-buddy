@@ -8,7 +8,7 @@ import type { Wizard } from './state'
 
 /** What the model's review of the posting found that the facts lack. `unavailable`: there is no review (no model, or it did not answer). */
 export type MissingReview = { missing: string[]; nice: string[]; unavailable: boolean }
-type Props = { w: Wizard; review: MissingReview; set: (patch: Partial<Wizard>) => void; loading: boolean; hasJob: boolean }
+type Props = { w: Wizard; review: MissingReview; set: (patch: Partial<Wizard>) => void; hasJob: boolean }
 
 const frame = { bg: 'app.surface2', borderWidth: '1px', borderColor: 'app.border', borderRadius: 'lg', p: '4', mb: '5' } as const
 
@@ -17,7 +17,7 @@ const frame = { bg: 'app.surface2', borderWidth: '1px', borderColor: 'app.border
  * collapsed group. Yes opens the skill form with the name filled in (the fact is created when the form is saved); No
  * records it as missing and moves on. Without a review there is nothing to ask, and no guessing from the text.
  */
-export function MissingPane({ w, review, set, loading, hasJob }: Props) {
+export function MissingPane({ w, review, set, hasJob }: Props) {
   const qc = useQueryClient()
   const person = useFacts().data?.find((f) => f.kind === 'Person')
   const [adding, setAdding] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export function MissingPane({ w, review, set, loading, hasJob }: Props) {
     )
   }
   if (!open.length && !openNice.length && !none.length && !adding) {
-    return <Text role="status" fontSize="sm" color="app.muted" mb="5">{loading ? 'Reading the posting...' : hasJob ? 'Your career covers every requirement in the posting.' : 'No job posting was given, so there is nothing to check.'}</Text>
+    return <Text role="status" fontSize="sm" color="app.muted" mb="5">{hasJob ? 'Your career covers every requirement in the posting.' : 'No job posting was given, so there is nothing to check.'}</Text>
   }
   const row = (t: string) => (
     <Box key={t} display="flex" alignItems="center" gap="3" flexWrap="wrap" py="1">

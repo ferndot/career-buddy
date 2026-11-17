@@ -23,12 +23,13 @@ test('starts on a single job link box, with Next disabled until a job is availab
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
-test('always reopens on the first step, even after leaving from a later one', () => {
+test('always reopens on the first step, even after leaving from a later one', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ title: '', company: '', must_have: [], nice_to_have: [], missing_must_have: [], missing_nice_to_have: [] }))))
   const { unmount } = renderApp(<NewDocumentScreen />)
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Pasted posting' } })
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 2 of 5 · Documents')
+  await waitFor(() => expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 2 of 5 · Documents'))
   unmount()
   renderApp(<NewDocumentScreen />)
   expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 1 of 5 · Job posting')

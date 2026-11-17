@@ -7,9 +7,11 @@ import { DocTabs } from './DocTabs'
 import { DownloadStep } from './DownloadStep'
 import { JobStep } from './JobStep'
 import { MissingPane } from './MissingPane'
+import { ReviewStep } from './ReviewStep'
 import { StepIndicator } from './StepIndicator'
 import { TemplateStep } from './TemplateStep'
 import { clearDraft, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
+import { useReview } from './useReview'
 import { useSaved } from './useSaved'
 import { useWizardData } from './useWizardData'
 
@@ -18,12 +20,15 @@ const LAST = 5
 export function NewDocumentScreen() {
   const navigate = useNavigate()
   const [w, setW] = useState<Wizard>(loadDraft)
-  const set = (patch: Partial<Wizard>) => setW((prev) => ({ ...prev, ...patch }))
+  // A review belongs to the posting it read: new posting text drops it.
+  const set = (patch: Partial<Wizard>) =>
+    setW((prev) => ({ ...prev, ...patch, ...(patch.jobText !== undefined && patch.jobText !== prev.jobText ? { review: null } : {}) }))
   const setDoc = (kind: DocKind) => (patch: Partial<DocDraft>) =>
     setW((prev) => ({ ...prev, docs: { ...prev.docs, [kind]: { ...prev.docs[kind], ...patch } } }))
   useEffect(() => saveDraft(w), [w]) // the draft saves itself
 
-  const { templates, review, loading, hasJob } = useWizardData(w, setW)
+  const { templates, review, hasJob } = useWizardData(w, setW)
+  const reviewing = useReview(w, set)
   const { save, saved } = useSaved(w, templates.data)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
@@ -45,7 +50,7 @@ export function NewDocumentScreen() {
       setFinishing(false)
     }
   }
-  const next = () => (w.step < LAST ? go((w.step + 1) as Wizard['step']) : void finish())
+  const next = () => (w.step === 1 ? reviewing.start() : w.step < LAST ? go((w.step + 1) as Wizard['step']) : void finish())
 
   const active = w.active
   const body = !templates.data ? (
@@ -59,9 +64,9 @@ export function NewDocumentScreen() {
   return (
     <>
       <StepIndicator current={w.step} />
-      {w.step === 1 && <JobStep w={w} set={set} />}
+      {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
       {w.step === 2 && <DocsStep w={w} set={set} />}
-      {w.step === 3 && <MissingPane w={w} review={review} set={set} loading={loading} hasJob={hasJob} />}
+      {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
       {w.step >= 4 && (
         <Box display="flex" flexDirection={{ base: 'column', md: 'row' }} gap="5" alignItems={{ md: 'flex-start' }}>
           <DocTabs w={w} templates={templates.data ?? []} saved={saved} onSelect={(k) => set({ active: k })} />
@@ -73,7 +78,7 @@ export function NewDocumentScreen() {
         <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
           Back
         </Button>
-        <Button bg="app.primary" color="app.onPrimary" disabled={!canNext} loading={finishing} onClick={next}>
+        <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active} loading={finishing} onClick={next}>
           {w.step === LAST ? 'Done' : 'Next'}
         </Button>
       </Box>

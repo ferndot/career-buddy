@@ -1,18 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
-import { getFit, getTemplates } from '../documents/api'
+import { getTemplates } from '../documents/api'
 import type { Wizard } from './state'
 
-/** The wizard's queries and the effect that gives each chosen document its first template. */
+/** The wizard's template query, the stored review as step 3 reads it, and the effect that gives each chosen document its first template. */
 export function useWizardData(w: Wizard, setW: Dispatch<SetStateAction<Wizard>>) {
   const hasJob = w.jobText.trim().length > 0
   const templates = useQuery({ queryKey: ['templates'], queryFn: getTemplates, enabled: w.step >= 2 })
-  // The model reads the posting; there is no keyword fallback, so a failed review (no model, or unreachable) shows nothing to ask.
-  const fit = useQuery({ queryKey: ['fit', w.jobText], queryFn: () => getFit(w.jobText), enabled: w.step === 3 && hasJob, retry: false })
+  // The model read the posting when the user left step 1 (useReview); there is no keyword fallback, so no review shows nothing to ask.
+  const result = w.review?.result
+  const found = result && result !== 'unavailable' ? result : undefined
   const review = {
-    missing: fit.data?.missing_must_have ?? [],
-    nice: fit.data?.missing_nice_to_have ?? [],
-    unavailable: hasJob && fit.isError,
+    missing: found?.missing_must_have ?? [],
+    nice: found?.missing_nice_to_have ?? [],
+    unavailable: hasJob && result === 'unavailable',
   }
 
   // Each chosen document starts on the first template of its kind.
@@ -33,5 +34,5 @@ export function useWizardData(w: Wizard, setW: Dispatch<SetStateAction<Wizard>>)
     })
   }, [templates.data, w.kinds, setW])
 
-  return { templates, review, loading: fit.isLoading, hasJob }
+  return { templates, review, hasJob }
 }

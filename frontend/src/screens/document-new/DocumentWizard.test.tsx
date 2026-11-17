@@ -1,8 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
+import { renderApp } from '../../test/render'
 import { DOCS_QUESTION } from './DocsStep'
 import { stubReview } from './reviewStub'
+import { NewDocumentScreen } from './NewDocumentScreen'
 import { openAt, stubApi } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
@@ -116,7 +118,9 @@ test('Yes opens the skill form with the requirement filled in, and adds it as a 
   const calls = stubApi()
   stubReview({ missing_must_have: ['Kubernetes'] })
   await openAt(3)
-  fireEvent.click(await screen.findByRole('button', { name: 'Yes, Kubernetes' }))
+  const yes = await screen.findByRole('button', { name: 'Yes, Kubernetes' })
+  await waitFor(() => expect(yes).toBeEnabled()) // the person fact is still loading when the review is already stored
+  fireEvent.click(yes)
   const name = await screen.findByPlaceholderText('TypeScript')
   expect(name).toHaveValue('Kubernetes')
   expect(screen.getByText('Category')).toBeInTheDocument()
@@ -176,4 +180,101 @@ test('each chosen document has its own download tab with the same format choices
   fireEvent.click(screen.getByRole('tab', { name: /Cover letter/ }))
   expect(screen.getByRole('group', { name: 'Download format for Cover letter' })).toBeInTheDocument()
   for (const name of ['Word', 'PDF', 'Text']) expect(screen.getByRole('button', { name })).toBeInTheDocument()
+})
+
+// The model reads the posting when the user leaves step 1, not before.
+const POSTING = 'Python engineer with Kubernetes'
+const progress = () => screen.getByLabelText('Progress')
+function pasteAt1(text = POSTING) {
+  renderApp(<NewDocumentScreen />)
+  fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
+  fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: text } })
+}
+
+test('step 1 does not call /api/fit: the posting is only fetched or pasted', () => {
+  stubApi()
+  const posted = stubReview({})
+  pasteAt1()
+  expect(nextButton()).toBeEnabled()
+  expect(posted).toEqual([])
+})
+
+test('Next shows the Fetching job description page, calls /api/fit once, then goes to step 2', async () => {
+  stubApi()
+  let release = () => {}
+  const posted = stubReview({ missing_must_have: ['Kubernetes'] }, new Promise<void>((r) => (release = r)))
+  pasteAt1()
+  fireEvent.click(nextButton())
+  expect(await screen.findByText('Fetching job description')).toBeInTheDocument()
+  expect(screen.getByText('Reading the posting for requirements.')).toBeInTheDocument()
+  expect(document.querySelector('svg[data-mascot="thinking"]')).toBeInTheDocument()
+  expect(progress()).toHaveTextContent('Step 1 of 5 · Job posting') // a transition, not a numbered step
+  expect(nextButton()).toBeDisabled()
+  expect(posted).toEqual([{ job_text: POSTING }])
+  release()
+  await screen.findByRole('checkbox', { name: 'Resume' })
+  expect(progress()).toHaveTextContent('Step 2 of 5 · Documents')
+  expect(screen.queryByText('Fetching job description')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
+  fireEvent.click(nextButton())
+  expect(await screen.findByText('Do you have Kubernetes?')).toBeInTheDocument() // step 3 reads the stored review
+  expect(posted).toHaveLength(1)
+})
+
+test('with no model (503) the user goes on to step 2 and step 3 links to Settings', async () => {
+  stubApi()
+  const posted = stubReview('unavailable')
+  await openAt(2)
+  expect(progress()).toHaveTextContent('Step 2 of 5 · Documents')
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
+  fireEvent.click(nextButton())
+  expect(screen.getByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
+  expect(posted).toHaveLength(1)
+})
+
+test('another failure keeps the page up: Try again reads the posting, Continue without requirements goes on', async () => {
+  stubApi()
+  stubReview('error')
+  pasteAt1()
+  fireEvent.click(nextButton())
+  expect(await screen.findByText('Could not read the posting for requirements.')).toBeInTheDocument()
+  expect(screen.getByText('Fetching job description')).toBeInTheDocument()
+  expect(progress()).toHaveTextContent('Step 1 of 5 · Job posting')
+  stubReview({ missing_must_have: ['Kubernetes'] })
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  await screen.findByRole('checkbox', { name: 'Resume' })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
+  fireEvent.click(nextButton())
+  expect(await screen.findByText('Do you have Kubernetes?')).toBeInTheDocument()
+})
+
+test('Continue without requirements stores no review and step 3 says to connect a model', async () => {
+  stubApi()
+  stubReview('error')
+  pasteAt1()
+  fireEvent.click(nextButton())
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue without requirements' }))
+  await screen.findByRole('checkbox', { name: 'Resume' })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Resume' }))
+  fireEvent.click(nextButton())
+  expect(screen.getByText(/Connect a model in/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(screen.getByLabelText('Job posting link')).toBeInTheDocument() // back on step 1, not on the error page
+})
+
+test('a changed posting is read again on Next; an unchanged one reuses the stored review', async () => {
+  stubApi()
+  const posted = stubReview({})
+  await openAt(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  fireEvent.click(nextButton())
+  await screen.findByRole('checkbox', { name: 'Resume' })
+  expect(posted).toHaveLength(1) // same text: no second review
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
+  fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Rust engineer' } })
+  fireEvent.click(nextButton())
+  await screen.findByRole('checkbox', { name: 'Resume' })
+  expect(posted).toEqual([{ job_text: POSTING }, { job_text: 'Rust engineer' }])
 })

@@ -1,4 +1,4 @@
-import type { Flag, PreviewDoc, ResumePages, SaveBody, TailorBody, Template } from '../documents/api'
+import type { Fit, Flag, PreviewDoc, ResumePages, SaveBody, TailorBody, Template } from '../documents/api'
 import { saveTexts } from './layout'
 
 export type DocKind = Template['kind']
@@ -20,6 +20,9 @@ export type DocDraft = {
   flags: Record<string, Flag> // slots of the draft the person should look at, by slot id
 }
 
+/** The model's review of the posting, with the posting text it was made from. `unavailable`: no model, or the user went on without it. */
+export type Review = { text: string; result: Fit | 'unavailable' }
+
 export type Wizard = {
   step: 1 | 2 | 3 | 4 | 5
   jobText: string
@@ -29,6 +32,7 @@ export type Wizard = {
   active: DocKind // the side tab showing
   docs: Record<DocKind, DocDraft>
   answers: Record<string, 'yes' | 'no'> // "Do you have <requirement>?" replies, by requirement
+  review: Review | null // made when the user leaves step 1; dropped when the posting text changes
 }
 
 export const emptyDoc: DocDraft = {
@@ -50,6 +54,7 @@ export const initialWizard: Wizard = {
   active: 'resume',
   docs: { resume: emptyDoc, letter: emptyDoc },
   answers: {},
+  review: null,
 }
 
 const DRAFT_KEY = 'careerbuddy.documentDraft.v3'
