@@ -69,7 +69,7 @@ export function NewDocumentScreen() {
         <StepIndicator current={w.step} />
         <Flex alignItems="center" gap="3">
           {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
-          {!logOpen && !reviewing.active && (
+          {w.step >= 2 && !logOpen && (
             <Button variant="ghost" color="app.link" onClick={() => setLogOpen(true)}>
               Logs
             </Button>
