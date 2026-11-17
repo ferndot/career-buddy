@@ -1,4 +1,4 @@
-import { Box, Button, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Text } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LoadingState, toaster } from '../../components'
@@ -62,7 +62,7 @@ export function NewDocumentScreen() {
   )
 
   return (
-    <>
+    <Flex direction="column" minH="calc(100dvh - 11rem)">
       <StepIndicator current={w.step} />
       {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
       {w.step === 2 && <DocsStep w={w} set={set} />}
@@ -73,7 +73,7 @@ export function NewDocumentScreen() {
           <Box flex="1" minW="0" w="full">{body}</Box>
         </Box>
       )}
-      <Box display="flex" justifyContent="flex-end" alignItems="center" mt="6" gap="3">
+      <Flex justifyContent="flex-end" alignItems="center" mt="auto" pt="6" gap="3">
         {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
         <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
           Back
@@ -81,7 +81,7 @@ export function NewDocumentScreen() {
         <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active} loading={finishing} onClick={next}>
           {w.step === LAST ? 'Done' : 'Next'}
         </Button>
-      </Box>
-    </>
+      </Flex>
+    </Flex>
   )
 }
