@@ -23,7 +23,7 @@ are fixed headings and have no slot.
 | Slot id | Shows |
 |---|---|
 | `name`, `location`, `headline`, `summary` | the person's name, location, headline and summary |
-| `heading:<position id>` | a position's `Title, Employer (period)` line |
+| `heading:<position id>` | a position's `Title, Employer (dates)` line |
 | `bullet:<achievement id>` | an achievement |
 | `edu:<education id>` | an education entry |
 | `skills` | the skills, joined with commas. Their ids are in `data-fact-id`, fixed when the document is saved |

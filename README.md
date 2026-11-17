@@ -2,25 +2,43 @@
 
 career-buddy keeps your career history as a graph of facts: positions, achievements, skills and education. You import a resume (a PDF, DOCX, TXT or MD file, or pasted text), review and edit the facts, then build a resume or cover letter for a job posting. A language model writes the text, and every sentence must cite your facts. Your data stays on your computer.
 
-## Quick start
+## Install and run
 
-You need [Docker](https://docs.docker.com/get-docker/) running. From the project folder:
+You do not need to know how to code. You need Docker Desktop and a terminal (PowerShell on Windows, Terminal on macOS).
 
-```bash
-docker compose up --build -d
-```
+1. Install [Docker Desktop](https://docs.docker.com/get-docker/) and start it. Wait until it says Docker is running.
 
-Open http://localhost:8080. To stop it:
+2. Download the code. Open https://github.com/ferndot/career-buddy, choose **Code**, then **Download ZIP**, and unzip it. Open a terminal in the unzipped folder. On Windows, open the folder in File Explorer, right-click an empty space and choose **Open in Terminal**. If you have Git, you can run these two commands instead:
+
+   ```bash
+   git clone https://github.com/ferndot/career-buddy.git
+   ```
+
+   ```bash
+   cd career-buddy
+   ```
+
+3. Start the app. The first run builds it and takes a few minutes.
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+4. Open http://localhost:8080 in your browser.
+
+To stop it:
 
 ```bash
 docker compose down
 ```
 
-Your data is kept in `./data`, so it survives rebuilds. On macOS and Linux, `make` does the same as the first command, `make stop` stops it and `make logs` follows the log. More in [Run with Docker](docs/how-to/run-with-docker.md).
+Your data is kept in the `data` folder next to the code, so it survives restarts and rebuilds. To write resumes and letters you also need to connect a language model: see [Connect a model](docs/how-to/connect-a-model.md). For a walkthrough from import to a downloaded resume, see [Getting started](docs/tutorials/01-getting-started.md). More on Docker: [Run with Docker](docs/how-to/run-with-docker.md).
 
-No Docker? Follow the setup below.
+## For developers
 
-## Prerequisites
+Everything below is for people who change the code. You do not need it to use the app. [Getting started](docs/tutorials/01-getting-started.md) walks through this setup step by step.
+
+### Prerequisites
 
 | Tool | Version | Used for |
 |---|---|---|
@@ -31,87 +49,79 @@ No Docker? Follow the setup below.
 | Chromium | Installed by a project command (about 150 MB) | PDF output only. You do not need it to import a resume or to download DOCX, TXT, Markdown or HTML. |
 | Git | Any recent version | Getting the code. |
 
-## Setup
+### Setup
 
 Run each command from the project folder. The commands are the same on Windows, macOS and Linux unless a block says otherwise.
 
-### 1. Get the code
+1. Get the code:
 
-```bash
-git clone https://github.com/ferndot/career-buddy.git
-```
+   ```bash
+   git clone https://github.com/ferndot/career-buddy.git
+   ```
 
-```bash
-cd career-buddy
-```
+   ```bash
+   cd career-buddy
+   ```
 
-### 2. Install uv
+2. Install uv. Windows (PowerShell):
 
-Windows (PowerShell):
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+   macOS and Linux:
 
-macOS and Linux:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+   Close the terminal and open a new one, then check it:
 
-Close the terminal and open a new one, then check it:
+   ```bash
+   uv --version
+   ```
 
-```bash
-uv --version
-```
+3. Install Node.js 24 LTS from [nodejs.org](https://nodejs.org/), then pnpm:
 
-### 3. Install Node.js and pnpm
+   ```bash
+   npm install -g pnpm@12.16.1
+   ```
 
-Install Node.js 24 LTS from [nodejs.org](https://nodejs.org/) (any OS), or with your package manager. Then:
+   ```bash
+   pnpm --version
+   ```
 
-```bash
-npm install -g pnpm@12.16.1
-```
+4. Install the Python packages:
 
-```bash
-pnpm --version
-```
+   ```bash
+   uv sync
+   ```
 
-### 4. Install the Python packages
+5. Install Chromium for PDF output:
 
-```bash
-uv sync
-```
+   ```bash
+   uv run career-buddy install-browser
+   ```
 
-### 5. Install Chromium for PDF output
+6. Build the web UI. It is written into `src/career_buddy/web/static`, and the backend serves it from there:
 
-```bash
-uv run career-buddy install-browser
-```
+   ```bash
+   pnpm -C frontend install
+   ```
 
-### 6. Build the web UI
+   ```bash
+   pnpm -C frontend build
+   ```
 
-```bash
-pnpm -C frontend install
-```
-
-```bash
-pnpm -C frontend build
-```
-
-The build writes the UI into `src/career_buddy/web/static`. The backend serves it from there.
-
-## Run the app
+### Run the app
 
 ```bash
 uv run career-buddy
 ```
 
-This starts the server at http://127.0.0.1:8000 and opens it in your browser. Stop it with Ctrl+C. API documentation is at http://127.0.0.1:8000/docs.
+This starts the server at http://127.0.0.1:8000 and opens it in your browser. Stop it with Ctrl+C. API documentation is at http://127.0.0.1:8000/docs. The command has no `--help`: any option you pass is ignored and the server starts. Its only subcommand is `install-browser`. See [the command reference](docs/reference/career-buddy-cli.md).
 
 Your data goes to a folder for your OS: `%LOCALAPPDATA%\career-buddy` on Windows, `~/Library/Application Support/career-buddy` on macOS, and `~/.local/share/career-buddy` on Linux. Set `CAREER_BUDDY_DATA` to use another folder. See [Configuration](docs/reference/configuration.md).
-
-### Run for development
 
 To edit the UI with hot reload, use two terminals. In the first, start the backend:
 
@@ -119,15 +129,13 @@ To edit the UI with hot reload, use two terminals. In the first, start the backe
 uv run career-buddy
 ```
 
-In the second, start the frontend:
+In the second, start the frontend, then open http://localhost:5173. It forwards `/api` requests to the backend on port 8000.
 
 ```bash
 pnpm -C frontend dev
 ```
 
-Open http://localhost:5173. It forwards `/api` requests to the backend on port 8000.
-
-## Run the tests
+### Run the tests
 
 Backend:
 
@@ -141,9 +149,23 @@ Frontend:
 pnpm -C frontend test
 ```
 
-Tests that call a real model (marked `live`) and the S3 test skip themselves unless you set their environment variables, so 3 skipped tests is normal. PDF tests skip until you install Chromium (step 5). One test is a known failure at the moment: `tests/test_split_skills.py::test_no_skill_is_empty_or_holds_a_top_level_separator`. Everything else should pass. More in [Run the tests](docs/how-to/run-the-tests.md).
+Tests that call a real model (marked `live`) and the S3 test skip themselves unless you set their environment variables, so 3 skipped tests is normal. PDF tests skip until you install Chromium (setup step 5). One test is a known failure at the moment: `tests/test_split_skills.py::test_no_skill_is_empty_or_holds_a_top_level_separator`. Everything else should pass. More in [Run the tests](docs/how-to/run-the-tests.md).
+
+## Developer tools
+
+The project is managed with `spec-ops`, the SpecOps project-management CLI. It is used by `uv run spec-ops health` (file-length check) and `uv run spec-ops docs audit` (documentation check). It is not part of this repo's `uv sync`, so install it once from its own repository:
+
+```bash
+uv tool install git+https://github.com/ferndot/spec-ops
+```
+
+Then run it from the project folder with `uv run spec-ops health` and `uv run spec-ops docs audit`. On Windows, set `PYTHONIOENCODING=utf-8` first or `spec-ops health` fails with `UnicodeEncodeError` (PowerShell: `$env:PYTHONIOENCODING = "utf-8"`). If `uv run spec-ops` says the command is not found, run `uv tool update-shell` and open a new terminal.
 
 ## Troubleshooting
+
+**Docker says it cannot connect, or `docker compose` hangs.** Docker Desktop is not running. Start it and wait until it says Docker is running.
+
+**Port 8080 is already in use.** Edit the `ports` line in `docker-compose.yml`. See [Run with Docker](docs/how-to/run-with-docker.md#change-the-port).
 
 **`uv` is not recognized or `command not found`.** Open a new terminal. If it still fails, add the uv folder to your PATH: `%USERPROFILE%\.local\bin` on Windows, `~/.local/bin` on macOS and Linux.
 
@@ -155,11 +177,11 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 You never need to activate a virtual environment. Always start Python tools with `uv run`.
 
-**PDF download fails with `Chromium is not installed`.** Run `uv run career-buddy install-browser`. On Linux, if Chromium starts but reports missing libraries, run `uv run playwright install-deps chromium` (it asks for sudo).
+**PDF download fails with `Chromium is not installed`.** Run `uv run career-buddy install-browser`. On Linux, if Chromium starts but reports missing libraries, run `uv run playwright install-deps chromium` (it asks for sudo). In Docker, Chromium is already included.
 
-**The page at port 8000 shows JSON or a 404, not the app.** The UI is not built. Run `pnpm -C frontend build` (step 6).
+**The page at port 8000 shows JSON or a 404, not the app.** The UI is not built. Run `pnpm -C frontend build` (setup step 6).
 
-**Port already in use.** Pick another port. On macOS and Linux:
+**Port 8000 already in use (developer setup).** Pick another port. On macOS and Linux:
 
 ```bash
 PORT=8001 uv run career-buddy

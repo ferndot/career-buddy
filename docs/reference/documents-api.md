@@ -2,9 +2,13 @@
 
 All document endpoints take `{template, format?, job_text?, inputs?, overrides?}`.
 
-- Every visible fact is used: all bullets, skills and education entries. There is no way to pick some of them. Bullets and
-  skills are ordered by how well they match `job_text`, and a fact the user hid is left out. A field the body does not name,
-  such as the old `selection`, `skill_ids` or `education_ids`, is ignored.
+- There is no selection. The body has no `selection`, `skill_ids` or `education_ids` field, and no response reports one. Every
+  visible fact goes to the writer and into the document: all bullets, skills and education entries. A fact the user hid is
+  left out. Bullets and skills are ordered by how well they match `job_text`. A field the body does not name is ignored.
+
+The document wizard has five steps: Job posting, Documents, Missing requirements, Template and preview, Download. They call
+`POST /api/job/fetch` (see [Import API](import-api.md)), `POST /api/fit`, `POST /api/documents/generate`,
+`POST /api/documents/preview` and `POST /api/documents/render`.
 
 To keep a rendered file, see [Saved documents API](saved-documents-api.md).
 
@@ -15,6 +19,7 @@ To keep a rendered file, see [Saved documents API](saved-documents-api.md).
 | `POST /api/documents/preview` | `{lines, document, tailoring, markers, ats}`. `ats` checks `format` (default `docx`) |
 | `POST /api/documents/check` | `{passes, issues}` for one format |
 | `POST /api/documents/generate` | A draft of the text a document needs, written from every visible fact. See below |
+| `POST /api/documents/suggest` | Needs `job_text`. `{suggestions: [{fact_id, before, after}], rejected: [{fact_id, reasons}]}`: model wordings for the bullets, each checked against the facts. `503` with no model |
 
 Templates: `resume-classic`, `resume-compact`, `resume-hybrid`, `cover-letter` (company, role), `cover-letter-email`
 (company, role). A missing or blank required input returns 422 and names it. Unknown inputs are ignored.
@@ -43,7 +48,7 @@ template is `404`. Nothing is stored. A model is required: there is no text made
   The ids are the slot ids of [saved documents](saved-documents-api.md). A slot that is absent keeps what the facts say.
 - The model is sent every fact the document prints, as `{id, kind, text, position_id, started, finished}`: the summary, each
   position, each achievement (its text includes its result), each skill and each education entry that the user can see. A
-  position's period goes with it and with its achievements. A fact the user hid is not sent, and what the model writes for an id
+  position's `started` and `finished` dates go with it and with its achievements. A fact the user hid is not sent, and what the model writes for an id
   it was not sent is dropped. No name or contact details are sent. It also gets the company and role, the directions, the posting (cut
   to 6000 characters), the job terms the facts cover and those they lack, the pinned slot ids and, for a resume, the caps below.
 - Caps come from `resume_pages`, the length of this resume (it is a setting of each resume, not of the app): 1 page (the default)

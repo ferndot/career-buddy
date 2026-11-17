@@ -39,7 +39,7 @@ pnpm -C frontend typecheck
 
 ## File length check
 
-Source files must stay under 500 lines. The [SpecOps](https://github.com/sanmak/specops) tool `spec-ops` checks it. It is a separate tool and `uv sync` does not install it. With it installed:
+Source files must stay under 500 lines. The [SpecOps](https://github.com/tyevans/spec-ops) tool `spec-ops` checks it. It is a separate tool and `uv sync` does not install it. Install it with `uv tool install git+https://github.com/tyevans/spec-ops` (see [Developer tools](../../README.md#developer-tools)). Then:
 
 ```bash
 uv run spec-ops health
