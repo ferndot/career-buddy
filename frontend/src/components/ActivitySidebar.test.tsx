@@ -3,12 +3,13 @@ import { Route, Routes } from 'react-router-dom'
 import { AppShell } from '../app/AppShell'
 import { openLogs, renderApp, renderShell } from '../test/render'
 import { useActivityLog } from './activityStore'
+import { useState } from 'react'
 
 // A page that starts agent work through the store's public hook, as the wizard does.
 function Page() {
-  const activity = useActivityLog()
-  const review = activity('review', 'Job posting review')
-  const writing = activity('document:resume', 'Document: Resume')
+  const newLog = useActivityLog()
+  const [review] = useState(() => newLog('Job posting review')) // one activity for this page
+  const [writing] = useState(() => newLog('Document: Resume'))
   return (
     <>
       <button onClick={() => review('info', 'Reading the posting', 'working')}>Start review</button>

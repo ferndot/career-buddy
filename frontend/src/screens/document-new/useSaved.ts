@@ -11,7 +11,7 @@ type Pending = { sig: string; doc: Promise<SavedDocument> }
  * Saves each document once. Saving again with the same content returns the same document; changed content saves a new
  * one. Two quick clicks share one request. `saved` lists the kinds whose saved copy matches what is on screen.
  */
-export function useSaved(w: Wizard, templates: Template[] | undefined, logFor: (kind: DocKind) => Log) {
+export function useSaved(w: Wizard, templates: Template[] | undefined, newLog: (title: string) => Log) {
   const qc = useQueryClient()
   const pending = useRef<Partial<Record<DocKind, Pending>>>({})
   const [done, setDone] = useState<Partial<Record<DocKind, string>>>({}) // signature of what each kind last saved
@@ -29,7 +29,7 @@ export function useSaved(w: Wizard, templates: Template[] | undefined, logFor: (
     const sig = JSON.stringify(b)
     const known = pending.current[kind]
     if (known?.sig === sig) return known.doc
-    const log = logFor(kind)
+    const log = newLog(`Saving: ${kindLabel(kind)}`)
     log('info', `Saving the ${kindLabel(kind).toLowerCase()}`, 'working')
     const doc = saveDocument(b).then((d) => {
       log('info', `Saved ${d.label}`, 'done')

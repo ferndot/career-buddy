@@ -10,7 +10,7 @@ import { MissingPane } from './MissingPane'
 import { ReviewStep } from './ReviewStep'
 import { StepIndicator } from './StepIndicator'
 import { TemplateStep } from './TemplateStep'
-import { clearDraft, kindLabel, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
+import { clearDraft, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
 import { useReview } from './useReview'
 import { useSaved } from './useSaved'
 import { useWizardData } from './useWizardData'
@@ -28,17 +28,20 @@ export function NewDocumentScreen() {
   useEffect(() => saveDraft(w), [w]) // the draft saves itself
 
   const { templates, review, hasJob } = useWizardData(w, setW)
-  const activity = useActivityLog()
-  const reviewing = useReview(w, set, activity('review', 'Job posting review'))
-  const { save, saved } = useSaved(w, templates.data, (k) => activity(`save:${k}`, `Saving: ${kindLabel(k)}`))
+  const newLog = useActivityLog()
+  const reviewing = useReview(w, set, newLog)
+  const { save, saved } = useSaved(w, templates.data, newLog)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
 
   const ready = (k: DocKind) => !missingInputs(w.docs[k], templates.data?.find((t) => t.id === w.docs[k].templateId))
+  // A document whose text the model failed to write does not go on: it waits for a generate that works.
+  const generationFailed = w.kinds.some((k) => w.docs[k].genError)
   const canNext =
-    w.step === 1 ? hasJob || w.noJob : w.step === 2 ? w.kinds.length > 0 : w.step === 4 ? w.kinds.every(ready) : true
+    w.step === 1 ? hasJob || w.noJob : w.step === 2 ? w.kinds.length > 0 : w.step === 4 ? w.kinds.every(ready) && !generationFailed : true
   const go = (step: Wizard['step']) => set({ step })
   const finish = async () => {
+    if (generationFailed) return
     setFinishing(true)
     setFinishError(false)
     try {
@@ -57,9 +60,9 @@ export function NewDocumentScreen() {
   const body = !templates.data ? (
     templates.isError ? <Text color="app.muted">Could not load the templates.</Text> : <LoadingState text="Loading the templates..." />
   ) : w.step === 4 ? (
-    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} log={activity(`document:${active}`, `Document: ${kindLabel(active)}`)} />
+    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} newLog={newLog} />
   ) : (
-    <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} log={activity(`download:${active}`, `Download: ${kindLabel(active)}`)} />
+    <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} newLog={newLog} blocked={w.docs[active].genError} />
   )
 
   return (

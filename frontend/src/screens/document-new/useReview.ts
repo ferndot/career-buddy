@@ -10,7 +10,7 @@ import { whyFailed } from './whyFailed'
  * No model or no answer (503) goes on to step 2 with step 3 saying so; the log holds the backend's reason.
  * Any other failure keeps the loading page up (`active`) with a retry and a way on. Each stage is recorded in `log`.
  */
-export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, log: Log) {
+export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, newLog: (title: string) => Log) {
   const m = useMutation({ mutationFn: (text: string) => getFit(text) })
   const done = (result: Review['result']) => {
     m.reset()
@@ -18,6 +18,7 @@ export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, log:
   }
   const start = () => {
     if (!w.jobText.trim() || w.review?.text === w.jobText) return set({ step: 2 }) // nothing to read, or already read
+    const log = newLog('Job posting review')
     log('info', 'Reading the posting', 'working')
     m.mutate(w.jobText, {
       onSuccess: (result) => {
@@ -33,7 +34,7 @@ export function useReview(w: Wizard, set: (patch: Partial<Wizard>) => void, log:
     })
   }
   const skip = () => {
-    log('info', 'Continued without requirements', 'idle')
+    newLog('Job posting review')('info', 'Continued without requirements', 'idle')
     done('unavailable')
   }
   return { start, skip, active: m.isPending || m.isError, failed: m.isError }

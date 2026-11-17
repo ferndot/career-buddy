@@ -8,12 +8,12 @@ import { shown } from './layout'
 import { PreviewEditor } from './PreviewEditor'
 import { buildBody, missingInputs, type DocDraft, type DocKind, type Wizard } from './state'
 
-type Props = { w: Wizard; kind: DocKind; templates: Template[]; setDoc: (patch: Partial<DocDraft>) => void; log: Log }
+type Props = { w: Wizard; kind: DocKind; templates: Template[]; setDoc: (patch: Partial<DocDraft>) => void; newLog: (title: string) => Log }
 
 const field = { bg: 'app.surface', borderColor: 'app.borderStrong', color: 'app.text' } as const
 
 /** Template for one document, its inputs, and the generated preview with editable text. */
-export function TemplateStep({ w, kind, templates, setDoc, log }: Props) {
+export function TemplateStep({ w, kind, templates, setDoc, newLog }: Props) {
   const doc = w.docs[kind]
   const choices = templates.filter((t) => t.kind === kind)
   const chosen = templates.find((t) => t.id === doc.templateId)
@@ -31,7 +31,7 @@ export function TemplateStep({ w, kind, templates, setDoc, log }: Props) {
             {choices.map((t) => {
               const on = t.id === doc.templateId
               return (
-                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, inputs: {}, generated: {}, flags: {} })}>
+                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, inputs: {}, generated: {}, flags: {}, genError: undefined })}>
                   <Text fontWeight="semibold" fontSize="sm">{t.label}</Text>
                 </Box>
               )
@@ -44,7 +44,7 @@ export function TemplateStep({ w, kind, templates, setDoc, log }: Props) {
             <Input {...field} value={doc.inputs[f] ?? ''} onChange={(e) => setDoc({ inputs: { ...doc.inputs, [f]: e.target.value } })} />
           </Field.Root>
         ))}
-        <Directions key={kind} w={w} kind={kind} ready={ready} setDoc={setDoc} log={log} />
+        <Directions key={kind} w={w} kind={kind} ready={ready} setDoc={setDoc} newLog={newLog} />
         {p && (
           <Box display="flex" flexDirection="column" gap="2">
             <Text fontWeight="semibold" fontSize="sm">ATS check</Text>

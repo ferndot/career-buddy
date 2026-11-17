@@ -223,3 +223,27 @@ test('a failed generate is logged with its reason', async () => {
   expect(await within(screen.getByRole('log')).findByText(/Failed: The writer is busy\./)).toBeInTheDocument()
   expect(screen.getByText('Failed')).toBeInTheDocument()
 })
+
+test('a failed generate keeps the document from going on until a generate works', async () => {
+  let fail = true
+  stubApi([], true, () => (fail ? json({ detail: 'The writer is busy.', code: 'x' }, 502) : json(DRAFTS.resume)))
+  await openAt(4)
+  await screen.findByLabelText('Edit text: Shipped it')
+  generate()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled())
+  fail = false
+  generate()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
+})
+
+test('each generate press is its own activity in the log', async () => {
+  stubApi([], true, () => json(DRAFTS.resume))
+  await openAt(4)
+  await screen.findByLabelText('Edit text: Shipped it')
+  generate()
+  generate()
+  openLogs()
+  const rows = await screen.findAllByRole('button', { name: /Document: Resume/ })
+  expect(rows).toHaveLength(2)
+  await waitFor(() => expect(screen.queryByText('Working')).not.toBeInTheDocument()) // both writes finish inside the test
+})

@@ -18,6 +18,7 @@ export type DocDraft = {
   resumePages: ResumePages // how long this resume should be; a letter ignores it
   generated: Record<string, string> // the writer's draft by slot id: the default text of a slot, never an override
   flags: Record<string, Flag> // slots of the draft the person should look at, by slot id
+  genError?: string // why the last generate failed: the document waits, unsaved, until a generate works
 }
 
 /** The model's review of the posting, with the posting text it was made from. `unavailable`: no model, or the user went on without it. */

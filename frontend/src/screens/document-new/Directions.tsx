@@ -8,8 +8,9 @@ import { errorMessage, useConnections } from '../settings/llmApi'
 import { buildBody, kindLabel, type DocDraft, type DocKind, type Wizard } from './state'
 import { whyFailed } from './whyFailed'
 
-type Props = { w: Wizard; kind: DocKind; ready: boolean; setDoc: (patch: Partial<DocDraft>) => void; log: Log }
+type Props = { w: Wizard; kind: DocKind; ready: boolean; setDoc: (patch: Partial<DocDraft>) => void; newLog: (title: string) => Log }
 type Reject = { reasons: string[] }
+const noLog: Log = () => {}
 
 /** How many slots the writer's text was rejected for, and the distinct reasons (the first few). */
 function logRejected(log: Log, rejected: Reject[]) {
@@ -18,8 +19,9 @@ function logRejected(log: Log, rejected: Reject[]) {
   log('warn', `${rejected.length} rejected${why ? `: ${why}` : ''}`)
 }
 
-/** Directions for the writer, and the button that asks for a draft. The draft becomes the default text of the preview. */
-export function Directions({ w, kind, ready, setDoc, log }: Props) {
+/** Directions for the writer, and the button that asks for a draft. The draft becomes the default text of the preview.
+ * Each press is its own activity in the log. A failed press keeps the document waiting (`genError`) until a press works. */
+export function Directions({ w, kind, ready, setDoc, newLog }: Props) {
   const doc = w.docs[kind]
   const over = doc.instructions.length > MAX_INSTRUCTIONS
   const connections = useConnections()
@@ -27,20 +29,25 @@ export function Directions({ w, kind, ready, setDoc, log }: Props) {
   const gen = useMutation({
     mutationFn: () => generateText({ ...buildBody(w, kind), instructions: doc.instructions, pinned: Object.keys(doc.overrides), resume_pages: doc.resumePages }),
     onMutate: () => {
+      const log = newLog(`Document: ${kindLabel(kind)}`)
       const pinned = Object.keys(doc.overrides).length
       log('info', `Sent request for the ${kindLabel(kind).toLowerCase()}${pinned ? `, ${pinned} slot${pinned === 1 ? '' : 's'} kept as written` : ''}`, 'working')
+      return { log }
     },
-    // a new draft replaces the generated text, except under the user's own wording, which it never touched. A failed call changes nothing.
-    onSuccess: (draft) => {
-      setDoc({ generated: { ...Object.fromEntries(Object.entries(doc.generated).filter(([slot]) => slot in doc.overrides)), ...draft.slots }, flags: draft.flags })
+    // a new draft replaces the generated text, except under the user's own wording, which it never touched.
+    onSuccess: (draft, _vars, ctx) => {
+      setDoc({ generated: { ...Object.fromEntries(Object.entries(doc.generated).filter(([slot]) => slot in doc.overrides)), ...draft.slots }, flags: draft.flags, genError: undefined })
+      const log = ctx?.log ?? noLog
       const n = Object.keys(draft.slots).length
       log('info', `Received ${n} slot${n === 1 ? '' : 's'}`, 'done')
       logRejected(log, Object.values(draft.flags))
       if (draft.notice) log('info', draft.notice)
     },
-    onError: (e) => {
-      // an unsupported draft comes back as an error that lists what was rejected
+    onError: (e, _vars, ctx) => {
+      // an unsupported draft comes back as an error that lists what was rejected; the document waits until a press works
       const rejected = (e instanceof ApiError ? (e.body as { rejected?: Reject[] } | undefined)?.rejected : undefined) ?? []
+      const log = ctx?.log ?? noLog
+      setDoc({ genError: whyFailed(e) })
       log('error', `Failed: ${whyFailed(e)}`, 'failed')
       logRejected(log, rejected)
     },

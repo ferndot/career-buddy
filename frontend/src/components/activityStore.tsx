@@ -78,8 +78,16 @@ export const useActivityPanel = () => need(useContext(PanelContext))
 /** The store's actions: stable, so using them never re-renders. */
 export const useActivityActions = () => need(useContext(ActionsContext))
 
-/** `activity(id, title)` is the `Log` of one activity: the first line creates it, later lines add to it. */
+let seq = 0
+
+/** `newLog(title)` opens a new activity for one request and returns its `Log`: every run gets its own lines, never shared. */
 export function useActivityLog() {
   const { write } = useActivityActions()
-  return useCallback((id: string, title: string): Log => (level, text, status) => write(id, title, level, text, status), [write])
+  return useCallback(
+    (title: string): Log => {
+      const id = `${Date.now().toString(36)}-${(seq += 1)}`
+      return (level, text, status) => write(id, title, level, text, status)
+    },
+    [write],
+  )
 }
