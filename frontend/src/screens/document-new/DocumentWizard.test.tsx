@@ -45,7 +45,7 @@ test('the chosen documents become side tabs in steps 4 and 5, and not before', a
   expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 3 of 5 · Missing requirements')
   expect(screen.queryByRole('tablist')).not.toBeInTheDocument() // what the posting needs is asked once, not per document
   fireEvent.click(nextButton())
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 4 of 5 · Template and preview')
+  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 4 of 5 · Template')
   const tabs = () => screen.getAllByRole('tab').map((t) => t.textContent?.split(/Template|Saved/)[0])
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
   expect(screen.getByRole('tab', { name: /Resume/ })).toHaveAttribute('aria-selected', 'true')
@@ -55,7 +55,7 @@ test('the chosen documents become side tabs in steps 4 and 5, and not before', a
   expect(screen.queryByLabelText(/role|company/i)).not.toBeInTheDocument() // read from the posting, not asked
   expect(nextButton()).toBeEnabled()
   fireEvent.click(nextButton())
-  expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 5 of 5 · Download')
+  await waitFor(() => expect(screen.getByLabelText('Progress')).toHaveTextContent('Step 5 of 5 · Preview and download')) // the text is written first
   expect(tabs()).toEqual(['Resume', 'Cover letter'])
 })
 
@@ -131,25 +131,24 @@ test('Yes opens the skill form with the requirement filled in, and adds it as a 
   expect(post?.body).toMatchObject({ kind: 'Skill', title: 'Kubernetes', parent_id: 'person', attributes: { years: '3' } })
 })
 
-test('step 4 edits are overrides on the document: reset to generated removes them', async () => {
+test('last-step edits are overrides on the document: reset to generated removes them', async () => {
   const calls = stubApi()
-  await openAt(4)
-  const bullet = await screen.findByLabelText('Edit text: Shipped it')
+  await openAt(5)
+  const bullet = await screen.findByLabelText('Edit text: Generated bullet')
   expect(screen.queryByLabelText('Edit text: Engineer, Acme')).not.toBeInTheDocument() // headings are not editable
-  fireEvent.change(bullet, { target: { value: 'Shipped it to 1M users' } })
-  expect(screen.getByLabelText('Edit text: Shipped it')).toHaveValue('Shipped it to 1M users')
-  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated: Shipped it' }))
-  expect(screen.getByLabelText('Edit text: Shipped it')).toHaveValue('Shipped it')
+  fireEvent.change(bullet, { target: { value: 'Generated bullet to 1M users' } })
+  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet to 1M users')
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated: Generated bullet' }))
+  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
   expect(screen.queryByRole('button', { name: /Reset to generated/ })).not.toBeInTheDocument()
-  fireEvent.change(screen.getByLabelText('Edit text: Builds things'), { target: { value: 'Builds reliable things' } })
-  fireEvent.change(screen.getByLabelText('Edit text: Shipped it'), { target: { value: 'Shipped it to 1M users' } })
-  fireEvent.click(nextButton())
+  fireEvent.change(screen.getByLabelText('Edit text: Generated summary'), { target: { value: 'Builds reliable things' } })
+  fireEvent.change(screen.getByLabelText('Edit text: Generated bullet'), { target: { value: 'Generated bullet to 1M users' } })
   fireEvent.click(await screen.findByRole('button', { name: 'Save without downloading' }))
   await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))).toBe(true))
   const save = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))!
   expect(save.body).toMatchObject({
     template: 'resume-classic',
-    overrides: { 'bullet:b1': 'Shipped it to 1M users', summary: 'Builds reliable things' },
+    overrides: { 'bullet:b1': 'Generated bullet to 1M users', summary: 'Builds reliable things' },
   })
   for (const key of ['format', 'selection', 'skill_ids', 'education_ids']) expect(save.body).not.toHaveProperty(key)
   const previews = calls.filter((c) => c.url.includes('preview') && c.body?.template === 'resume-classic')

@@ -92,4 +92,5 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   }
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
   next()
+  await screen.findByRole('button', { name: 'Word' }) // the last step shows once the text is written
 }

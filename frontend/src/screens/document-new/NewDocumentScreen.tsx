@@ -8,8 +8,12 @@ import { DownloadStep } from './DownloadStep'
 import { JobStep } from './JobStep'
 import { MissingPane } from './MissingPane'
 import { ReviewStep } from './ReviewStep'
+import { DocPreview } from './DocPreview'
+import { WritingStep } from './WritingStep'
+import { useWriting } from './useWriting'
 import { StepIndicator } from './StepIndicator'
 import { TemplateStep } from './TemplateStep'
+import { MAX_INSTRUCTIONS } from '../documents/api'
 import { clearDraft, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
 import { useReview } from './useReview'
 import { useSaved } from './useSaved'
@@ -31,6 +35,7 @@ export function NewDocumentScreen() {
   const newLog = useActivityLog()
   const reviewing = useReview(w, set, newLog)
   const { save, saved } = useSaved(w, templates.data, newLog)
+  const [writing, setWriting] = useState(false) // the interstitial between the template step and the last step
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
 
@@ -38,7 +43,7 @@ export function NewDocumentScreen() {
   // A document whose text the model failed to write does not go on: it waits for a generate that works.
   const generationFailed = w.kinds.some((k) => w.docs[k].genError)
   const canNext =
-    w.step === 1 ? hasJob || w.noJob : w.step === 2 ? w.kinds.length > 0 : w.step === 4 ? w.kinds.every(ready) && !generationFailed : true
+    w.step === 1 ? hasJob || w.noJob : w.step === 2 ? w.kinds.length > 0 : w.step === 4 ? w.kinds.every((k) => ready(k) && w.docs[k].instructions.length <= MAX_INSTRUCTIONS) : w.step === 5 ? !generationFailed : true
   const go = (step: Wizard['step']) => set({ step })
   const finish = async () => {
     if (generationFailed) return
@@ -54,15 +59,36 @@ export function NewDocumentScreen() {
       setFinishing(false)
     }
   }
-  const next = () => (w.step === 1 ? reviewing.start() : w.step < LAST ? go((w.step + 1) as Wizard['step']) : void finish())
+  const writer = useWriting(w, setDoc, newLog, () => {
+    setWriting(false)
+    go(LAST)
+  })
+  const next = () => {
+    if (w.step === 1) return reviewing.start()
+    if (w.step === 4) {
+      setWriting(true)
+      return writer.start()
+    }
+    if (w.step < LAST) return go((w.step + 1) as Wizard['step'])
+    void finish()
+  }
 
   const active = w.active
-  const body = !templates.data ? (
+  const body = w.step < 4 ? null : !templates.data ? (
     templates.isError ? <Text color="app.muted">Could not load the templates.</Text> : <LoadingState text="Loading the templates..." />
+  ) : writing ? (
+    <WritingStep failed={writer.failed} reason={writer.reason} retry={writer.start} back={() => setWriting(false)} />
   ) : w.step === 4 ? (
-    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} newLog={newLog} />
+    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} />
   ) : (
-    <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} newLog={newLog} blocked={w.docs[active].genError} />
+    <Flex direction={{ base: 'column', md: 'row' }} gap="5" alignItems="flex-start" wrap="wrap">
+      <Box flex="1.4 1 320px" minW="0">
+        <DocPreview w={w} kind={active} ready={ready(active)} setDoc={setDoc(active)} editable />
+      </Box>
+      <Box flex="1 1 280px" minW="0">
+        <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} newLog={newLog} blocked={w.docs[active].genError} />
+      </Box>
+    </Flex>
   )
 
   return (
@@ -71,10 +97,10 @@ export function NewDocumentScreen() {
         <StepIndicator current={w.step} />
         <Flex alignItems="center" gap="3">
           {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
-          <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
+          <Button variant="ghost" color="app.link" disabled={w.step === 1 || writing} onClick={() => go((w.step - 1) as Wizard['step'])}>
             Back
           </Button>
-          <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active} loading={finishing} onClick={next}>
+          <Button bg="app.primary" color="app.onPrimary" disabled={!canNext || reviewing.active || writing} loading={finishing} onClick={next}>
             {w.step === LAST ? 'Done' : 'Next'}
           </Button>
         </Flex>

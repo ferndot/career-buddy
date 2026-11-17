@@ -11,6 +11,7 @@ type Props = {
   flags: Record<string, Flag> // slots the writer could not do properly
   overrides: Record<string, string>
   onChange: (overrides: Record<string, string>) => void
+  readOnly?: boolean // the template step: the text as it will be, edited on the next step
 }
 
 const editable = (slot: string) => slot === 'summary' || slot.startsWith('bullet:') || slot.startsWith('para:')
@@ -20,12 +21,12 @@ const editable = (slot: string) => slot === 'summary' || slot.startsWith('bullet
  * follows its default again. Editable: the summary, bullets and a letter's paragraphs. Headings, contact line, skills,
  * greeting and sign-off stay read-only.
  */
-export function PreviewEditor({ doc, defaults, generated, flags, overrides, onChange }: Props) {
+export function PreviewEditor({ doc, defaults, generated, flags, overrides, onChange, readOnly }: Props) {
   const slot = (l: SlotLine): ReactNode =>
-    editable(l.slot) ? (
+    !readOnly && editable(l.slot) ? (
       <Slot fallback={defaults[l.slot] ?? l.text} value={overrides[l.slot]} label={(defaults[l.slot] ?? l.text) || l.slot} generated={l.slot in generated} flag={flags[l.slot]} onChange={(text) => onChange(withOverride(overrides, l.slot, text, defaults[l.slot] ?? l.text))} />
     ) : (
-      <Text minH="1.2em">{l.text}</Text>
+      <Text minH="1.2em">{editable(l.slot) ? defaults[l.slot] ?? l.text : l.text}</Text>
     )
   return (
     <Box bg="app.surface2" borderWidth="1px" borderColor="app.border" borderRadius="md" p="4" fontSize="13px" color="app.text2" maxH="560px" overflowY="auto" display="flex" flexDirection="column" gap="1">
