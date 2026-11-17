@@ -54,7 +54,7 @@ def test_the_context_has_facts_sections_posting_directions_and_the_system_messag
     sent = json.loads(payload(brief, brief.facts))
     assert sent["sections"] == ["summary", "experience", "education", "skills"] and sent["directions"] == "Stress Kubernetes" and sent["posting"] == "Platform engineer"
     assert sent["pinned"] == ["bullet:a1"] and sent["missing_terms"] == ["Terraform"] and sent["job_terms"] == ["Kubernetes"]
-    assert {f["kind"] for f in sent["facts"]} == {"position", "achievement", "skill", "education"} and "caps" not in sent and "template_instructions" not in sent
+    assert set(sent["facts"]) == {"positions", "skills", "education"} and "caps" not in sent and "template_instructions" not in sent
     system = system_prompt(brief)
     assert "summary, experience, education, skills" in system and "Template instructions: Compact modern resume." in system
     assert "2 pages long. At most 5 bullets for each position and 15 skills" in system and "Answer with one JSON object" in system
@@ -62,6 +62,15 @@ def test_the_context_has_facts_sections_posting_directions_and_the_system_messag
     assert "Template: write these sections, in this order: body." in letter and "Length:" not in letter and "cover letter" in letter and "Three short paragraphs." in letter
     repair = system_prompt(brief, repair=True)
     assert "were rejected" in repair and "Answer with one JSON object" not in repair
+
+
+def test_the_writer_reads_each_position_with_its_achievements_together_and_is_not_told_one_item_per_fact() -> None:
+    sent = json.loads(payload(BRIEF, BRIEF.facts))["facts"]
+    first = sent["positions"][0]
+    assert first["id"] == "p1" and [a["id"] for a in first["achievements"]] == ["a1", "a2", "a3", "a4"]
+    assert [s["id"] for s in sent["skills"]] == ["s1", "s2", "s3"] and sent["education"][0]["id"] == "e1"
+    resume, letter = system_prompt(BRIEF), system_prompt(Brief("letter", FACTS, sections=(LETTER,)))
+    assert "one bullet per achievement is not the goal" in resume and "never write one item per fact" in resume and "not a paragraph per fact" in letter
 
 
 # --- what is fit to print ---

@@ -33,12 +33,22 @@ class Model:
             return httpx.Response(self.status, text="no")
         messages = json.loads(request.content)["messages"]
         payload = json.loads(messages[-1]["content"])
+        payload["facts"] = flat(payload["facts"])
         self.payloads.append(payload)
         self.systems.append(messages[0]["content"])
         answer = self.repair if "failed" in payload else self.write
         if answer is None:
             return httpx.Response(500, text="no")
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(answer(payload))}}]})
+
+
+def flat(facts: dict) -> list[dict]:
+    """The grouped facts of a request as one list of facts with their kind and position, for the fake model to look things up."""
+    def one(kind: str, f: dict, pid: str = "", when: dict | None = None) -> dict:
+        return {"id": f["id"], "kind": kind, "text": f.get("text") or f.get("title", ""), "position_id": pid, "started": "", "finished": "", **(when or f)} | {"id": f["id"]}
+    return [*([one("summary", facts["summary"])] if "summary" in facts else []),
+            *(x for p in facts["positions"] for x in [one("position", p), *(one("achievement", a, p["id"], p) for a in p["achievements"])] if "title" in p or x["kind"] == "achievement"),
+            *(one("skill", f) for f in facts["skills"]), *(one("education", f) for f in facts["education"])]
 
 
 def find(payload: dict, text: str, kind: str | None = None) -> str:

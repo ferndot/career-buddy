@@ -75,7 +75,7 @@ message (JSON): every fact the document prints as `{id, kind, text, position_id,
 their dates, achievements with their result, skills, education; a hidden fact is not sent), the `sections` to write, the
 company and role, the `directions`, the posting (cut to 6000 characters), the job terms the facts cover (`job_terms`) and lack
 (`missing_terms`) and the `pinned` slot ids. No name or contact details are sent. The prompt is the versioned text file
-`adapters/inference/prompts/document_writer_v5.txt`.
+`adapters/inference/prompts/document_writer_v6.txt`.
 
 **What it writes.** The template's sections in the template's order (a resume's `sections`: for example summary, experience,
 skills, education), each a list of items:

@@ -22,7 +22,7 @@ from career_buddy.adapters.inference.errors import unavailable
 from career_buddy.domain.generation import Brief, BriefFact, Claim, Rejection
 from career_buddy.domain.written import WrittenDocument
 
-PROMPT = "document_writer_v5"
+PROMPT = "document_writer_v6"
 _SECTIONS = dict(re.findall(r"^### (\w+)\n(.*?)(?=^### |\Z)", (Path(__file__).parent / "prompts" / f"{PROMPT}.txt").read_text(encoding="utf-8"), re.M | re.S))
 
 
@@ -48,8 +48,16 @@ def system_prompt(brief: Brief, repair: bool = False) -> str:
     return "\n".join(p.strip() for p in parts if p.strip())
 
 
-def _fact(f: BriefFact) -> dict[str, str]:
-    return {"id": f.id, "kind": f.kind, "text": f.text, "position_id": f.position_id, "started": f.started, "finished": f.finished}
+def _facts(facts: Sequence[BriefFact]) -> dict[str, object]:
+    """The facts as the writer reads them: each position with its achievements together, the skills and education as lists. Every id stays."""
+    positions: dict[str, dict[str, object]] = {f.id: {"id": f.id, "title": f.text, "started": f.started, "finished": f.finished, "achievements": []} for f in facts if f.kind == "position"}
+    for f in facts:
+        if f.kind == "achievement":  # a repair may carry an achievement without its position
+            positions.setdefault(f.position_id, {"id": f.position_id, "achievements": []})["achievements"].append({"id": f.id, "text": f.text})  # type: ignore[attr-defined]
+    summary = next(({"id": f.id, "text": f.text} for f in facts if f.kind == "summary"), None)
+    return {**({"summary": summary} if summary else {}), "positions": list(positions.values()),
+            "skills": [{"id": f.id, "text": f.text} for f in facts if f.kind == "skill"],
+            "education": [{"id": f.id, "text": f.text, "started": f.started, "finished": f.finished} for f in facts if f.kind == "education"]}
 
 
 def payload(brief: Brief, facts: Sequence[BriefFact], failed: Sequence[Rejection] = ()) -> str:
@@ -57,7 +65,7 @@ def payload(brief: Brief, facts: Sequence[BriefFact], failed: Sequence[Rejection
     out: dict[str, object] = {
         "kind": brief.kind, "sections": list(brief.sections), "company": brief.company, "role": brief.role, "directions": brief.instructions,
         "posting": brief.posting, "job_terms": list(brief.terms), "missing_terms": list(brief.missing), "pinned": sorted(brief.pinned),
-        "facts": [_fact(f) for f in facts],
+        "facts": _facts(facts),
     }
     if failed:
         out["failed"] = [{"slot": r.slot, "text": r.claim.text, "fact_ids": list(r.claim.fact_ids), "reasons": list(r.reasons)} for r in failed]
