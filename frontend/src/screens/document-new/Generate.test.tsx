@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { MAX_INSTRUCTIONS } from '../documents/api'
+import { openLogs } from '../../test/render'
 import { DRAFTS, openAt, stubApi, type Calls } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
@@ -164,7 +165,7 @@ test('without a model Generate is disabled and says where to connect one; text c
   await openAt(4)
   const bullet = await screen.findByLabelText('Edit text: Shipped it')
   expect(await screen.findByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to generate text')
-  expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+  expect(within(screen.getByRole('main')).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   expect(screen.getByRole('button', { name: 'Generate text' })).toBeDisabled()
   generate()
   expect(post(calls, '/api/documents/generate')).toHaveLength(0)
@@ -191,34 +192,34 @@ test('generating adds entries to the activity log: the request, the slots return
   stubApi([], true, () => json(draft))
   await openAt(4)
   await screen.findByLabelText('Edit text: Shipped it')
-  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
-  const log = screen.getByRole('log')
-  expect(within(log).getByText(/Reading the posting/)).toBeInTheDocument() // the review on the way here is already in the log
+  openLogs(/Job posting review/)
+  expect(within(screen.getByRole('log')).getByText(/Reading the posting/)).toBeInTheDocument() // the review on the way here is already in the log
+  fireEvent.click(screen.getByRole('button', { name: 'Back to all activities' }))
   generate()
+  fireEvent.click(await screen.findByRole('button', { name: /Document: Resume/ })) // the writing is its own activity
+  const log = screen.getByRole('log')
   expect(await within(log).findByText(/Received 2 slots/)).toBeInTheDocument()
   const lines = within(log).getAllByText(/Sent request|Received|rejected/).map((e) => e.textContent!.replace(/^\S+ /, ''))
   expect(lines).toEqual(['Sent request for the resume', 'Received 2 slots', '1 rejected: number not in the source: 90'])
   expect(screen.getByText('Done')).toBeInTheDocument()
 })
 
-test('the activity log opens from Logs and closes with its close button', async () => {
+test('the wizard has no Logs button of its own: the header one shows its activities from any step', async () => {
   stubApi([], true, () => json({}))
   await openAt(4)
   await screen.findByLabelText('Edit text: Shipped it')
-  expect(screen.queryByRole('log')).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
-  expect(screen.getByRole('log')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Close log' }))
-  expect(screen.queryByRole('log')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Logs' })).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Logs' })).toHaveLength(1)
+  openLogs()
+  expect(within(screen.getByRole('complementary', { name: 'Activity' })).getByRole('button', { name: /Job posting review/ })).toBeInTheDocument()
 })
 
 test('a failed generate is logged with its reason', async () => {
   stubApi([], true, () => json({ detail: 'The writer is busy.', code: 'x' }, 502))
   await openAt(4)
   await screen.findByLabelText('Edit text: Shipped it')
-  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
   generate()
+  openLogs()
+  fireEvent.click(await screen.findByRole('button', { name: /Document: Resume/ }))
   expect(await within(screen.getByRole('log')).findByText(/Failed: The writer is busy\./)).toBeInTheDocument()
   expect(screen.getByText('Failed')).toBeInTheDocument()
 })

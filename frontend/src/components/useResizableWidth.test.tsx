@@ -1,8 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react'
-import { queryClient } from '../../api'
-import { renderApp } from '../../test/render'
-import { SourceLogSidebar } from './SourceLogSidebar'
-import { clampWidth, DEFAULT_WIDTH, KEY_STEP, MIN_WIDTH } from '../../components/useResizableWidth'
+import { queryClient } from '../api'
+import { openLogs, renderShell } from '../test/render'
+import { clampWidth, DEFAULT_WIDTH, KEY_STEP, MIN_WIDTH } from './useResizableWidth'
 
 describe('clampWidth', () => {
   it('keeps the width between 240px and 60% of the viewport', () => {
@@ -13,18 +12,21 @@ describe('clampWidth', () => {
   })
 })
 
-describe('the log sidebar resize handle', () => {
+describe('the activity sidebar resize handle', () => {
   beforeEach(() => {
     queryClient.clear()
     localStorage.clear()
     window.innerWidth = 1000
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ lines: [], cursor: 0, run: 1, status: 'ready', progress: 100, step: '', error: null }))))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]')))
   })
   afterEach(() => vi.unstubAllGlobals())
-  const source = { source: 'a.txt', facts: 1, status: 'ready' as const, progress: 100, step: '', error: null }
+  const open = () => {
+    renderShell(<p>The page</p>)
+    openLogs()
+  }
 
   it('resizes with the arrow keys, within the limits, and remembers the width', () => {
-    renderApp(<SourceLogSidebar source={source} onClose={() => {}} />)
+    open()
     const handle = screen.getByLabelText('Resize log')
     expect(handle).toHaveAttribute('aria-valuenow', String(DEFAULT_WIDTH))
     fireEvent.keyDown(handle, { key: 'ArrowLeft' }) // the handle is on the left edge: left widens
@@ -40,7 +42,7 @@ describe('the log sidebar resize handle', () => {
   })
 
   it('resizes by dragging', () => {
-    renderApp(<SourceLogSidebar source={source} onClose={() => {}} />)
+    open()
     const handle = screen.getByLabelText('Resize log')
     fireEvent.pointerDown(handle, { clientX: 500, pointerId: 1 })
     fireEvent.pointerMove(handle, { clientX: 450, pointerId: 1 })
@@ -52,7 +54,7 @@ describe('the log sidebar resize handle', () => {
 
   it('starts from the remembered width', () => {
     localStorage.setItem('career-buddy.sourceLogWidth', '500')
-    renderApp(<SourceLogSidebar source={source} onClose={() => {}} />)
+    open()
     expect(screen.getByLabelText('Resize log')).toHaveAttribute('aria-valuenow', '500')
   })
 })

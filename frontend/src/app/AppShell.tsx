@@ -1,6 +1,8 @@
 import { Box, Flex } from '@chakra-ui/react'
 import { Outlet } from 'react-router-dom'
 import { CareerBuddyLogo } from '../brand'
+import { ActivitySidebar } from '../components'
+import { SourceActivities } from '../screens/sources'
 import { SidebarNav } from './SidebarNav'
 
 export function AppShell() {
@@ -27,9 +29,14 @@ export function AppShell() {
         </Flex>
         <SidebarNav />
       </Flex>
-      <Box as="main" flex="1" minW="0" px={{ base: '4', md: '10' }} py={{ base: '5', md: '8' }}>
-        <Outlet />
-      </Box>
+      {/* The activity sidebar takes its width out of the page on wide screens and sits below the page on phones. */}
+      <Flex flex="1" minW="0" direction={{ base: 'column', xl: 'row' }}>
+        <Box as="main" flex="1" minW="0" px={{ base: '4', md: '10' }} py={{ base: '5', md: '8' }}>
+          <Outlet />
+        </Box>
+        <ActivitySidebar />
+      </Flex>
+      <SourceActivities />
     </Flex>
   )
 }

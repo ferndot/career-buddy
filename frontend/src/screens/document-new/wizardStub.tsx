@@ -1,7 +1,7 @@
 // Test helpers: a fake backend reached through fetch, and a way to drive the wizard to a step through its own buttons.
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
-import { renderApp } from '../../test/render'
+import { renderShell } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
 
 const line = (text: string, id: string | null = null, field = '') => ({ text, source_fact_id: id, origin: 'fact', field, cites: [] })
@@ -73,7 +73,7 @@ const next = () => fireEvent.click(screen.getByRole('button', { name: /^Next/ })
 
 /** Opens the wizard and clicks through to `step` with these documents chosen. */
 export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover letter')[] = ['Resume']) {
-  renderApp(<NewDocumentScreen />)
+  renderShell(<NewDocumentScreen />)
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: 'Python engineer with Kubernetes' } })
   next() // the model reads the posting first; step 2 follows

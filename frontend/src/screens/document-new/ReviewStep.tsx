@@ -1,10 +1,10 @@
 import { Box, Button } from '@chakra-ui/react'
 import { EmptyState } from '../../components'
 
-type Props = { failed: boolean; retry: () => void; skip: () => void; logs: () => void }
+type Props = { failed: boolean; retry: () => void; skip: () => void }
 
 /** Shown between steps 1 and 2 while the model reads the posting. Not a numbered step. */
-export function ReviewStep({ failed, retry, skip, logs }: Props) {
+export function ReviewStep({ failed, retry, skip }: Props) {
   return (
     <Box maxW="560px" mx="auto" minH="50vh" display="flex" flexDirection="column" justifyContent="center">
       {failed ? (
@@ -17,9 +17,6 @@ export function ReviewStep({ failed, retry, skip, logs }: Props) {
       ) : (
         <EmptyState loading title="Fetching job description" description="Reading the posting for requirements." />
       )}
-      <Box display="flex" justifyContent="center" mt="4">
-        <Button variant="ghost" color="app.link" onClick={logs}>Logs</Button>
-      </Box>
     </Box>
   )
 }

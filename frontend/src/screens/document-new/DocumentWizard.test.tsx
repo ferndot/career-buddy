@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
-import { renderApp } from '../../test/render'
+import { openLogs, renderShell } from '../../test/render'
 import { DOCS_QUESTION } from './DocsStep'
 import { stubReview } from './reviewStub'
 import { NewDocumentScreen } from './NewDocumentScreen'
@@ -108,7 +108,7 @@ test('without a model the pane suggests nothing and links to Settings', async ()
   stubReview('unavailable')
   await openAt(3)
   expect(await screen.findByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
-  expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+  expect(within(screen.getByRole('main')).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   expect(screen.queryByText(/Do you have/)).not.toBeInTheDocument()
   expect(screen.queryByText(/Nice to have/)).not.toBeInTheDocument()
   expect(nextButton()).toBeEnabled() // nothing to answer: the wizard goes on
@@ -186,7 +186,7 @@ test('each chosen document has its own download tab with the same format choices
 const POSTING = 'Python engineer with Kubernetes'
 const progress = () => screen.getByLabelText('Progress')
 function pasteAt1(text = POSTING) {
-  renderApp(<NewDocumentScreen />)
+  renderShell(<NewDocumentScreen />)
   fireEvent.click(screen.getByRole('button', { name: 'Paste the job text instead' }))
   fireEvent.change(screen.getByLabelText('Job posting text'), { target: { value: text } })
 }
@@ -230,7 +230,7 @@ test('with no model (503) the user goes on to step 2 and step 3 links to Setting
   fireEvent.click(nextButton())
   expect(screen.getByText(/Connect a model in/)).toHaveTextContent('Connect a model in Settings to check the job posting for requirements.')
   expect(posted).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
+  openLogs(/Job posting review/)
   expect(within(screen.getByRole('log')).getByText(/No answer from the model: Connect a model in Settings/)).toBeInTheDocument()
 })
 

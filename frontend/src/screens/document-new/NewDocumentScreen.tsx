@@ -1,7 +1,7 @@
 import { Box, Button, Flex, Text } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ActivityLog, LoadingState, toaster, useActivityLog } from '../../components'
+import { LoadingState, toaster, useActivityLog } from '../../components'
 import { DocsStep } from './DocsStep'
 import { DocTabs } from './DocTabs'
 import { DownloadStep } from './DownloadStep'
@@ -10,7 +10,7 @@ import { MissingPane } from './MissingPane'
 import { ReviewStep } from './ReviewStep'
 import { StepIndicator } from './StepIndicator'
 import { TemplateStep } from './TemplateStep'
-import { clearDraft, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
+import { clearDraft, kindLabel, loadDraft, missingInputs, saveDraft, type DocDraft, type DocKind, type Wizard } from './state'
 import { useReview } from './useReview'
 import { useSaved } from './useSaved'
 import { useWizardData } from './useWizardData'
@@ -29,11 +29,10 @@ export function NewDocumentScreen() {
 
   const { templates, review, hasJob } = useWizardData(w, setW)
   const activity = useActivityLog()
-  const reviewing = useReview(w, set, activity.log)
-  const { save, saved } = useSaved(w, templates.data, activity.log)
+  const reviewing = useReview(w, set, activity('review', 'Job posting review'))
+  const { save, saved } = useSaved(w, templates.data, (k) => activity(`save:${k}`, `Saving: ${kindLabel(k)}`))
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
-  const [logOpen, setLogOpen] = useState(false) // the activity log starts closed; a Logs button opens it
 
   const ready = (k: DocKind) => !missingInputs(w.docs[k], templates.data?.find((t) => t.id === w.docs[k].templateId))
   const canNext =
@@ -58,9 +57,9 @@ export function NewDocumentScreen() {
   const body = !templates.data ? (
     templates.isError ? <Text color="app.muted">Could not load the templates.</Text> : <LoadingState text="Loading the templates..." />
   ) : w.step === 4 ? (
-    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} log={activity.log} />
+    <TemplateStep w={w} kind={active} templates={templates.data} setDoc={setDoc(active)} log={activity(`document:${active}`, `Document: ${kindLabel(active)}`)} />
   ) : (
-    <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} log={activity.log} />
+    <DownloadStep key={active} kind={active} saved={saved.includes(active)} save={() => save(active)} log={activity(`download:${active}`, `Download: ${kindLabel(active)}`)} />
   )
 
   return (
@@ -69,11 +68,6 @@ export function NewDocumentScreen() {
         <StepIndicator current={w.step} />
         <Flex alignItems="center" gap="3">
           {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
-          {w.step >= 2 && !logOpen && (
-            <Button variant="ghost" color="app.link" onClick={() => setLogOpen(true)}>
-              Logs
-            </Button>
-          )}
           <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
             Back
           </Button>
@@ -82,29 +76,15 @@ export function NewDocumentScreen() {
           </Button>
         </Flex>
       </Flex>
-      {/* The activity log sits beside the page while an agent works (the posting review, writing, saving), below it on phones. */}
-      <Flex direction={{ base: 'column', xl: 'row' }} gap="6" align={{ base: 'stretch', xl: 'flex-start' }}>
-        <Box flex="1" minW="0">
-          {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} logs={() => setLogOpen(true)} /> : <JobStep w={w} set={set} />)}
-          {w.step === 2 && <DocsStep w={w} set={set} />}
-          {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
-          {w.step >= 4 && (
-            <Box display="flex" flexDirection={{ base: 'column', md: 'row' }} gap="5" alignItems={{ md: 'flex-start' }}>
-              <DocTabs w={w} templates={templates.data ?? []} saved={saved} onSelect={(k) => set({ active: k })} />
-              <Box flex="1" minW="0" w="full">{body}</Box>
-            </Box>
-          )}
+      {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
+      {w.step === 2 && <DocsStep w={w} set={set} />}
+      {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
+      {w.step >= 4 && (
+        <Box display="flex" flexDirection={{ base: 'column', md: 'row' }} gap="5" alignItems={{ md: 'flex-start' }}>
+          <DocTabs w={w} templates={templates.data ?? []} saved={saved} onSelect={(k) => set({ active: k })} />
+          <Box flex="1" minW="0" w="full">{body}</Box>
         </Box>
-        {logOpen && (
-          <ActivityLog
-            docked
-            title={w.step === 1 ? 'Job posting review' : 'Document activity'}
-            status={activity.status}
-            entries={activity.entries}
-            onClose={() => setLogOpen(false)}
-          />
-        )}
-      </Flex>
+      )}
     </>
   )
 }

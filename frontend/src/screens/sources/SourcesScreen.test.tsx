@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react'
 import { queryClient } from '../../api'
-import { renderApp } from '../../test/render'
+import { renderApp, renderShell } from '../../test/render'
 import { SourcesScreen } from './SourcesScreen'
 
 const sources = [
@@ -34,9 +34,11 @@ describe('SourcesScreen', () => {
     expect(screen.getByRole('button', { name: 'Retry notes.txt' })).toBeInTheDocument()
   })
 
-  it('opens the log of the source being processed, then of the one the user picks, and closes it', async () => {
+  it('opens the log of the source the user picks in the global sidebar, and closes it', async () => {
     stubApi()
-    renderApp(<SourcesScreen />)
+    renderShell(<SourcesScreen />)
+    expect(screen.queryByRole('log')).not.toBeInTheDocument() // nothing opens by itself
+    fireEvent.click(await screen.findByRole('button', { name: 'Show log of resume.pdf' }))
     expect(await screen.findByText('log of resume.pdf')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show log of cv.docx' }))
     expect(await screen.findByText('log of cv.docx')).toBeInTheDocument()
