@@ -68,7 +68,7 @@ function FlagNote({ flag }: { flag: Flag }) {
   )
 }
 
-function Slot({ fallback, label, value, generated, flag, onChange }: SlotProps) {
+function Slot({ fallback, label, value, flag, onChange }: SlotProps) {
   const edited = value !== undefined
   return (
     <Box>
@@ -92,7 +92,6 @@ function Slot({ fallback, label, value, generated, flag, onChange }: SlotProps) 
         </Box>
       )}
       {!edited && flag && <FlagNote flag={flag} />}
-      {!edited && generated && !flag && <Text fontSize="xs" color="#5b6472">Generated</Text>}
     </Box>
   )
 }
