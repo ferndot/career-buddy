@@ -33,6 +33,7 @@ export function NewDocumentScreen() {
   const { save, saved } = useSaved(w, templates.data, activity.log)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(false)
+  const [logOpen, setLogOpen] = useState(false) // the activity log starts closed; a Logs button opens it
 
   const ready = (k: DocKind) => !missingInputs(w.docs[k], templates.data?.find((t) => t.id === w.docs[k].templateId))
   const canNext =
@@ -68,6 +69,11 @@ export function NewDocumentScreen() {
         <StepIndicator current={w.step} />
         <Flex alignItems="center" gap="3">
           {finishError && <Text fontSize="sm" color="app.missText" role="alert">Could not save the documents.</Text>}
+          {w.step >= 4 && !logOpen && (
+            <Button variant="ghost" color="app.link" onClick={() => setLogOpen(true)}>
+              Logs
+            </Button>
+          )}
           <Button variant="ghost" color="app.link" disabled={w.step === 1} onClick={() => go((w.step - 1) as Wizard['step'])}>
             Back
           </Button>
@@ -79,7 +85,7 @@ export function NewDocumentScreen() {
       {/* The activity log sits beside the page while an agent works (the posting review, writing, saving), below it on phones. */}
       <Flex direction={{ base: 'column', xl: 'row' }} gap="6" align={{ base: 'stretch', xl: 'flex-start' }}>
         <Box flex="1" minW="0">
-          {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} /> : <JobStep w={w} set={set} />)}
+          {w.step === 1 && (reviewing.active ? <ReviewStep failed={reviewing.failed} retry={reviewing.start} skip={reviewing.skip} logs={() => setLogOpen(true)} /> : <JobStep w={w} set={set} />)}
           {w.step === 2 && <DocsStep w={w} set={set} />}
           {w.step === 3 && <MissingPane w={w} review={review} set={set} hasJob={hasJob} />}
           {w.step >= 4 && (
@@ -89,8 +95,14 @@ export function NewDocumentScreen() {
             </Box>
           )}
         </Box>
-        {((w.step === 1 && reviewing.active) || w.step >= 4) && (
-          <ActivityLog docked title={w.step === 1 ? 'Job posting review' : 'Document activity'} status={activity.status} entries={activity.entries} />
+        {logOpen && ((w.step === 1 && reviewing.active) || w.step >= 4) && (
+          <ActivityLog
+            docked
+            title={w.step === 1 ? 'Job posting review' : 'Document activity'}
+            status={activity.status}
+            entries={activity.entries}
+            onClose={() => setLogOpen(false)}
+          />
         )}
       </Flex>
     </>

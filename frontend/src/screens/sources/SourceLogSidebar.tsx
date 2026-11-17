@@ -1,5 +1,4 @@
-import { Button, Progress, Text } from '@chakra-ui/react'
-import { LuX } from 'react-icons/lu'
+import { Progress, Text } from '@chakra-ui/react'
 import { ActivityLog, type ActivityEntry } from '../../components'
 import { useSourceLog, type LogLine } from './sourceLogApi'
 import { displayName } from './sourceDisplay'
@@ -25,11 +24,7 @@ export function SourceLogSidebar({ source, onClose }: { source: Source; onClose:
       statusLabel={shown.label}
       logLabel="Extraction log"
       entries={(data?.lines ?? []).map(entry)}
-      actions={
-        <Button size="xs" variant="ghost" color="app.link" onClick={onClose} aria-label="Close log">
-          <LuX />
-        </Button>
-      }
+      onClose={onClose}
     >
       <Progress.Root value={progress} max={100} size="sm" aria-label={`Progress of ${name}`}>
         <Progress.Track bg="app.hover" borderRadius="full">

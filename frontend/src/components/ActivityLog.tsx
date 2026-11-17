@@ -1,5 +1,6 @@
-import { Badge, Box, Heading, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Heading, Text } from '@chakra-ui/react'
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { LuX } from 'react-icons/lu'
 import { MIN_WIDTH, useResizableWidth } from './useResizableWidth'
 
 export type ActivityStatus = 'idle' | 'working' | 'done' | 'failed' | 'unavailable'
@@ -55,6 +56,8 @@ type Props = {
   entries: ActivityEntry[]
   /** Buttons in the header, after the status badge. */
   actions?: ReactNode
+  /** Adds a close button to the header; the screen decides whether the log is shown. */
+  onClose?: () => void
   /** Shown between the header and the entries: a progress bar, a step, an error. */
   children?: ReactNode
   /** Names the entries region. */
@@ -63,7 +66,7 @@ type Props = {
   docked?: boolean
 }
 
-function Content({ title, status, statusLabel, entries, actions, children, logLabel = 'Activity log', docked }: Props) {
+function Content({ title, status, statusLabel, entries, actions, onClose, children, logLabel = 'Activity log', docked }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const pinned = useRef(true) // follow the newest entry, until the user scrolls up
   useEffect(() => {
@@ -82,6 +85,11 @@ function Content({ title, status, statusLabel, entries, actions, children, logLa
         </Heading>
         <StatusBadge status={status} label={statusLabel} />
         {actions}
+        {onClose && (
+          <Button size="xs" variant="ghost" color="app.link" onClick={onClose} aria-label="Close log">
+            <LuX />
+          </Button>
+        )}
       </Box>
       {children}
       <Box

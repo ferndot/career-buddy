@@ -191,6 +191,7 @@ test('generating adds entries to the activity log: the request, the slots return
   stubApi([], true, () => json(draft))
   await openAt(4)
   await screen.findByLabelText('Edit text: Shipped it')
+  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
   const log = screen.getByRole('log')
   expect(within(log).getByText(/Reading the posting/)).toBeInTheDocument() // the review on the way here is already in the log
   generate()
@@ -200,10 +201,23 @@ test('generating adds entries to the activity log: the request, the slots return
   expect(screen.getByText('Done')).toBeInTheDocument()
 })
 
+test('the activity log opens from Logs and closes with its close button', async () => {
+  stubApi([], true, () => json({}))
+  await openAt(4)
+  await screen.findByLabelText('Edit text: Shipped it')
+  expect(screen.queryByRole('log')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
+  expect(screen.getByRole('log')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Close log' }))
+  expect(screen.queryByRole('log')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Logs' })).toBeInTheDocument()
+})
+
 test('a failed generate is logged with its reason', async () => {
   stubApi([], true, () => json({ detail: 'The writer is busy.', code: 'x' }, 502))
   await openAt(4)
   await screen.findByLabelText('Edit text: Shipped it')
+  fireEvent.click(screen.getByRole('button', { name: 'Logs' }))
   generate()
   expect(await within(screen.getByRole('log')).findByText(/Failed: The writer is busy\./)).toBeInTheDocument()
   expect(screen.getByText('Failed')).toBeInTheDocument()
