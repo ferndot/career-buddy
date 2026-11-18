@@ -3,7 +3,8 @@
 A saved document keeps only a layout. Each text line is a slot with a stable id. The facts' text is not stored: it is found
 when the document is shown or downloaded, in this order:
 
-1. the user's override for the slot (`overrides.json`), their own words;
+1. the user's override for the slot (`overrides.json`), their own words: lines separated by a newline are lines of the same
+   kind (a freeform edit adds lines this way), and a blank override removes the line;
 2. the text a writer generated for it (`generated.json`), unless the facts it was written from have changed since;
 3. the current value of the fact the slot is bound to (so edits to the career facts flow into the document);
 4. the placeholder, the layout's own text, empty for a letter's slots: no code writes a letter's words.
@@ -99,8 +100,8 @@ def resolve(slots: Iterable[Slot], overrides: Mapping[str, str], lookup: Lookup,
     out: dict[str, str] = {}
     for slot in slots:
         current, made = source_of(slot, lookup), generated.get(slot.id)
-        if own := overrides.get(slot.id, "").strip():
-            out[slot.id] = own
+        if slot.id in overrides:  # the user's words; several lines are several lines, a blank text removes the line
+            out[slot.id] = overrides[slot.id].strip()
         elif made and made.text and (not made.source or made.source == current):
             out[slot.id] = made.text
         else:
@@ -123,11 +124,11 @@ def fact_texts(profile: Profile) -> dict[tuple[str, str], str]:
 
 
 def layout_overrides(given: Mapping[str, str], slots: Iterable[str]) -> dict[str, str]:
-    """The overrides a save request carries, as slot ids. A bare fact id means that fact's bullet. Others are dropped."""
+    """The overrides a save request carries, as slot ids. A bare fact id means that fact's bullet. Others are dropped. A blank text is kept: it removes the line."""
     ids = set(slots)
     out: dict[str, str] = {}
     for key, text in given.items():
         slot = next((k for k in (key, f"bullet:{key}", f"heading:{key}", f"edu:{key}") if k in ids), None)
-        if slot and text.strip():
-            out[slot] = text.strip()
+        if slot:
+            out[slot] = text.strip()  # blank is kept: the person removed the line
     return out

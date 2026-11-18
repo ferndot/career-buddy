@@ -2,7 +2,7 @@
 import { apiFetch, apiUrl, endpoints } from '../../api'
 
 /** How a template arranges its page: the header kind, and the headings of the sections in a side column. */
-export type TemplateLayout = { header: 'plain' | 'centered' | 'band'; side: string[]; css: string }
+export type TemplateLayout = { header: 'plain' | 'centered' | 'band'; side: string[]; css: string; accent: string; panel: string }  // accent: the headings' and the band's colour; panel: the side column's; empty is black on white
 /** A way to write a letter. Its instructions go to the writer after the template's own. */
 export type WritingStyle = { id: string; label: string; instructions: string }
 export type Template = {

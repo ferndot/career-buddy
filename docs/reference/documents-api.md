@@ -29,10 +29,13 @@ blank required input returns 422 and names it. Unknown inputs are ignored. An un
 A template is data (`domain/templates.py`). Besides `id`, `kind`, `label` and the inputs it lists:
 
 - `sections`: a resume's headings in order (empty for a letter).
-- `layout`: `{header: "plain" | "centered" | "band", side: [headings], css}`. `side` are the headings of the trailing sections
-  that sit in a side column. The saved html wraps its parts in `header`, `.cols`, `.main` and `.side` and the saved css holds the
-  template's `css`; the wizard draws the same arrangement. Downloads in docx, pdf and txt stay single column, which is what ATS
+- `layout`: `{header: "plain" | "centered" | "band", side: [headings], css, accent, panel}`. `side` are the headings of the trailing
+  sections that sit in a side column. The saved html wraps its parts in `header`, `.cols`, `.main` and `.side` and the saved css holds
+  the template's `css`; the wizard draws the same arrangement. Downloads in docx, pdf and txt stay single column, which is what ATS
   readers parse best.
+  Colours are defined once, in `accent` (the headings, and the fill of a `band` header) and `panel` (the side column's fill); empty is
+  black on white. The css is written from the same values, so the previews, the html and the PDF agree (the PDF prints backgrounds).
+  The docx keeps the accent (band fill, heading colour) but not the panel, which would need a table. Plain text carries no colour.
 - `instructions`: what the writer is told about the template's style.
 - `styles`: a letter's suggested styles, `[{id, label, instructions}]` (`direct`, `narrative`, `formal`); empty for a resume.
 

@@ -69,9 +69,13 @@ class _Reader(HTMLParser):
         own_text = " ".join("".join(parts).split())
         if slot:
             self.slots.append(Slot(slot, tuple(attrs.get("data-fact-id", "").split()), attrs.get("data-field", ""), own_text))
-        text = " ".join((self._texts[slot] if slot in self._texts else own_text).split())
-        if not text:
-            return
+        raw = self._texts[slot] if slot in self._texts else own_text
+        # A person's text may hold several lines (a freeform edit adds them): each is a line of this tag. An empty text is a removed line.
+        for text in ([" ".join(line.split()) for line in raw.splitlines()] if tag in {"p", "li"} else [" ".join(raw.split())]):
+            if text:
+                self._add(tag, attrs, slot, text)
+
+    def _add(self, tag: str, attrs: dict[str, str], slot: str, text: str) -> None:
         if tag == "h2":
             self.sections.append((text, []))
             self._entry = None

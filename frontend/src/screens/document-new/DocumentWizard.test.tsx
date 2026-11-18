@@ -5,7 +5,7 @@ import { openLogs, renderShell } from '../../test/render'
 import { DOCS_QUESTION } from './DocsStep'
 import { stubReview } from './reviewStub'
 import { NewDocumentScreen } from './NewDocumentScreen'
-import { openAt, stubApi } from './wizardStub'
+import { edit, findLine, shownLine, openAt, stubApi } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
 afterEach(() => {
@@ -134,15 +134,15 @@ test('Yes opens the skill form with the requirement filled in, and adds it as a 
 test('last-step edits are overrides on the document: reset to generated removes them', async () => {
   const calls = stubApi()
   await openAt(5)
-  const bullet = await screen.findByLabelText('Edit text: Generated bullet')
-  expect(screen.queryByLabelText('Edit text: Engineer, Acme')).not.toBeInTheDocument() // headings are not editable
-  fireEvent.change(bullet, { target: { value: 'Generated bullet to 1M users' } })
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet to 1M users')
-  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated: Generated bullet' }))
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
+  await findLine('Generated bullet')
+  expect(shownLine('Engineer, Acme')).toHaveAttribute('contenteditable', 'false') // headings are fixed text
+  edit('Generated bullet', 'Generated bullet to 1M users')
+  expect(shownLine('Generated bullet to 1M users')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated' }))
+  expect(shownLine('Generated bullet')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Reset to generated/ })).not.toBeInTheDocument()
-  fireEvent.change(screen.getByLabelText('Edit text: Generated summary'), { target: { value: 'Builds reliable things' } })
-  fireEvent.change(screen.getByLabelText('Edit text: Generated bullet'), { target: { value: 'Generated bullet to 1M users' } })
+  edit('Generated summary', 'Builds reliable things')
+  edit('Generated bullet', 'Generated bullet to 1M users')
   fireEvent.click(await screen.findByRole('button', { name: 'Save without downloading' }))
   await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))).toBe(true))
   const save = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))!

@@ -1,97 +1,80 @@
-import { Box, Button, Text, Textarea } from '@chakra-ui/react'
-import type { ReactNode } from 'react'
+import { Box, Button, Text } from '@chakra-ui/react'
+import { useState, type ClipboardEvent } from 'react'
 import type { Flag, TemplateLayout } from '../documents/api'
-import type { SlotDoc, SlotLine } from './layout'
-import { Page } from './Page'
-import { withOverride } from './state'
+import type { SlotDoc } from './layout'
+import { readEdits, sheetCss, sheetDefaults, sheetHtml } from './sheet'
 
 type Props = {
   doc: SlotDoc // the layout with slot ids
-  layout: TemplateLayout // the template's page arrangement
+  layout: TemplateLayout // the template's page arrangement and CSS
   title: string // names the sheet: what the document is
   defaults: Record<string, string> // each slot's text without the user's edits: the writer's
-  generated: Record<string, string> // the slots that have the writer's text
   flags: Record<string, Flag> // slots the writer could not do properly
   overrides: Record<string, string>
   onChange: (overrides: Record<string, string>) => void
 }
 
-const editable = (slot: string) => slot === 'summary' || slot.startsWith('skills') || ['bullet:', 'edu:', 'para:'].some((p) => slot.startsWith(p))
-
 /**
- * The document as a white sheet in the template's layout, with editable text. An edit is an override for that slot id; Reset
- * to generated removes it and the slot follows its default again. Editable: every text the writer wrote (summary, bullets, skills and
- * education lines, a letter's paragraphs). Position headings and the contact line are the facts' own and stay read-only.
+ * The document as one editable sheet in the template's own CSS: the person edits the whole text in one place, changing, adding,
+ * removing and moving lines. What that saves as overrides is described in `sheet.ts`. The name, contact lines and section titles are
+ * fixed. The sheet is built once for a draft: typing must not rebuild it (the caret would jump), so a new draft or Reset rebuilds it.
  */
-export function PreviewEditor({ doc, layout, title, defaults, generated, flags, overrides, onChange }: Props) {
-  const slot = (l: SlotLine): ReactNode =>
-    editable(l.slot) ? (
-      <Slot fallback={defaults[l.slot] ?? l.text} value={overrides[l.slot]} label={(defaults[l.slot] ?? l.text) || l.slot} generated={!!generated[l.slot]} flag={flags[l.slot]} onChange={(text) => onChange(withOverride(overrides, l.slot, text, defaults[l.slot] ?? l.text))} />
-    ) : (
-      <Text minH="1.2em">{l.text}</Text>
-    )
-  const head = (
-    <>
-      <Text fontWeight="bold" fontSize="18px">{doc.name.text}</Text>
-      {doc.intro.map((l) => <Text key={l.slot}>{l.text}</Text>)}
-    </>
+export function PreviewEditor({ doc, layout, title, defaults, flags, overrides, onChange }: Props) {
+  const [version, setVersion] = useState(0)
+  const slots = Object.keys(sheetDefaults(doc, defaults))
+  const edited = slots.some((s) => s in overrides)
+  const reset = () => {
+    onChange(Object.fromEntries(Object.entries(overrides).filter(([k]) => !slots.includes(k))))
+    setVersion((v) => v + 1)
+  }
+  const notes = Object.entries(flags).filter(([slot]) => slot in sheetDefaults(doc, defaults) && !(slot in overrides)) // once the person wrote it there is nothing to flag
+  return (
+    <Box display="flex" flexDirection="column" gap="2">
+      <Sheet key={`${version}:${JSON.stringify(doc)}`} {...{ doc, layout, title, defaults, overrides, onChange }} />
+      {edited && (
+        <Box display="flex" alignItems="center" gap="2" fontSize="xs" color="#5b6472">
+          Edited
+          <Button size="2xs" variant="ghost" color="#1d4ed8" onClick={reset}>Reset to generated</Button>
+        </Box>
+      )}
+      {notes.map(([slot, flag]) => <FlagNote key={slot} text={defaults[slot] ?? ''} flag={flag} />)}
+    </Box>
   )
-  const parts = doc.sections.map((s) => ({
-    title: s.title,
-    node: s.entries.map((e, j) => (
-      <Box key={j} display="flex" flexDirection="column" gap="1">
-        {e.heading && <Text fontWeight="semibold">{e.heading.text}</Text>}
-        {e.paragraph && slot(e.paragraph)}
-        {e.bullets.map((b) => <Box key={b.slot}>{slot(b)}</Box>)}
-      </Box>
-    )),
-  }))
-  return <Page label={title} layout={layout} head={head} parts={parts} />
 }
 
-type SlotProps = {
-  fallback: string
-  label: string // what names the slot for a screen reader: its text, or its id when it is empty
-  value: string | undefined
-  generated: boolean
-  flag: Flag | undefined
-  onChange: (text: string) => void
-}
-
-/** Why a flagged slot looks as it does. Once the user writes the slot themselves there is nothing left to flag. */
-function FlagNote({ flag }: { flag: Flag }) {
+/** Why a flagged slot looks as it does. */
+function FlagNote({ text, flag }: { text: string; flag: Flag }) {
   const why = flag.reasons.join('; ')
   return (
     <Text role="status" fontSize="xs" color="#9a5b00">
-      {flag.code === 'not_rewritten' ? `Not rewritten: the writer's wording did not match your facts, so this is your own text. ${why}` : `Left empty: the writer's text did not match your facts. ${why}. Write it yourself or generate again.`}
+      {flag.code === 'not_rewritten' ? `Not rewritten (${text}): the writer's wording did not match your facts, so this is your own text. ${why}` : `Left empty: the writer's text did not match your facts. ${why}. Write it yourself or generate again.`}
     </Text>
   )
 }
 
-function Slot({ fallback, label, value, flag, onChange }: SlotProps) {
-  const edited = value !== undefined
+/** Plain text only: pasted markup would bring its own styles into the sheet. */
+const paste = (e: ClipboardEvent) => {
+  e.preventDefault()
+  document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+}
+
+function Sheet({ doc, layout, title, defaults, overrides, onChange }: Omit<Props, 'flags'>) {
+  const [html] = useState(() => sheetHtml(doc, layout, defaults, overrides)) // set once: React leaves the DOM alone while the string is the same
   return (
-    <Box>
-      <Textarea
-        autoresize
-        rows={1}
-        aria-label={`Edit text: ${label}`}
-        value={value ?? fallback}
-        onChange={(e) => onChange(e.target.value)}
-        fontSize="13px"
-        color="#1a1a1a"
-        bg="#ffffff"
-        borderColor={edited ? 'app.dash' : '#d5d9e0'}
+    <Box borderWidth="1px" borderColor="#d5d9e0" borderRadius="md" boxShadow="sm" overflow="hidden" maxH="560px" overflowY="auto">
+      <style>{sheetCss(layout)}</style>
+      <div
+        className="sheet"
+        role="textbox"
+        aria-multiline="true"
+        aria-label={`Edit the ${title}`}
+        contentEditable
+        suppressContentEditableWarning
+        onPaste={paste}
+        onDrop={(e) => e.preventDefault()} // a dragged line would bring its slot id along: move a line by cutting and pasting it
+        onInput={(e) => onChange(readEdits(e.currentTarget, doc, defaults, overrides))}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
-      {edited && (
-        <Box display="flex" alignItems="center" gap="2" fontSize="xs" color="#5b6472">
-          Edited
-          <Button size="2xs" variant="ghost" color="#1d4ed8" aria-label={`Reset to generated: ${label}`} onClick={() => onChange(fallback)}>
-            Reset to generated
-          </Button>
-        </Box>
-      )}
-      {!edited && flag && <FlagNote flag={flag} />}
     </Box>
   )
 }

@@ -1,7 +1,8 @@
 """Renders a Document as DOCX with built-in styles. No tables, text boxes or images; header and footer stay empty.
 
 The template's header is kept (centered, or a shaded band); a side column is not: it would need a table, which an ATS
-reads badly, so its sections stay in one column, after the main ones."""
+reads badly, so its sections stay in one column, after the main ones. The template's accent colour is kept: the band's fill and the
+colour of the headings. A side column's fill is not."""
 
 from __future__ import annotations
 
@@ -30,18 +31,15 @@ def _set_font(style: object, name: str, size: int) -> None:
         del rfonts.attrib[attr]
 
 
-_BAND = "1F3A5F"
-
-
 def _head(out: object, text: str, layout: Layout, style: str | None = None) -> None:
     """A line of the header, laid out as the template says."""
     p = out.add_paragraph(text, style=style)  # type: ignore[attr-defined]
     if layout.header == "centered":
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    elif layout.header == "band":
+    elif layout.header == "band" and layout.accent:
         shade = OxmlElement("w:shd")
         shade.set(qn("w:val"), "clear")
-        shade.set(qn("w:fill"), _BAND)
+        shade.set(qn("w:fill"), layout.accent.lstrip("#").upper())
         p._p.get_or_add_pPr().append(shade)
         for run in p.runs:
             run.font.color.rgb = RGBColor(255, 255, 255)
@@ -56,6 +54,8 @@ class DocxRenderer:
         out = DocxDocument()
         for name, size in _SIZES.items():
             _set_font(out.styles[name], _FONTS[style.font], size)
+        if doc.layout.accent:
+            out.styles["Heading 1"].font.color.rgb = RGBColor.from_string(doc.layout.accent.lstrip("#").upper())
         section = out.sections[0]
         section.page_width, section.page_height = _PAPER[style.paper]
         section.left_margin = section.right_margin = section.top_margin = section.bottom_margin = Inches(0.75)

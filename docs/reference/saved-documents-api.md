@@ -45,8 +45,13 @@ It is found when the document is read, every time, in this order:
 So editing a fact after saving changes the download, except where the user's own words (an override) or the writer's text for a
 summary or paragraph stand in its place.
 
+A freeform edit of the whole document is saved in `overrides` too. A text with newlines is several lines of the slot's kind (a
+bullet followed by two more bullets; paragraphs for a summary or a letter), which is how a line is added after a slot. A blank
+text removes the line, and a line moved is a removal and an addition. The line is read back this way at every download, and
+regenerating pins a blank slot like any other override, so a removed line stays removed.
+
 `POST` takes the user's wording in `overrides` (a key is a slot id, or a bare fact id for that fact's bullet; a key that names no
-slot is dropped) and the writer's document in `sections` (the `sections` of `POST /api/documents/generate`: `[{key, items}]`; the
+slot is dropped; see below for several lines and a blank text) and the writer's document in `sections` (the `sections` of `POST /api/documents/generate`: `[{key, items}]`; the
 `slot`, `title` and `heading` fields it carries are ignored and worked out again). `sections` are the layout: the structure the
 model chose, its text going to `generated.json`. Keys the template does not have, bullets with no cited fact and positions the
 career lacks are left out. With no `sections` the layout is the template filled from the facts (a document saved before the

@@ -266,3 +266,18 @@ def test_a_docx_download_keeps_the_templates_header_in_one_column(client: TestCl
     assert doc.paragraphs[0].text == "Jane Doe" and "w:shd" in doc.paragraphs[0]._p.xml and not doc.tables
     centered = Docx(io.BytesIO(file(client, save(client).json(), "docx").content))
     assert centered.paragraphs[0].alignment == 1
+
+
+def test_a_freeform_edit_is_overrides_an_edited_line_an_added_line_and_a_removed_line(client: TestClient, tmp_path: Path) -> None:
+    """Lines added after a bullet ride in its override, separated by a newline; a blank override removes a line. All of it reads back at download."""
+    cut = bullet_id(client)
+    record = save(client, overrides={cut: "Halved build times\nMentored two engineers", "summary": ""}).json()
+    assert json.loads(stored(tmp_path, record, "overrides.json").read_text()) == {f"bullet:{cut}": "Halved build times\nMentored two engineers", "summary": ""}
+    for fmt in ("txt", "docx"):
+        out = file(client, record, fmt).content
+        lines = out.decode().splitlines() if fmt == "txt" else DocxTextReader().read(out).lines
+        assert "Halved build times" in lines or "- Halved build times" in lines
+        assert "Mentored two engineers" in lines or "- Mentored two engineers" in lines  # an added line is a line of its own, a bullet like the one before it
+        assert "Cut build times by 60%" not in "\n".join(lines) and "Builds reliable data pipelines" not in "\n".join(lines)  # edited and removed
+    content = client.get(f"/api/saved-documents/{record['id']}/content").json()
+    assert content["slots"]["summary"] == "" and "Jane Doe" in content["slots"]["name"]

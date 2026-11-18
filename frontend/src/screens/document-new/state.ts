@@ -111,7 +111,7 @@ export function buildSave(w: Wizard, kind: DocKind, t: Template): SaveBody {
   const { role, company } = w.docs[kind].inputs
   return {
     ...b,
-    overrides: Object.fromEntries(Object.entries(w.docs[kind].overrides).filter(([, v]) => v.trim())),
+    overrides: w.docs[kind].overrides, // a blank text is a removed line
     sections: w.docs[kind].sections,
     instructions: w.docs[kind].instructions.trim(),
     resume_pages: w.docs[kind].resumePages,

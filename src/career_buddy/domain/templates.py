@@ -35,7 +35,8 @@ class TemplateSpec:
 _SUMMARY, _EXPERIENCE, _EDUCATION, _SKILLS = (
     ("summary", "Summary"), ("experience", "Experience"), ("education", "Education"), ("skills", "Skills"))
 _ALL = (_SUMMARY, _EXPERIENCE, _EDUCATION, _SKILLS)
-_BAND = "header{background:#1f3a5f;color:#fff;padding:.8rem 1rem}header p{margin:0;color:#dbe6f4}"
+NAVY, STEEL, PANEL = "#1f3a5f", "#2b5c8a", "#f2f4f7"  # the templates' colours: Layout.accent and Layout.panel carry them to every surface
+_BAND = "header{background:" + NAVY + ";color:#fff;padding:.8rem 1rem}header p{margin:0;color:#dbe6f4}"
 RESUME_CLASSIC = TemplateSpec(
     "resume-classic", "Classic resume", _ALL,
     layout=Layout("centered", css="header{text-align:center;margin-bottom:.5rem}"
@@ -45,13 +46,13 @@ RESUME_CLASSIC = TemplateSpec(
 RESUME_SIDEBAR = TemplateSpec(
     "resume-sidebar", "Sidebar resume", _ALL,
     layout=Layout("plain", ("Education", "Skills"),
-                  ".cols{display:flex;gap:1.5rem}.main{flex:1 1 68%}.side{flex:0 0 28%;background:#f2f4f7;padding:.4rem .8rem}"
-                  "header{border-bottom:3px solid #2b5c8a;margin-bottom:.6rem}h2{color:#2b5c8a;font-size:12pt}"),
+                  ".cols{display:flex;gap:1.5rem}.main{flex:1 1 68%}.side{flex:0 0 28%;background:" + PANEL + ";padding:.4rem .8rem}"
+                  "header{border-bottom:3px solid " + STEEL + ";margin-bottom:.6rem}h2{color:" + STEEL + ";font-size:12pt}", accent=STEEL, panel=PANEL),
     instructions="Two-column resume: the narrow side column holds skills and education, so keep the summary to two sentences and every bullet under about 15 words, with at most three bullets for each position.",
 )
 RESUME_MODERN = TemplateSpec(
     "resume-modern", "Modern resume", _ALL,
-    layout=Layout("band", css=_BAND + "header{margin-bottom:.6rem}h2{color:#1f3a5f;font-size:11pt;text-transform:uppercase}body{font-size:10.5pt}"),
+    layout=Layout("band", css=_BAND + "header{margin-bottom:.6rem}h2{color:" + NAVY + ";font-size:11pt;text-transform:uppercase}body{font-size:10.5pt}", accent=NAVY),
     instructions="Compact modern resume. A one or two sentence summary that leads with the strongest proof. Tight bullets that open with the outcome and then say how; no filler.",
 )
 
@@ -76,7 +77,7 @@ TEMPLATES = (
     RESUME_MODERN,
     _letter("cover-letter", "Classic cover letter", Layout("plain", css="header{margin-bottom:1.2rem}p{margin:.6rem 0}"),
             "Classic letter layout: plain paragraphs under the applicant's name."),
-    _letter("cover-letter-modern", "Modern cover letter", Layout("band", css=_BAND + "header{margin-bottom:1.2rem}p{margin:.6rem 0}"),
+    _letter("cover-letter-modern", "Modern cover letter", Layout("band", css=_BAND + "header{margin-bottom:1.2rem}p{margin:.6rem 0}", accent=NAVY),
             "Modern letter with a header band: short, conversational paragraphs."),
 )
 

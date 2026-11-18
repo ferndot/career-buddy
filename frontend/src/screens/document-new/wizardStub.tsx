@@ -1,5 +1,5 @@
 // Test helpers: a fake backend reached through fetch, and a way to drive the wizard to a step through its own buttons.
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { renderShell } from '../../test/render'
 import { NewDocumentScreen } from './NewDocumentScreen'
@@ -12,9 +12,9 @@ const STYLES = [
 ]
 const base = { formats: ['docx', 'pdf'], required: [], optional: [] }
 export const templates = [
-  { ...base, id: 'resume-classic', kind: 'resume', label: 'Classic resume', sections: SECTIONS, layout: { header: 'centered', side: [], css: '' }, instructions: 'Classic style.', styles: [] },
-  { ...base, id: 'resume-sidebar', kind: 'resume', label: 'Sidebar resume', sections: SECTIONS, layout: { header: 'plain', side: ['Education', 'Skills'], css: '' }, instructions: 'Sidebar style.', styles: [] },
-  { ...base, id: 'cover-letter', kind: 'letter', label: 'Cover letter', sections: [], layout: { header: 'plain', side: [], css: '' }, instructions: 'Letter style.', styles: STYLES },
+  { ...base, id: 'resume-classic', kind: 'resume', label: 'Classic resume', sections: SECTIONS, layout: { header: 'centered', side: [], css: '', accent: '', panel: '' }, instructions: 'Classic style.', styles: [] },
+  { ...base, id: 'resume-sidebar', kind: 'resume', label: 'Sidebar resume', sections: SECTIONS, layout: { header: 'plain', side: ['Education', 'Skills'], css: '', accent: '#2b5c8a', panel: '#f2f4f7' }, instructions: 'Sidebar style.', styles: [] },
+  { ...base, id: 'cover-letter', kind: 'letter', label: 'Cover letter', sections: [], layout: { header: 'plain', side: [], css: '', accent: '', panel: '' }, instructions: 'Letter style.', styles: STYLES },
 ]
 const preview = (missing: string[]) => ({
   lines: ['Ada'],
@@ -113,4 +113,28 @@ export async function openAt(step: 2 | 3 | 4 | 5, kinds: ('Resume' | 'Cover lett
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
   next()
   await screen.findByRole('button', { name: 'Word' }) // the last step shows once the text is written
+}
+
+// The step 5 sheet is one editable document. These edit it the way a person does: change a line's text, add a line after one, remove one.
+const sheet = () => screen.getByRole('textbox', { name: /^Edit the / })
+const typed = () => fireEvent.input(sheet())
+/** The line of the sheet showing exactly this text. */
+export const shownLine = (text: string) => within(sheet()).getByText(text)
+export const findLine = async (text: string) => within(await screen.findByRole('textbox', { name: /^Edit the / })).findByText(text)
+export const hasLine = (text: string) => !!within(sheet()).queryByText(text)
+export function edit(from: string | Element, to: string) {
+  ;(typeof from === 'string' ? shownLine(from) : from).textContent = to
+  typed()
+}
+/** Adds a line after `after`, as Enter does: the browser copies the line, slot id and all. */
+export function addAfter(after: string, text: string) {
+  const el = shownLine(after)
+  const copy = el.cloneNode() as HTMLElement
+  copy.textContent = text
+  el.after(copy)
+  typed()
+}
+export function remove(text: string) {
+  shownLine(text).remove()
+  typed()
 }

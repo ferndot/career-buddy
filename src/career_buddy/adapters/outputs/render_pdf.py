@@ -38,6 +38,7 @@ class PdfRenderer:
                     format=_PAPER[style.paper],
                     margin={side: "0.75in" for side in ("top", "right", "bottom", "left")},
                     tagged=True,
+                    print_background=True,  # off by default: the header band and side panel would print white, the band's white text on white
                 )
             finally:
                 browser.close()

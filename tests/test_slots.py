@@ -43,8 +43,8 @@ def test_text_is_the_override_then_the_fact_then_the_placeholder(names, override
 
 
 @given(words)
-def test_a_blank_override_is_not_an_override(text: str) -> None:
-    assert resolve([Slot("a", ("f",), "title")], {"a": "  "}, {("f", "title"): text}) == {"a": text}
+def test_a_blank_override_removes_the_line_whatever_the_fact_says(text: str) -> None:
+    assert resolve([Slot("a", ("f",), "title")], {"a": "  "}, {("f", "title"): text}) == {"a": ""}
 
 
 def test_fixed_wording_never_resolves_from_the_fact_it_carries() -> None:

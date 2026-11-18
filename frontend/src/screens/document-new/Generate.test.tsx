@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
 import { MAX_INSTRUCTIONS } from '../documents/api'
 import { openLogs } from '../../test/render'
-import { DRAFTS, openAt, stubApi, type Calls } from './wizardStub'
+import { addAfter, DRAFTS, edit, findLine, hasLine, shownLine, openAt, remove, stubApi, type Calls } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
 afterEach(() => {
@@ -34,8 +34,8 @@ test('writing sends the directions and shows the returned text as the default, n
   expect(screen.getByText('Tell the writer what to emphasise or how to phrase it. Optional.')).toBeInTheDocument()
   fireEvent.change(directions(), { target: { value: 'Stress reliability' } })
   generate()
-  expect(await screen.findByLabelText('Edit text: Generated summary')).toHaveValue('Generated summary')
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
+  expect(await findLine('Generated summary')).toBeInTheDocument()
+  expect(shownLine('Generated bullet')).toBeInTheDocument()
   expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({
     template: 'resume-classic', instructions: 'Stress reliability', pinned: [], resume_pages: 'default',
   })
@@ -56,7 +56,7 @@ test('a resume has its own length, Default until chosen, sent to the writer and 
   expect([...(length as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(['Default', '1-page'])
   fireEvent.change(length, { target: { value: '1' } })
   generate()
-  await screen.findByLabelText('Edit text: Generated summary')
+  await findLine('Generated summary')
   expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({ resume_pages: 1 })
   expect((await saved(calls)).resume_pages).toBe(1)
 })
@@ -66,7 +66,7 @@ test('the cover letter tab has no length control and saves the default', async (
   await openAt(4, ['Cover letter'])
   expect(screen.queryByLabelText('Resume length')).not.toBeInTheDocument()
   generate()
-  await screen.findByLabelText('Edit text: Generated two')
+  await findLine('Generated two')
   expect((await saved(calls)).resume_pages).toBe('default')
 })
 
@@ -74,12 +74,12 @@ test('an edit is an override keyed by slot id, reset removes it, and generated t
   const calls = stubApi()
   await openAt(4)
   generate()
-  const bullet = await screen.findByLabelText('Edit text: Generated bullet')
-  fireEvent.change(bullet, { target: { value: 'My own bullet' } })
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('My own bullet')
-  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated: Generated bullet' }))
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet') // back to the generated text
-  fireEvent.change(screen.getByLabelText('Edit text: Generated bullet'), { target: { value: 'My own bullet' } })
+  await findLine('Generated bullet')
+  edit('Generated bullet', 'My own bullet')
+  expect(shownLine('My own bullet')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated' }))
+  expect(shownLine('Generated bullet')).toBeInTheDocument() // back to the generated text
+  edit('Generated bullet', 'My own bullet')
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'bullet:b1': 'My own bullet' })
   expect(body.sections).toEqual(DRAFTS.resume.sections)
@@ -97,13 +97,14 @@ test('writing again pins what the user wrote and replaces only the generated tex
   const calls = stubApi([], true, () => json(n++ === 0 ? DRAFTS.resume : second))
   await openAt(4)
   generate()
-  fireEvent.change(await screen.findByLabelText('Edit text: Generated bullet'), { target: { value: 'My own bullet' } })
+  await findLine('Generated bullet')
+  edit('Generated bullet', 'My own bullet')
   regenerate()
-  expect(await screen.findByLabelText('Edit text: Second summary')).toHaveValue('Second summary')
+  expect(await findLine('Second summary')).toBeInTheDocument()
   expect(post(calls, '/api/documents/generate')[1].body).toMatchObject({ pinned: ['bullet:b1'] })
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('My own bullet') // still the user's
-  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated: Generated bullet' }))
-  expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet') // the earlier draft kept beneath it
+  expect(shownLine('My own bullet')).toBeInTheDocument() // still the user's
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated' }))
+  expect(shownLine('Generated bullet')).toBeInTheDocument() // the earlier draft kept beneath it
 })
 
 test('a bullet the writer could not reword and a slot left empty are flagged with the reasons, until the user writes them', async () => {
@@ -118,13 +119,39 @@ test('a bullet the writer could not reword and a slot left empty are flagged wit
   stubApi([], true, () => json(draft))
   await openAt(4)
   generate()
-  expect(await screen.findByText(/Not rewritten: .*number not in the source: 90/)).toBeInTheDocument()
+  expect(await screen.findByText(/Not rewritten .*number not in the source: 90/)).toBeInTheDocument()
   expect(screen.getByText(/Left empty: .*number not in the source: 12/)).toBeInTheDocument()
-  expect(screen.getByLabelText('Edit text: summary')).toHaveValue('') // named by its id: there is no text to name it by
-  expect(screen.getByLabelText('Edit text: Shipped it')).toHaveValue('Shipped it') // the fact's own words
-  fireEvent.change(screen.getByLabelText('Edit text: summary'), { target: { value: 'My own summary' } })
+  const summary = document.querySelector('[data-slot="summary"]')! // empty: there is no text to find it by
+  expect(summary).toHaveTextContent('')
+  expect(shownLine('Shipped it')).toBeInTheDocument() // the fact's own words
+  edit(summary, 'My own summary')
   expect(screen.queryByText(/Left empty/)).not.toBeInTheDocument()
   expect(screen.getByText(/Not rewritten/)).toBeInTheDocument()
+})
+
+test('the sheet is one document: an edited, an added and a removed line are saved as overrides and the layout stays what the writer wrote', async () => {
+  const calls = stubApi()
+  await openAt(4)
+  generate()
+  await findLine('Generated bullet')
+  edit('Generated summary', 'My own summary')
+  addAfter('Generated bullet', 'Mentored two engineers')
+  const body = await saved(calls)
+  expect(body.overrides).toEqual({ summary: 'My own summary', 'bullet:b1': 'Generated bullet\nMentored two engineers' })
+  expect(body.sections).toEqual(DRAFTS.resume.sections)
+})
+
+test('a removed line is saved as a blank override: its slot is pinned empty, and Reset to generated brings it back', async () => {
+  const calls = stubApi()
+  await openAt(4)
+  generate()
+  await findLine('Generated summary')
+  remove('Generated summary')
+  expect(hasLine('Generated summary')).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated' }))
+  expect(shownLine('Generated summary')).toBeInTheDocument()
+  remove('Generated summary')
+  expect((await saved(calls)).overrides).toEqual({ summary: '' })
 })
 
 test('a draft the facts did not support is an error, and the document waits on the writing page', async () => {
@@ -133,7 +160,7 @@ test('a draft the facts did not support is an error, and the document waits on t
     : json({ detail: "The model's text did not match your facts closely enough. Your last draft is unchanged.", code: 'ungrounded', rejected: [] }, 502)))
   await openAt(4)
   generate()
-  await screen.findByLabelText('Edit text: Generated summary')
+  await findLine('Generated summary')
   regenerate()
   expect(await screen.findByText(/Your last draft is unchanged./)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
@@ -143,9 +170,9 @@ test('a cover letter paragraph is editable, keyed by its index; the saved letter
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
   generate()
-  const para = await screen.findByLabelText('Edit text: Generated one')
-  fireEvent.change(para, { target: { value: 'I would love to join Acme.' } })
-  expect(screen.getByLabelText('Edit text: Generated one')).toHaveValue('I would love to join Acme.')
+  await findLine('Generated one')
+  edit('Generated one', 'I would love to join Acme.')
+  expect(shownLine('I would love to join Acme.')).toBeInTheDocument()
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:1': 'I would love to join Acme.' })
   expect(body.sections).toEqual(DRAFTS.letter.sections)
@@ -156,9 +183,9 @@ test('a generated letter is its own paragraphs under the header', async () => {
   const calls = stubApi()
   await openAt(4, ['Cover letter'])
   generate()
-  expect(await screen.findByLabelText('Edit text: Generated two')).toBeInTheDocument()
-  expect(screen.queryByLabelText('Edit text: Paragraph one')).not.toBeInTheDocument() // replaced, not overlaid
-  fireEvent.change(screen.getByLabelText('Edit text: Generated two'), { target: { value: 'Second, mine' } })
+  expect(await findLine('Generated two')).toBeInTheDocument()
+  expect(hasLine('Paragraph one')).toBe(false) // replaced, not overlaid
+  edit('Generated two', 'Second, mine')
   const body = await saved(calls)
   expect(body.overrides).toEqual({ 'para:2': 'Second, mine' })
   expect(body.sections).toEqual(DRAFTS.letter.sections)
@@ -168,7 +195,7 @@ test('the letter preview shows the written body although the backend sends an un
   stubApi()
   await openAt(4, ['Cover letter'])
   generate()
-  for (const text of ['Generated one', 'Generated two', 'Generated three']) expect(await screen.findByLabelText(`Edit text: ${text}`)).toHaveValue(text)
+  for (const text of ['Generated one', 'Generated two', 'Generated three']) expect(await findLine(text)).toBeInTheDocument()
 })
 
 test('without a model the template step says where to connect one', async () => {
@@ -234,16 +261,16 @@ test('a failed write keeps the document from going on until a write works', asyn
   expect(screen.queryByRole('button', { name: 'Save without downloading' })).not.toBeInTheDocument()
   fail = false
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
-  expect(await screen.findByLabelText('Edit text: Generated summary')).toBeInTheDocument()
+  expect(await findLine('Generated summary')).toBeInTheDocument()
 })
 
 test('each writing press is its own activity in the log', async () => {
   stubApi([], true, () => json(DRAFTS.resume))
   await openAt(4)
   generate()
-  await screen.findByLabelText('Edit text: Generated summary')
+  await findLine('Generated summary')
   regenerate()
-  await screen.findByLabelText('Edit text: Generated summary')
+  await findLine('Generated summary')
   openLogs()
   const rows = await screen.findAllByRole('button', { name: /Document: Resume/ })
   expect(rows).toHaveLength(2)
@@ -255,7 +282,7 @@ test('a cover letter asks for no role or company: the posting review supplies th
   await openAt(4, ['Cover letter'])
   expect(screen.queryByLabelText(/role|company/i)).not.toBeInTheDocument()
   generate()
-  await screen.findByLabelText('Edit text: Generated two')
+  await findLine('Generated two')
   const sent = calls.find((c) => c.url.endsWith('/api/documents/generate') && c.body?.template === 'cover-letter')
   expect(sent?.body?.inputs).toEqual({ role: 'Platform Engineer', company: 'Initech' })
   expect(sent?.body?.job_text).toBe('Python engineer with Kubernetes')

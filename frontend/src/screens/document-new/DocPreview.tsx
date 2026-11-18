@@ -25,12 +25,12 @@ export function DocPreview({ w, kind, template, ready, setDoc }: Props) {
     <Box bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" p="5" display="flex" flexDirection="column" gap="4" minW="0">
       <Box>
         <Text as="h2" fontWeight="semibold" mb="1">{title}</Text>
-        <Text fontSize="xs" color="app.muted">Edit any text to use your own wording. Unedited text is what the writer wrote.</Text>
+        <Text fontSize="xs" color="app.muted">Edit the document like any text: change, add, remove or move lines. Unedited text is what the writer wrote.</Text>
       </Box>
       {!ready && <Text color="app.muted">Fill in the required fields to see the preview.</Text>}
       {ready && preview.isPending && <LoadingState text="Building your preview..." />}
       {preview.isError && <Text role="alert" color="app.missText">Could not build the preview.</Text>}
-      {view && template && <PreviewEditor doc={view.doc} layout={template.layout} title={title} defaults={view.defaults} generated={view.defaults} flags={doc.flags} overrides={doc.overrides} onChange={(overrides) => setDoc({ overrides })} />}
+      {view && template && <PreviewEditor doc={view.doc} layout={template.layout} title={title} defaults={view.defaults} flags={doc.flags} overrides={doc.overrides} onChange={(overrides) => setDoc({ overrides })} />}
       {p && (
         <Box display="flex" flexDirection="column" gap="2">
           <Text fontWeight="semibold" fontSize="sm">ATS check</Text>

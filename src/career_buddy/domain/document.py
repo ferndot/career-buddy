@@ -20,11 +20,15 @@ class Layout:
     """How a template arranges its page. Data: the stored html wraps its parts in these classes and `css` styles them
     (adapters/outputs/render_html.py); the wizard draws the same arrangement from it.
 
-    `side` are the headings of trailing sections that sit in a side column beside the rest."""
+    `side` are the headings of trailing sections that sit in a side column beside the rest. The colours are defined here once and
+    every surface reads them: `accent` colours the headings and is the header band's fill, `panel` fills the side column. Empty is
+    plain black on white. Plain text and markdown carry no colour; the docx keeps the accent only (a side column would need a table)."""
 
     header: Literal["plain", "centered", "band"] = "plain"
     side: tuple[str, ...] = ()
     css: str = ""
+    accent: str = ""
+    panel: str = ""
 
 
 @dataclass(frozen=True)

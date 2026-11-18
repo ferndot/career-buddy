@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { queryClient } from '../../api'
-import { openAt, stubApi } from './wizardStub'
+import { findLine, openAt, stubApi } from './wizardStub'
 
 beforeEach(() => localStorage.clear())
 afterEach(() => {
@@ -42,9 +42,9 @@ test('step 5 is headed by the document title and shows the text on a white sheet
   stubApi()
   await openAt(5)
   expect(await screen.findByRole('heading', { name: 'Resume - Ada' })).toBeInTheDocument()
-  const sheet = screen.getByRole('group', { name: 'Resume - Ada' })
-  expect(getComputedStyle(sheet).backgroundColor).toMatch(/white|rgb\(255, 255, 255\)/)
-  expect(screen.getByLabelText('Edit text: Generated summary')).toBeInTheDocument() // still editable
+  const sheet = screen.getByRole('textbox', { name: 'Edit the Resume - Ada' }) // one editable sheet for the whole document
+  expect(sheet).toHaveAttribute('contenteditable', 'true')
+  expect(within(sheet).getByText('Generated summary')).toBeInTheDocument()
   expect(screen.getByText('ATS check')).toBeInTheDocument()
   expect(screen.queryByText('Preview')).not.toBeInTheDocument()
 })
@@ -61,7 +61,7 @@ test('the writer is sent the instructions of the chosen template', async () => {
   await openAt(4)
   fireEvent.click(screen.getByRole('radio', { name: 'Sidebar resume' }))
   generate()
-  await screen.findByLabelText('Edit text: Generated summary')
+  await findLine('Generated summary')
   expect(sentToWriter(calls).map((b) => [b?.template, b?.template_instructions])).toEqual([['resume-sidebar', 'Sidebar style.']])
 })
 
@@ -72,7 +72,7 @@ test('a letter is written in the chosen style: the template instructions then th
   fireEvent.click(screen.getByRole('radio', { name: 'Narrative story' }))
   expect(screen.getByRole('radio', { name: 'Narrative story' })).toBeChecked()
   generate()
-  await screen.findByLabelText('Edit text: Generated two')
+  await findLine('Generated two')
   expect(sentToWriter(calls)[0]?.template_instructions).toBe('Letter style. Tell a story.')
   fireEvent.click(await screen.findByRole('button', { name: 'Save without downloading' }))
   await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))).toBe(true))
