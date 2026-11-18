@@ -1,4 +1,4 @@
-import { AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPrimitive, type ToolCallMessagePartProps } from '@assistant-ui/react'
+import { AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPrimitive } from '@assistant-ui/react'
 import { useAgUiInterrupts, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import { HttpAgent } from '@ag-ui/client'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
@@ -12,22 +12,6 @@ import { ToolCard } from './ToolCard'
 // Phase 0 of the career-chat plan: an approval is assistant-ui's own interrupt. The fixtures were encoded by the Python ag-ui SDK.
 // A run that ends with outcome "interrupt" must show the tool call as waiting for approval, and answering it must start the next run with `resume`.
 
-/** What a write-tool card will be: the same fallback card, plus the buttons of assistant-ui's approval (respondToApproval). */
-function Approvable(props: ToolCallMessagePartProps) {
-  return (
-    <>
-      <ToolCard {...props} />
-      {props.approval && props.approval.approved === undefined && (
-        <>
-          <p>{props.approval.prompt ?? 'Approve?'}</p>
-          <button onClick={() => props.respondToApproval({ approved: true })}>Apply</button>
-          <button onClick={() => props.respondToApproval({ approved: false })}>Decline</button>
-        </>
-      )}
-    </>
-  )
-}
-
 function Open() {
   return <p>open interrupts: {useAgUiInterrupts().length}</p>
 }
@@ -40,7 +24,7 @@ function Harness() {
       <ThreadPrimitive.Messages
         components={{
           UserMessage: () => <MessagePrimitive.Parts />,
-          AssistantMessage: () => <MessagePrimitive.Parts components={{ tools: { Fallback: Approvable } }} />,
+          AssistantMessage: () => <MessagePrimitive.Parts components={{ tools: { Fallback: ToolCard } }} />,
         }}
       />
       <ComposerPrimitive.Root>

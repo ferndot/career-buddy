@@ -1,6 +1,6 @@
 ---
 title: Career chat in a sidebar that edits career data through approved tools
-status: Phase 0 and 1 done (see career-chat-phase0.md)
+status: Phase 0, 1 and 2 done (see career-chat-phase0.md)
 date: 2026-11-17
 target_bc: career editing (application/services.py, new application/chat_tools.py), inference adapter (new adapters/inference/chat_graph.py), web (new web/chat_routes.py), frontend shell (new frontend/src/components/chat/)
 depends_on: none
@@ -333,6 +333,19 @@ green.
 - The interrupt and resume path, the approval card, and the invalidate-on-finish effect.
 - Backend tests 2 to 7 for these tools; frontend tests 3 to 5; property tests; mutmut.
 - The ADR, the story and the reference doc.
+
+Built (phase 2):
+
+- `ChatTools(queries, edits)` gains `describe` (the exact change in words, or `Failed: ...`), `apply` (runs it through `EditService`, answers `Changed: ...`) and
+  refuses write names in `run`. `delete_fact` says "cannot be undone" but not how many facts go with it; the cascade count was not built.
+- `chat_graph.py`: the tools node answers reads, and for each write collects an interrupt (no tool message). When there are any, the run ends with
+  `RUN_FINISHED` `outcome` interrupt. `settle()` rebuilds the transcript on the next run: a write call in the last assistant message runs only when its
+  `resume` entry is `resolved` with `approved: true`; every other open write call is `Declined by the user.`
+- Frontend: `ToolCard` is the approval card too (Apply and Decline call `respondToApproval`); the composer is disabled while an interrupt is open;
+  `ChatSidebar` invalidates `facts`, `graph`, `duplicates` and `sources` whenever a run finishes (the plan's single effect, so a read-only run also refetches).
+- Tests: `tests/test_chat_writes.py` and `frontend/src/components/chat/ChatApproval.test.tsx`. The approval card test reuses the phase-0 interrupt fixtures.
+- Not done in this phase (still listed above): the property tests, mutmut, the ADR, the BDD story and `docs/reference/career-chat-tools.md`
+  (the tool table lives in `docs/reference/chat-api.md`).
 
 ### Phase 3: merges, relationships, sources
 

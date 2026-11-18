@@ -107,6 +107,7 @@ async def build_app(
     documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
     rules = WritingRulesStore(data_dir)
     generation = DocumentGeneration(documents, current("writer"), rules.rules, page_counter, rules.strictness)
+    edits = EditService(log, projector, jobs, extractor)
     queries = CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer"))
-    return App(imports, EditService(log, projector, jobs, extractor), queries, documents,
-               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules, ChatTools(queries))
+    return App(imports, edits, queries, documents,
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules, ChatTools(queries, edits))

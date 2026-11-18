@@ -1,8 +1,9 @@
 import { Box, Button, Flex, IconButton, Link, Text, Textarea } from '@chakra-ui/react'
 import { AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState } from '@assistant-ui/react'
-import { useAgUiRuntime } from '@assistant-ui/react-ag-ui'
+import { useAgUiInterrupts, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import { HttpAgent } from '@ag-ui/client'
-import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LuMessageSquare, LuX } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiUrl } from '../../api/client'
@@ -53,6 +54,7 @@ function Notice({ message }: { message: string }) {
 }
 
 function Thread({ error }: { error: string | null }) {
+  const waiting = useAgUiInterrupts().length > 0 // a change is waiting for Apply or Decline; assistant-ui refuses a new message until it is answered
   return (
     <ThreadPrimitive.Root asChild>
       <Flex direction="column" flex="1" minH="0">
@@ -70,10 +72,10 @@ function Thread({ error }: { error: string | null }) {
         <ComposerPrimitive.Root asChild>
           <Flex gap="2" align="flex-end" pt="2">
             <ComposerPrimitive.Input asChild>
-              <Textarea aria-label="Message" placeholder="Ask about your career" rows={2} resize="none" fontSize="sm" />
+              <Textarea aria-label="Message" placeholder={waiting ? 'Apply or decline the change first' : 'Ask about your career'} disabled={waiting} rows={2} resize="none" fontSize="sm" />
             </ComposerPrimitive.Input>
             <ComposerPrimitive.Send asChild>
-              <Button size="sm" bg="app.primary" color="app.onPrimary">
+              <Button size="sm" bg="app.primary" color="app.onPrimary" disabled={waiting}>
                 Send
               </Button>
             </ComposerPrimitive.Send>
@@ -84,12 +86,22 @@ function Thread({ error }: { error: string | null }) {
   )
 }
 
-/** A failed run is shown until the next run starts. Inside the runtime provider, to read whether a run is going. */
+/** What the chat can change, so a finished run refetches it. Not every query: a document preview must not re-render. */
+const CAREER_KEYS = [['facts'], ['graph'], ['duplicates'], ['sources']]
+
+/**
+ * A failed run is shown until the next run starts, and a finished run refetches the career queries, so an approved change shows on the career screen
+ * (a run that only read costs a cheap local refetch). Inside the runtime provider, to read whether a run is going.
+ */
 function Chat({ error, clear }: { error: string | null; clear: () => void }) {
   const running = useAuiState((s) => s.thread.isRunning)
+  const queries = useQueryClient()
+  const was = useRef(false)
   useEffect(() => {
     if (running) clear()
-  }, [running, clear])
+    else if (was.current) CAREER_KEYS.forEach((queryKey) => void queries.invalidateQueries({ queryKey }))
+    was.current = running
+  }, [running, clear, queries])
   return <Thread error={error} />
 }
 
