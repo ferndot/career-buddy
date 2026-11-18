@@ -4,9 +4,36 @@ import { LuPlus, LuTrash2 } from 'react-icons/lu'
 import { LoadingState } from '../../components'
 import { ConfirmDialog } from '../career/ConfirmDialog'
 import { errorMessage } from './llmApi'
-import { MAX_LENGTH, MAX_RULES, useResetRules, useSaveRules, useWritingRules, type Kind, type KindRules } from './writingApi'
+import { MAX_LENGTH, MAX_RULES, useResetRules, useSaveRules, useSetStrictness, useStrictness, useWritingRules, type Kind, type KindRules, type Strictness } from './writingApi'
 
 const KINDS = [['resume', 'Resume'], ['letter', 'Letter']] as const
+const LEVELS: readonly [Strictness, string, string][] = [
+  ['strict', 'Strict', 'Wording stays close to your facts.'],
+  ['balanced', 'Balanced', 'Wording may be paraphrased and merged; numbers, titles, employers, dates, degrees and tools stay exact.'],
+  ['loose', 'Loose', 'Wording may go further; still no new numbers, titles, employers, dates, degrees, schools or tools.'],
+]
+
+function StrictnessControl() {
+  const level = useStrictness()
+  const set = useSetStrictness()
+  const current = set.data?.strictness ?? level.data?.strictness
+  return (
+    <Box as="fieldset" bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" px="5" py="4" mb="4">
+      <Text as="legend" fontWeight="semibold" color="app.text" mb="1">Strictness</Text>
+      <Text color="app.muted" fontSize="sm" mb="3">How closely the wording follows your facts. Specifics are never loosened.</Text>
+      {level.isError && <Text color="app.missText" role="alert">Could not load the strictness.</Text>}
+      {set.isError && <Text color="app.missText" fontSize="sm" role="alert">{errorMessage(set.error)}</Text>}
+      {current && LEVELS.map(([value, label, hint]) => (
+        <Box as="label" key={value} display="block" mb="2">
+          <input type="radio" name="strictness" value={value} checked={current === value} disabled={set.isPending}
+            onChange={() => set.mutate(value)} style={{ marginRight: 8 }} />
+          <Text as="span" color="app.text" fontWeight="medium">{label}</Text>
+          <Text as="span" color="app.muted" fontSize="sm"> {hint}</Text>
+        </Box>
+      ))}
+    </Box>
+  )
+}
 
 export function WritingSettings() {
   const rules = useWritingRules()
@@ -16,6 +43,7 @@ export function WritingSettings() {
         General rules the writer follows for every resume and letter. The template's own instructions and the resume length
         still win over these rules, and nothing here lets the writer state a fact you have not given.
       </Text>
+      <StrictnessControl />
       {rules.isPending && <LoadingState text="Loading the writing rules..." />}
       {rules.isError && <Text color="app.missText" role="alert">Could not load the writing rules.</Text>}
       {rules.data && KINDS.map(([kind, label]) => <KindEditor key={kind} kind={kind} label={label} saved={rules.data[kind]} />)}

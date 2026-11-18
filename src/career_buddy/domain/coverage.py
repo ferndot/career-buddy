@@ -33,9 +33,10 @@ class Pages:
 class Issue:
     """Something to fix that is not a rejected claim. `fact_ids` are the achievements that could fill it."""
 
-    code: Literal["missing_position", "thin_position", "too_long", "room_left"]
+    code: Literal["missing_position", "thin_position", "too_long", "room_left", "weak_fit"]
     text: str
     fact_ids: tuple[str, ...] = ()
+    slots: tuple[str, ...] = ()  # texts the writer may rewrite to fix it (domain/fit.py)
 
 
 @dataclass(frozen=True)

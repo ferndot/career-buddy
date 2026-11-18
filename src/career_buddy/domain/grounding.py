@@ -16,12 +16,11 @@ from career_buddy.domain.document import Origin
 from career_buddy.domain.generation import Brief, Claim, Rejection
 from career_buddy.domain.markers import clean
 from career_buddy.domain.rewording import verify_rewording
+from career_buddy.domain.strictness import GROWTH
 from career_buddy.domain.tailoring import TOKEN_PATTERN, grams, is_tech, stem, tokens
 from career_buddy.domain.written import WrittenDocument, nodes
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
-MAX_PROSE_GROWTH = 6  # times the cited facts' length, plus PROSE_ALLOWANCE: prose links facts together
-PROSE_ALLOWANCE = 300
 
 
 def _starts_sentence(text: str, at: int) -> bool:
@@ -32,9 +31,10 @@ def _starts_sentence(text: str, at: int) -> bool:
 _LABEL = re.compile(r"\b[\w&/ -]{1,30}:\s*")  # "Languages: " in front of a list of skills
 
 
-def verify_prose(source: str, candidate: str, known: Iterable[str] = (), missing: Iterable[str] = (), sentences: bool = True) -> list[str]:
+def verify_prose(source: str, candidate: str, known: Iterable[str] = (), missing: Iterable[str] = (), sentences: bool = True, strictness: str = "strict") -> list[str]:
     """Reasons to reject a candidate paragraph. `known` is wording the source need not contain: the company, the role, skills.
-    With `sentences` False every capitalised word counts as a name, as in a list of skills, where each entry starts a "sentence"."""
+    With `sentences` False every capitalised word counts as a name, as in a list of skills, where each entry starts a "sentence".
+    Numbers, names and job terms are checked the same at every `strictness`; the level changes only how long the prose may run."""
     reasons: list[str] = []
     if extra := set(_NUMBER.findall(candidate)) - set(_NUMBER.findall(source)):
         reasons.append(f"number not in the source: {', '.join(sorted(extra))}")
@@ -46,7 +46,8 @@ def verify_prose(source: str, candidate: str, known: Iterable[str] = (), missing
     have = grams(candidate) - grams(source)
     if added := [m for m in missing if " ".join(map(stem, m.split())) in have]:
         reasons.append(f"missing job term added: {', '.join(added)}")
-    if len(candidate) > MAX_PROSE_GROWTH * len(source) + PROSE_ALLOWANCE:
+    growth = GROWTH[strictness]
+    if len(candidate) > growth.prose * len(source) + growth.allowance:
         reasons.append("too long for the facts it cites")
     return reasons
 
@@ -81,11 +82,11 @@ def ground(
             reasons = ["cites no fact"]
         elif slot.startswith(("bullet:", "edu:")):  # what a line rests on: the achievements or education entries it cites, not the skills it names
             source = [texts[i] for i in ids if kinds[i] in ("achievement", "education")]
-            reasons = verify_rewording("\n".join(source), text, skills, protected, brief.missing) if source else ["cites no achievement"]
+            reasons = verify_rewording("\n".join(source), text, skills, protected, brief.missing, brief.strictness) if source else ["cites no achievement"]
         elif slot.startswith("skills"):  # the names a line lists must be the skills it cites; a label such as "Languages:" is free
-            reasons = verify_prose("\n".join(texts[i] for i in ids), _LABEL.sub("", text), known, brief.missing, sentences=False)
+            reasons = verify_prose("\n".join(texts[i] for i in ids), _LABEL.sub("", text), known, brief.missing, sentences=False, strictness=brief.strictness)
         else:
-            reasons = verify_prose("\n".join(texts[i] for i in ids), text, known, [m for m in brief.missing if m.lower() not in f"{brief.company} {brief.role}".lower()])  # the posting's own company and role may be named
+            reasons = verify_prose("\n".join(texts[i] for i in ids), text, known, [m for m in brief.missing if m.lower() not in f"{brief.company} {brief.role}".lower()], strictness=brief.strictness)  # the posting's own company and role may be named
         if reasons:
             rejected.append(Rejection(slot, tuple(reasons), Claim(text, ids)))
         else:

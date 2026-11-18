@@ -15,6 +15,7 @@ from typing import Literal
 from career_buddy.domain.knowledge import knowledge
 from career_buddy.domain.model import Fact
 from career_buddy.domain.profile import Profile
+from career_buddy.domain.strictness import DEFAULT, Strictness
 
 MAX_POSTING = 6000  # characters of the job posting a writer reads
 Kind = Literal["summary", "position", "achievement", "skill", "education"]
@@ -64,6 +65,7 @@ class Brief:
     template_instructions: str = ""  # how the chosen template and style want the text written
     sections: tuple[str, ...] = ()  # the section keys to write, in order: a resume's summary, experience, ..., or a letter's `body`
     rules: tuple[str, ...] = ()  # the general rules for this kind of document (domain/writing_rules.py): style and selection, never grounding
+    strictness: Strictness = DEFAULT  # how loosely the wording may follow the facts (domain/strictness.py); specifics stay strict
 
 
 @dataclass(frozen=True)

@@ -471,7 +471,7 @@ def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_s
 
 def test_template_instructions_go_to_the_writer_and_are_kept_for_regenerating(tmp_path: Path) -> None:
     def write(p):
-        return letter_answer(("I would like to build platforms at Acme.", [find(p, "Senior Engineer", "position")]))
+        return letter_answer(("I would like to build platforms with Kubernetes at Acme.", [find(p, "Senior Engineer", "position")]))
 
     model = Model(write)
     style = "Direct and concise: three short paragraphs."

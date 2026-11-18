@@ -7,10 +7,25 @@ export type Kind = 'resume' | 'letter'
 export type KindRules = { rules: string[]; default: string[]; custom: boolean }
 export type WritingRules = Record<Kind, KindRules>
 
+export type Strictness = 'strict' | 'balanced' | 'loose'
+export type StrictnessState = { strictness: Strictness; default: Strictness }
+
 export const MAX_RULES = 20
 export const MAX_LENGTH = 300
 
 const KEY = ['writing', 'rules'] as const
+const STRICT_KEY = ['writing', 'strictness'] as const
+
+export const useStrictness = () =>
+  useQuery({ queryKey: STRICT_KEY, queryFn: () => apiFetch<StrictnessState>(endpoints.writing.strictness()) })
+
+export function useSetStrictness() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (strictness: Strictness) => apiFetch<StrictnessState>(endpoints.writing.strictness(), { method: 'PUT', body: { strictness } }),
+    onSuccess: (data) => qc.setQueryData(STRICT_KEY, data),
+  })
+}
 
 export const useWritingRules = () =>
   useQuery({ queryKey: KEY, queryFn: () => apiFetch<WritingRules>(endpoints.writing.rules()) })

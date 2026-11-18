@@ -74,7 +74,7 @@ def report(checked: Checked) -> str:
     if not checked.rejected and not checked.issues:
         return "Accepted. Nothing was rejected."
     failed = [{"slot": r.slot, "text": r.claim.text, "fact_ids": list(r.claim.fact_ids), "reasons": list(r.reasons)} for r in checked.rejected]
-    issues = [{"text": i.text, "unused_achievement_ids": list(i.fact_ids)} for i in checked.issues]
+    issues = [{"text": i.text, "unused_achievement_ids": list(i.fact_ids), **({"slots": list(i.slots)} if i.slots else {})} for i in checked.issues]
     return f"{_SECTIONS['revise'].strip()}\n\n{json.dumps({'rejected': failed, 'issues': issues}, indent=1)}"
 
 

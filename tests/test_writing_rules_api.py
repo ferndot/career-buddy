@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from career_buddy.domain.writing_rules import LETTER_RULES, RESUME_RULES
 from career_buddy.web.app import create_app
-from test_generate_api import LETTER, RESUME, Model, open_client
+from test_generate_api import LETTER, RESUME, Model, generate, good, open_client
 
 URL = "/api/writing/rules"
 
@@ -77,3 +77,43 @@ def test_the_writer_falls_back_to_the_default_and_other_kinds_are_untouched(tmp_
     assert RESUME_RULES[0] in written_rules(tmp_path / "a", RESUME)
     system = written_rules(tmp_path / "b", LETTER, lambda c: c.put(f"{URL}/resume", json={"rules": ["Use only nouns."]}))
     assert LETTER_RULES[0] in system and "Use only nouns." not in system
+
+
+STRICT_URL = "/api/writing/strictness"
+
+
+def test_strictness_is_balanced_until_saved_then_survives_a_restart(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path)) as c:
+        assert c.get(STRICT_URL).json() == {"strictness": "balanced", "default": "balanced"}
+        assert c.put(STRICT_URL, json={"strictness": "loose"}).json()["strictness"] == "loose"
+        c.put(f"{URL}/resume", json={"rules": ["One"]})  # the rules and the level share a file and keep each other
+    with TestClient(create_app(tmp_path)) as again:
+        assert again.get(STRICT_URL).json()["strictness"] == "loose" and again.get(URL).json()["resume"]["rules"] == ["One"]
+
+
+@pytest.mark.parametrize("level", ["", "lax", "Strict", 1, None])
+def test_an_unknown_strictness_is_refused_and_the_level_stays(client: TestClient, level) -> None:
+    assert client.put(STRICT_URL, json={"strictness": level}).status_code == 422
+    assert client.get(STRICT_URL).json()["strictness"] == "balanced"
+
+
+def test_the_level_is_read_per_request_and_loosens_wording_only(tmp_path: Path) -> None:
+    def reworded(p):  # the bullet runs 1.6 times its fact: wording, not a new specific
+        out = good(p)
+        for s in out["sections"]:
+            for i in s.get("items", []):
+                for b in i.get("bullets", []):
+                    if b["text"] == "Built ETL jobs":
+                        b["text"] = "Built and ran ETL jobs"
+        return out
+
+    def flags(level: str) -> list[str]:
+        (tmp_path / level).mkdir()
+        c = open_client(tmp_path / level, Model(reworded))
+        try:
+            c.put(STRICT_URL, json={"strictness": level})
+            return sorted(generate(c, RESUME)["flags"])
+        finally:
+            c.__exit__(None, None, None)
+
+    assert len(flags("strict")) == 1 and flags("balanced") == [] and flags("loose") == []

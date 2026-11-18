@@ -104,6 +104,6 @@ async def build_app(
     }
     documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
     rules = WritingRulesStore(data_dir)
-    generation = DocumentGeneration(documents, current("writer"), rules.rules, page_counter)
+    generation = DocumentGeneration(documents, current("writer"), rules.rules, page_counter, rules.strictness)
     return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer")), documents,
                SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules)

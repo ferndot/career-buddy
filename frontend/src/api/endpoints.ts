@@ -67,5 +67,6 @@ export const endpoints = {
   writing: {
     rules: () => '/api/writing/rules', // GET
     kind: (kind: 'resume' | 'letter') => `/api/writing/rules/${kind}`, // PUT, DELETE (204)
+    strictness: () => '/api/writing/strictness', // GET, PUT
   },
 } as const

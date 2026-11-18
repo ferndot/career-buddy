@@ -17,8 +17,10 @@ from career_buddy.application.documents import DocumentService, TailorOptions, T
 from career_buddy.application.ports import DocumentWriter, LLMUnavailable, MissingInputs, PageCounter
 from career_buddy.domain.coverage import Checked, Pages, issues
 from career_buddy.domain.document import Style
+from career_buddy.domain.fit import fit
 from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, ResumeLength, Rejection, brief_facts, caps_for
 from career_buddy.domain.grounding import claims_of, ground
+from career_buddy.domain.strictness import DEFAULT, Strictness
 from career_buddy.domain.templates import position_heading
 from career_buddy.domain.writing_rules import DEFAULT_RULES
 from career_buddy.domain.written import LETTER, Item, WrittenDocument, mapped, merged, numbered, texts, validated
@@ -71,22 +73,23 @@ class Draft:
                 "pages": {"count": self.pages.count, "limit": self.limit} if self.pages else None}
 
 
-def _brief(t: Tailored, rules: tuple[str, ...], options: TailorOptions, instructions: str, pinned: Collection[str], pages: ResumeLength, template_instructions: str) -> Brief:
+def _brief(t: Tailored, rules: tuple[str, ...], options: TailorOptions, instructions: str, pinned: Collection[str], pages: ResumeLength, template_instructions: str, strictness: Strictness = DEFAULT) -> Brief:
     """What the document prints, as the writer reads it. No name or contact details leave the machine."""
     keys = tuple(k for k, _ in t.spec.sections) if t.spec.kind == "resume" else (LETTER,)
     return Brief(t.spec.kind, brief_facts(t.profile, t.facts, t.absorbed), t.report.matched, t.report.missing,
                  options.inputs.get("company", ""), options.inputs.get("role", ""), instructions,
-                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys, rules)
+                 options.job_text.strip()[:MAX_POSTING], caps_for(pages), frozenset(pinned), template_instructions, keys, rules, strictness)
 
 
 class DocumentGeneration:
     def __init__(self, documents: DocumentService, writer: Callable[[], DocumentWriter | None] = lambda: None,
                  rules: Callable[[str], tuple[str, ...]] = lambda kind: DEFAULT_RULES[kind],  # type: ignore[index]
-                 pages: PageCounter | None = None) -> None:
+                 pages: PageCounter | None = None, strictness: Callable[[], Strictness] = lambda: DEFAULT) -> None:
         self._documents = documents
         self._pages = pages  # None: the length is not checked
         self._writer = writer
         self._rules = rules  # read at each request: Settings can change them
+        self._strictness = strictness  # likewise
 
     async def generate(self, template: str, options: TailorOptions, instructions: str = "",
                        pinned: Collection[str] = (), pages: ResumeLength = "default", template_instructions: str = "", style: Style = Style()) -> Draft:
@@ -100,7 +103,7 @@ class DocumentGeneration:
         writer = self._writer()  # asked at each request: a model can be connected after start
         if writer is None:
             raise LLMUnavailable(NO_MODEL)
-        brief = _brief(t, self._rules(t.spec.kind), options, instructions.strip(), pinned, pages, template_instructions.strip())
+        brief = _brief(t, self._rules(t.spec.kind), options, instructions.strip(), pinned, pages, template_instructions.strip(), self._strictness())
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]
@@ -138,10 +141,12 @@ class DocumentGeneration:
             doc = validated(brief, submitted)
             if previous:
                 over = any(i.code == "too_long" for i in previous.issues)
-                doc = validated(brief, merged(previous.doc, doc, {r.slot for r in previous.rejected}, over))
+                doc = validated(brief, merged(previous.doc, doc, {r.slot for r in previous.rejected} | {s for i in previous.issues for s in i.slots}, over))
             kept, rejected = ground(brief, claims_of(brief, doc), skills, protected)
             pages = await measured(doc, kept, rejected)
-            return Checked(doc, kept, rejected, pages, issues(brief, doc, pages, date.today().year))
+            found = issues(brief, doc, pages, date.today().year)
+            weak = fit(brief, {slot: c.text for slot, c in kept.items()}, found)[1]
+            return Checked(doc, kept, rejected, pages, (*found, *([weak] if weak else [])))
 
         checked = await writer.write(brief, accept)
         written, kept, rejected = checked.doc, checked.kept, checked.rejected

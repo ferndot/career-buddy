@@ -16,6 +16,10 @@ function stub(failSave = false) {
   sent.length = 0
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url)
+    if (u.includes('/api/writing/strictness')) {
+      sent.push({ url: u, method: init?.method, body: init?.body as string | undefined })
+      return new Response(JSON.stringify({ strictness: init?.method === 'PUT' ? JSON.parse(init.body as string).strictness : 'balanced', default: 'balanced' }))
+    }
     if (u.includes('/api/writing/rules')) {
       sent.push({ url: u, method: init?.method, body: init?.body as string | undefined })
       if (init?.method === 'DELETE') return new Response(null, { status: 204 })
@@ -62,6 +66,17 @@ describe('Writing settings', () => {
     const put = sent.find((r) => r.method === 'PUT')!
     expect(put.url).toBe('/api/writing/rules/resume')
     expect(JSON.parse(put.body!)).toEqual({ rules: ['Short headings.', 'No jargon.'] })
+  })
+
+  it('offers three strictness levels, Balanced by default, and saves a change', async () => {
+    stub()
+    await openWriting()
+    expect(await screen.findByRole('radio', { name: /^Balanced/ })).toBeChecked()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    fireEvent.click(screen.getByRole('radio', { name: /^Strict/ }))
+    await waitFor(() => expect(screen.getByRole('radio', { name: /^Strict/ })).toBeChecked())
+    const put = sent.find((r) => r.url === '/api/writing/strictness' && r.method === 'PUT')!
+    expect(JSON.parse(put.body!)).toEqual({ strictness: 'strict' })
   })
 
   it('shows the server message when a save is refused', async () => {
