@@ -4,6 +4,7 @@ import { useAddEntry } from './api'
 import { SKILL_CATEGORIES, SKILL_LEVELS } from './explore'
 import { FormDialog } from './FormDialog'
 import { OptionSelect } from './OptionSelect'
+import { YearsInput } from './YearsInput'
 import type { Fact } from './api'
 
 type Change = { target: { value: string } }
@@ -50,8 +51,7 @@ export function AddSkillDialog({ open, onClose, personId, initialName = '', onAd
       </Field.Root>
       <Field.Root>
         <Field.Label color="app.text2">Years</Field.Label>
-        <Input bg="app.surface" borderColor="app.borderStrong" placeholder="5" value={attrs.years}
-          onChange={(e: Change) => set('years')(e.target.value)} />
+        <YearsInput value={attrs.years} onChange={set('years')} />
       </Field.Root>
       {add.isError && <Field.ErrorText>Could not add the skill.</Field.ErrorText>}
     </FormDialog>

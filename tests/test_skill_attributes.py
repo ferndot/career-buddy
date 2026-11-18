@@ -63,10 +63,10 @@ def skill(name: str, **props: str) -> dict:
 
 
 def test_an_extracted_skill_keeps_its_stated_category_years_and_level(client, model) -> None:
-    model.extra = [skill("Python", category="Languages", years="5+", level="Expert"), skill("AWS", category="Cloud")]
+    model.extra = [skill("Python", category="Languages", years="5", level="Expert"), skill("AWS", category="Cloud")]
     import_text(client, "a.txt")
     found = facts(client, "Skill")
-    assert found["Python"] == {"category": "Languages", "years": "5+", "level": "Expert"}
+    assert found["Python"] == {"category": "Languages", "years": "5", "level": "Expert"}
     assert found["AWS"] == {"category": "Cloud"}
 
 

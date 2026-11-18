@@ -140,3 +140,6 @@ export function groupSkills(skills: Fact[]): PositionGroup[] {
 }
 
 export const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'] as const
+
+/** The whole number a skill's stored years starts with ("5+" gives "5"), or "" when there is none. Old facts may hold text; a new write may not. */
+export const leadingYears = (years = ''): string => /^\s*(\d+)/.exec(years)?.[1] ?? ''

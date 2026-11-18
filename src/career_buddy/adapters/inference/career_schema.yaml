@@ -38,8 +38,8 @@ entity_types:
           skills list). If the text gives none, choose exactly one of - Languages, Frameworks & libraries, Data & databases,
           Cloud & infrastructure, Tools & platforms, Practices & methods, Other.
       - name: years
-        type: string
-        description: Years of experience with it, as the text writes them, for example "5" or "5+". Empty unless the text states a number; never estimate it.
+        type: number
+        description: Whole years of experience with it, an integer of 0 or more with no maximum, for example 5. Empty unless the text states a number; never estimate it.
       - name: level
         type: string
         description: Expertise, one of - Beginner, Intermediate, Advanced, Expert. Only when the text's own wording says so (for example "expert in Go"); otherwise empty.
@@ -98,4 +98,4 @@ extraction_prompt_template: |
   Tools, technologies and methods an achievement names are skills, not part of the achievement: list each as its own Skill
   (category "Tools & platforms" unless another fits better), linked to that achievement with USES_SKILL (and to its position), and never inside the
   achievement's text or properties. A tool named both in a skills list and in an achievement is one skill.
-  Fill a skill's years and level only when the text states them; leave them empty otherwise.
+  Fill a skill's years (a whole number) and level only when the text states them; leave them empty otherwise.

@@ -2,10 +2,11 @@ import { Button, Field, Flex, Input, NativeSelect, Textarea } from '@chakra-ui/r
 import { useState } from 'react'
 import type { Fact } from './api'
 import { useMerge, useReviseFact } from './api'
-import { SKILL_CATEGORIES, SKILL_LEVELS } from './explore'
+import { leadingYears, SKILL_CATEGORIES, SKILL_LEVELS } from './explore'
 import { DateField } from './DateField'
 import { FormDialog } from './FormDialog'
 import { OptionSelect } from './OptionSelect'
+import { YearsInput } from './YearsInput'
 
 /** Attributes the screen manages itself: the hidden flag and display order are kept as they are. */
 const KEEP = ['hidden', 'order']
@@ -36,7 +37,7 @@ function Form({ fact, candidates, candidateLabel = (c) => c.title, onClose }: { 
   const editable = [...present, ...(OFFERED[fact.kind] ?? []).filter((k) => !present.includes(k))]
   const [title, setTitle] = useState(fact.title)
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(editable.map((k) => [k, fact.attributes[k] ?? ''])),
+    Object.fromEntries(editable.map((k) => [k, k === 'years' && fact.kind === 'Skill' ? leadingYears(fact.attributes[k]) : fact.attributes[k] ?? ''])),
   )
   const revise = useReviseFact()
   const save = () =>
@@ -69,6 +70,8 @@ function Form({ fact, candidates, candidateLabel = (c) => c.title, onClose }: { 
           ) : k === 'description' || k === 'result' ? (
             <Textarea rows={k === 'result' ? 2 : 4} bg="app.surface" borderColor="app.borderStrong" value={values[k]}
               onChange={(e) => setValues({ ...values, [k]: e.target.value })} />
+          ) : k === 'years' && fact.kind === 'Skill' ? (
+            <YearsInput value={values[k]} onChange={(v) => setValues({ ...values, [k]: v })} />
           ) : (
             <Input bg="app.surface" borderColor="app.borderStrong" value={values[k]}
               onChange={(e) => setValues({ ...values, [k]: e.target.value })} />

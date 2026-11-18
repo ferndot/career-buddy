@@ -234,7 +234,7 @@ class EditService:
         title = fact.title if title is None else title.strip()
         if not title:
             raise InvalidFact("Title is empty")
-        revised = replace(fact, title=title, attributes=fact.attributes if attributes is None else checked(attributes))
+        revised = replace(fact, title=title, attributes=fact.attributes if attributes is None else checked(attributes, fact.attributes))
         await self._record(FactRevised(fact_id, revised.title, revised.attributes, _now()))
         return revised
 

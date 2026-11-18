@@ -307,3 +307,26 @@ it('adds a position with start and end dates', async () => {
   expect(body).toMatchObject({ kind: 'Position', title: 'Tech Lead', attributes: { started: '2021', finished: 'present' } })
   expect(body.attributes.period).toBeUndefined()
 })
+
+it('accepts only digits in the years of a new skill', async () => {
+  vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(routes[url] ?? {}), { status: 200 }))
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('tab', { name: 'Skills (0)' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Add skill' }))
+  const years = await screen.findByLabelText('Years')
+  fireEvent.change(years, { target: { value: '4' } })
+  fireEvent.change(years, { target: { value: '4.5' } })
+  fireEvent.change(years, { target: { value: '-1' } })
+  expect(years).toHaveValue(4)
+})
+
+it.each([['5+', '5'], ['3 years', '3'], ['many', '']])('shows legacy years %j as %j when its skill is edited, and leaves it displayed as stored', async (stored, shown) => {
+  const skills = [f('s1', 'Skill', 'Python', { years: stored })]
+  const r: Record<string, unknown> = { ...routes, '/api/facts': [...facts, ...skills] }
+  vi.stubGlobal('fetch', async (url: string) => new Response(JSON.stringify(r[url]), { status: 200 }))
+  renderApp(<CareerScreen />)
+  fireEvent.click(await screen.findByRole('tab', { name: 'Skills (1)' }))
+  expect(await screen.findByText(`${stored} years`)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Edit: Python' }))
+  expect(screen.getByLabelText('Years')).toHaveValue(shown === '' ? null : Number(shown))
+})

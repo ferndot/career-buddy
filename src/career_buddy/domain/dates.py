@@ -107,8 +107,11 @@ def _read_bound(key: str, text: str) -> str | None:
     return _bound(text)
 
 
-def checked(attrs: dict[str, str]) -> dict[str, str]:
-    """`attrs` with started/finished validated. Empty bounds are dropped. Raises InvalidFact."""
+def checked(attrs: dict[str, str], stored: dict[str, str] | None = None) -> dict[str, str]:
+    """`attrs` with started/finished and a skill's years validated. Empty bounds are dropped. Raises InvalidFact.
+
+    `stored` holds the fact's current attributes: a legacy years text such as "5+" may stay as it is, but not be newly written.
+    """
     out = {k: v.strip() if k in BOUNDS else v for k, v in attrs.items() if k not in BOUNDS or v.strip()}
     for key in BOUNDS:
         value = out.get(key)
@@ -118,6 +121,9 @@ def checked(attrs: dict[str, str]) -> dict[str, str]:
             out[key] = PRESENT
         elif not parse(value):
             raise InvalidFact(f"{key} must be a year, month or day like 2021, 2021-03 or 2021-03-14" + (", or present" if key == "finished" else ""))
+    years = out.get("years", "").strip()
+    if years and years != (stored or {}).get("years") and not (years.isascii() and years.isdigit()):
+        raise InvalidFact("years must be a whole number of 0 or more, or empty")
     if not _ordered(out.get("started", ""), out.get("finished", "")):
         raise InvalidFact("finished is before started")
     return out

@@ -37,9 +37,10 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
 from career_buddy.adapters.inference.errors import model_unavailable
+from career_buddy.adapters.inference.career_fields import field_guide
 from career_buddy.application.chat_tools import WRITES, ChatTools, specs
 
-PROMPT = (Path(__file__).parent / "prompts" / "career_chat_v1.txt").read_text(encoding="utf-8")
+PROMPT = (Path(__file__).parent / "prompts" / "career_chat_v1.txt").read_text(encoding="utf-8").replace("{fields}", field_guide())
 DECLINED = "Declined by the user."
 STOPPED = "I stopped looking after too many steps. Ask again with a narrower question."
 
@@ -95,9 +96,14 @@ def events_of(message: AIMessage) -> list[BaseEvent]:
     return events
 
 
+def _tools() -> list[dict]:
+    """The tool specs, with edit_fact told each kind's fields from the career schema."""
+    return [{**s, "function": {**s["function"], "description": f"{s['function']['description']} Fields: {field_guide()}."}} if s["function"]["name"] == "edit_fact" else s for s in specs()]
+
+
 class GraphCareerChat:
     def __init__(self, chat: BaseChatModel) -> None:
-        self._chat = chat.bind_tools(specs())
+        self._chat = chat.bind_tools(_tools())
 
     async def run(self, input: RunAgentInput, tools: ChatTools) -> AsyncIterator[BaseEvent]:
         yield RunStartedEvent(thread_id=input.thread_id, run_id=input.run_id)

@@ -88,7 +88,7 @@ it('groups skills by category in the fixed order, uncategorized last, skipping e
 it('subtitles a skill with its level and years, omitting what is empty', () => {
   const sub = (a: Record<string, string>) => subtitle(f('x', 'Skill', 'X', a), ex)
   expect(sub({ level: 'Expert', years: '5' })).toBe('Expert · 5 years')
-  expect(sub({ years: '5+' })).toBe('5+ years')
+  expect(sub({ years: '5+' })).toBe('5+ years') // legacy text is shown as stored
   expect(sub({ level: 'Advanced', years: '' })).toBe('Advanced')
   expect(sub({ years: '1' })).toBe('1 year')
 })

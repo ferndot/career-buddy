@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from career_buddy.application.ports import FactNotFound, SourceBusy
 from career_buddy.application.services import EDITABLE_LINKS, CareerQueries, EditService
+from career_buddy.domain.dates import checked
 from career_buddy.domain.model import FactKind, InvalidFact, normalize
 
 MAX_FACTS = 25
@@ -76,7 +77,8 @@ TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
     "get_relationships": ("Show every link of one fact: what it is linked to, and how.", FactRef),
     "list_merges": ("List the merges that can be undone: the fact kept and the fact now shown as it, automatic merges included.", NoArguments),
     "add_fact": ("Add a position, achievement, skill or education." + APPROVAL, AddFact),
-    "edit_fact": ("Change a fact's title or attributes, or the person's summary (attribute summary)." + APPROVAL, EditFact),
+    "edit_fact": ("Change a fact. Get fact_id from find_facts or get_position, never invent it. Pass only what changes: title and changes. "
+                  "Ask the person first when a value is unclear or missing." + APPROVAL, EditFact),
     "delete_fact": ("Delete one fact for good; it cannot be undone." + APPROVAL, FactRef),
     "merge_facts": ("Merge facts of one kind into one kept fact; the others are shown as it. Can be undone with unmerge_fact." + APPROVAL, MergeFacts),
     "unmerge_fact": ("Undo one merge, as list_merges shows it." + APPROVAL, MergedPair),
@@ -153,6 +155,7 @@ class ChatTools:
 
     async def _describe_add_fact(self, args: AddFact) -> str:
         parent = await self._parent(args)
+        checked(args.attributes)
         where = f" under {parent['kind']} '{parent['title']}'" if args.kind == "Achievement" else ""
         shown = "".join(f"; {k} {v}" for k, v in args.attributes.items() if k != "description")
         return f"Add {args.kind} '{args.title}'{where}{shown}"
@@ -169,7 +172,7 @@ class ChatTools:
         fact = await self._fact(args.fact_id)
         title = args.title.strip() if args.title is not None else fact["title"]
         old = fact["attributes"]
-        new = {k: v for k, v in {**old, **args.changes}.items() if v.strip()}
+        new = checked({k: v for k, v in {**old, **args.changes}.items() if v.strip()}, old)
         said = [f"title '{fact['title']}' -> '{title}'"] if title != fact["title"] else []
         for key in sorted(old.keys() | new.keys()):
             before, after = old.get(key), new.get(key)
