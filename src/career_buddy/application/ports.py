@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from career_buddy.domain.ats import Extracted
-from career_buddy.domain.coverage import Checked
+from career_buddy.domain.coverage import Checked, Pages
 from career_buddy.domain.document import Document, Style
 from career_buddy.domain.events import Event
 from career_buddy.domain.generation import Brief
@@ -105,6 +105,12 @@ class DocumentWriter(Protocol):
     Its output is never trusted. LLMUnavailable when the model cannot answer."""
 
     async def write(self, brief: Brief, accept: Accept) -> Checked: ...
+
+
+class PageCounter(Protocol):
+    """How a document prints: its pages and how full the last one is. RendererUnavailable when the browser it needs is missing."""
+
+    def pages(self, doc: Document, style: Style) -> Pages: ...
 
 
 class JobReviewer(Protocol):

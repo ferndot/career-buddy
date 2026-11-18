@@ -32,6 +32,8 @@ class GenerateRequest(TailorRequest):
     pinned: list[str] = Field([], max_length=500)  # slot ids the user wrote themselves: the writer leaves them alone
     resume_pages: ResumeLength = "default"  # how long a resume should be; a letter ignores it
     template_instructions: str = Field("", max_length=4000)  # how the chosen template and letter style want the text written; empty adds none
+    font: Literal["sans", "serif"] = "sans"  # the style the length is measured in
+    paper: Literal["letter", "a4"] = "letter"
 
 
 class PreviewRequest(TailorRequest):

@@ -68,8 +68,8 @@ def no_env_llm(monkeypatch) -> None:
     monkeypatch.delenv("CAREER_BUDDY_LLM_BASE_URL", raising=False)
 
 
-def open_client(tmp_path: Path, model: Model | None = None) -> TestClient:
-    client = TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(model.respond) if model else None))
+def open_client(tmp_path: Path, model: Model | None = None, counter=None) -> TestClient:
+    client = TestClient(create_app(tmp_path, llm_transport=httpx.MockTransport(model.respond) if model else None, page_counter=counter))
     client.__enter__()
     seed_jane(client)  # before the model connects, so the offline reader finishes the import in the call
     if model:
@@ -273,8 +273,8 @@ def test_the_resume_length_of_the_request_is_default_or_one_page_and_sets_the_ca
         generate(client, RESUME)  # left out: the default
         for pages in (2, 3, 4):
             assert client.post("/api/documents/generate", json={**RESUME, "resume_pages": pages}).status_code == 422
-    assert "follow the general length rule, at most 2 pages, and do not state a page count. At most 5 bullets for each position and 15 skills" in model.systems[0]
-    assert "this resume is 1 page long. At most 3 bullets for each position and 10 skills" in model.systems[1]
+    assert "follow the general length rule, at most 2 pages, and do not state a page count. At most 15 skills" in model.systems[0]
+    assert "this resume is 1 page long. At most 10 skills" in model.systems[1]
     assert model.systems[2] == model.systems[0]
     assert all("caps" not in m for m in model.payloads)
     assert all("General rules for a resume" in m and "3 to 6 bullets" in m for m in model.systems)  # the default rules for the kind go with every resume

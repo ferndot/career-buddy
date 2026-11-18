@@ -19,9 +19,11 @@ from pydantic import BaseModel, Field
 
 from career_buddy.adapters.inference.connections import InvalidConnection, ReadOnlyConnection, UnknownConnection
 from career_buddy.adapters.jobs.source_log import SourceLog, SourceLogHandler
+from career_buddy.adapters.outputs.page_count import PdfPageCounter
 from career_buddy.adapters.sources.job_link import JobLinkError, JobLinkFetcher
 from career_buddy.application.ports import (
     DocumentRenderer,
+    PageCounter,
     FactNotFound,
     LLMUnavailable,
     MissingInputs,
@@ -109,6 +111,7 @@ def create_app(
     llm_transport: httpx.AsyncBaseTransport | None = None,
     renderers: Sequence[DocumentRenderer] = (),
     job_fetcher: JobLinkFetcher | None = None,
+    page_counter: PageCounter | None = PdfPageCounter(),  # None: no length check
 ) -> FastAPI:
     data_dir = data_dir or Path(os.environ.get("CAREER_BUDDY_DATA") or default_data_dir())
     # uvicorn only configures its own loggers; without this the extraction logs never show. No-op if the host app set up logging.
@@ -120,7 +123,7 @@ def create_app(
     jobs = new_jobs(source_log.start)
 
     async def rebuild() -> None:
-        state["app"] = await build_app(data_dir, jobs, llm_transport, renderers)
+        state["app"] = await build_app(data_dir, jobs, llm_transport, renderers, page_counter)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:

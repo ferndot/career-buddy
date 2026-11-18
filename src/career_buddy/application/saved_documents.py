@@ -192,7 +192,8 @@ class SavedDocuments:
             raise NoSource(doc_id)
         source = replace(c.source, instructions=instructions.strip() or c.source.instructions, resume_pages=resume_pages or c.source.resume_pages)
         options = source.options(c.overrides)
-        draft = await self._generation.generate(source.template, options, source.instructions, c.overrides, source.resume_pages, source.template_instructions)
+        draft = await self._generation.generate(source.template, options, source.instructions, c.overrides, source.resume_pages, source.template_instructions,
+                                                Style(c.meta.font, c.meta.paper))  # type: ignore[arg-type]
         html, _ = await self._layout(source.template, options, draft.doc)
         slots = self._html.slots(html)
         fresh = {k: v for k, v in texts(draft.doc).items() if k not in c.overrides}

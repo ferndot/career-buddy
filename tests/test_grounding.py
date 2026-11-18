@@ -112,5 +112,5 @@ def test_banned_markers_are_cleaned_not_rejected() -> None:
 
 
 def test_the_caps_follow_the_length_setting() -> None:
-    assert [(c.pages, c.bullets, c.skills) for c in map(caps_for, (1, "default"))] == [(1, 3, 10), (2, 5, 15)]
+    assert [(c.pages, c.skills) for c in map(caps_for, (1, "default"))] == [(1, 10), (2, 15)]
     assert caps_for(2) == caps_for(3) == caps_for("default")  # a document saved with 2 or 3 pages reads as the default

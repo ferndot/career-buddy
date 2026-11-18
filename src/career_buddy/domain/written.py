@@ -129,7 +129,7 @@ def _ids(brief: Brief, ids: tuple[str, ...]) -> tuple[str, ...]:
 def _experience(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> list[Item]:
     """One item per position or, where the writer condensed several under one (`also`), per group, in the brief's order. A group's
     positions are sorted newest first and a position belongs to one item only. Bullets: those resting on an achievement of the item's
-    positions, up to the cap per position plus one for each further position of a group."""
+    positions. How many is the writer's choice: the length check, not a cap, keeps the document to its pages."""
     order = {f.id: n for n, f in enumerate(f for f in brief.facts if f.kind == "position")}
     members: dict[str, list[str]] = {}  # the item's lead position -> its positions
     claimed: dict[str, str] = {}  # position -> the lead of the item it belongs to
@@ -147,7 +147,7 @@ def _experience(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) 
             if own and b.text.strip():
                 bullets.setdefault(lead, []).append(Bullet(text=b.text.strip(), fact_ids=(*own, *(i for i in cited if i not in own))))
     return [Item(position_id=lead, also=tuple(sorted(members[lead], key=order.__getitem__)[1:]),
-                 bullets=tuple(bullets[lead][: brief.caps.bullets + len(members[lead]) - 1])) for lead in sorted(bullets, key=order.__getitem__)]
+                 bullets=tuple(bullets[lead])) for lead in sorted(bullets, key=order.__getitem__)]
 
 
 def _items(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> list[Item]:
@@ -173,7 +173,7 @@ def _items(brief: Brief, section: Section, facts: Mapping[str, BriefFact]) -> li
 
 def validated(brief: Brief, doc: WrittenDocument) -> WrittenDocument:
     """What the writer wrote, made fit to check and print: the brief's sections only, in the template's order, a section's first
-    answer only; cited ids the brief lacks dropped; empty and over-cap items dropped (bullets per position, skills, paragraphs);
+    answer only; cited ids the brief lacks dropped; empty and over-cap items dropped (skills, paragraphs);
     no bullet without an achievement of its position (or of a position its item condenses) behind it. Then the person's pinned slots are put back (see `pinned`)."""
     facts = {f.id: f for f in brief.facts}
     first = {s.key: s for s in reversed(doc.sections)}
@@ -181,10 +181,38 @@ def validated(brief: Brief, doc: WrittenDocument) -> WrittenDocument:
     return pinned(brief, numbered(WrittenDocument(sections=tuple(Section(key=k, items=tuple(i)) for k in brief.sections if (i := kept.get(k))))))
 
 
-def merged(previous: WrittenDocument, submitted: WrittenDocument, revise: Collection[str]) -> WrittenDocument:
-    """`previous` with the text of each slot in `revise` taken from `submitted`, if it has one. Every other text stays as it was, whatever `submitted` holds."""
+def merged(previous: WrittenDocument, submitted: WrittenDocument, revise: Collection[str], over: bool = False) -> WrittenDocument:
+    """`previous` with the text of each slot in `revise` taken from `submitted`, if it has one. Every other text stays as it was, whatever
+    `submitted` holds, with two exceptions that change what is printed, never a text: a bullet `submitted` has and `previous` lacks is
+    added to the item of its position (a new item for a position `previous` lacks), and, when `over` (the document printed too long),
+    a bullet `submitted` leaves out is removed. A pinned bullet is always in `submitted`, so it is never removed."""
     new = {slot: (text, ids) for slot, text, ids in nodes(submitted)}
-    return mapped(previous, lambda slot, text, ids: new.get(slot, (text, ids)) if slot in revise else (text, ids))
+    old = {slot for slot, _, _ in nodes(previous)}
+
+    def edit(slot: str, text: str, ids: tuple[str, ...]) -> tuple[str, tuple[str, ...]] | None:
+        if slot in revise:
+            return new.get(slot, (text, ids))
+        return None if over and slot.startswith("bullet:") and slot not in new else (text, ids)
+
+    doc = mapped(previous, edit)
+    added = [(i, tuple(b for b in i.bullets if b.slot not in old)) for s in numbered(submitted).sections if s.key == "experience" for i in s.items]
+    sections = list(doc.sections)
+    at = next((n for n, s in enumerate(sections) if s.key == "experience"), None)
+    items = list(sections[at].items) if at is not None else []
+    for it, fresh in added:
+        if not fresh:
+            continue
+        group = {it.position_id, *it.also}
+        into = next((n for n, held in enumerate(items) if group & {held.position_id, *held.also}), None)
+        if into is None:
+            items.append(Item(position_id=it.position_id, also=it.also, bullets=fresh))
+        else:
+            items[into] = items[into].model_copy(update={"bullets": (*items[into].bullets, *fresh)})
+    if items and at is None:
+        sections.append(Section(key="experience", items=tuple(items)))
+    elif items and at is not None:
+        sections[at] = Section(key="experience", items=tuple(items))
+    return numbered(WrittenDocument(sections=tuple(sections)))
 
 
 def pinned(brief: Brief, doc: WrittenDocument) -> WrittenDocument:

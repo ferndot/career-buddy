@@ -13,7 +13,7 @@ RESUME_RULES: tuple[str, ...] = (
     'Plain headings: Summary, Experience, Education, Skills. One date format throughout, such as "Jan 2022 – Mar 2024".',
     "Each role gets 3 to 6 bullets: about 5 to 8 for the current or most relevant role, 1 to 3 for older or unrelated ones. A bullet is one or two lines.",
     "Open each bullet with a strong action verb, and vary the verbs across the resume. Quantify results where the facts give numbers; where they do not, state the outcome.",
-    'Give the most space to recent, relevant experience. Cover about the last 10 to 15 years: condense older roles into one short "Earlier" line, or leave them out when they do not help for this role; leave out roles older than about 15 years unless they are directly relevant.',
+    'Give the most space to the most relevant roles, then to recent ones: condense older roles, and do not drop a relevant one. Cover about the last 10 to 15 years: condense older roles into one short "Earlier" line, or leave them out when they do not help for this role; leave out roles older than about 15 years unless they are directly relevant.',
     "Length: one page under about 10 years of experience, two pages for 10 or more years or a senior candidate. The template's length instruction governs; these are defaults.",
     "No claim beyond the facts, and no invented numbers.",
 )

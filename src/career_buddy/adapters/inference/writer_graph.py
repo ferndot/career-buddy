@@ -42,7 +42,7 @@ def system_prompt(brief: Brief) -> str:
         template.append(f"Template instructions: {brief.template_instructions}")
     if brief.kind == "resume":
         length = "this resume is 1 page long" if brief.caps.pages == 1 else "follow the general length rule, at most 2 pages, and do not state a page count"
-        template.append(f"Length: {length}. At most {brief.caps.bullets} bullets for each position and {brief.caps.skills} skills in all.")
+        template.append(f"Length: {length}. At most {brief.caps.skills} skills in all.")
     parts = [_SECTIONS["rules"], _SECTIONS[brief.kind], rules_text(brief.rules, brief.kind), "\n".join(template), _SECTIONS["output"]]
     return "\n".join(p.strip() for p in parts if p.strip())
 
@@ -69,11 +69,13 @@ def payload(brief: Brief, facts: Sequence[BriefFact]) -> str:
 
 
 def report(checked: Checked) -> str:
-    """The tool's reply: what passed, or each rejected text with its slot, the ids it cited and the reasons, and what to do about it."""
-    if not checked.rejected:
+    """The tool's reply: what passed, or each rejected text with its slot, the ids it cited and the reasons, then what is missing or thin and how
+    long the document printed, with the achievements not yet used, and what to do about it."""
+    if not checked.rejected and not checked.issues:
         return "Accepted. Nothing was rejected."
     failed = [{"slot": r.slot, "text": r.claim.text, "fact_ids": list(r.claim.fact_ids), "reasons": list(r.reasons)} for r in checked.rejected]
-    return f"{_SECTIONS['revise'].strip()}\n\n{json.dumps({'rejected': failed}, indent=1)}"
+    issues = [{"text": i.text, "unused_achievement_ids": list(i.fact_ids)} for i in checked.issues]
+    return f"{_SECTIONS['revise'].strip()}\n\n{json.dumps({'rejected': failed, 'issues': issues}, indent=1)}"
 
 
 def _unavailable(error: Exception) -> LLMUnavailable:

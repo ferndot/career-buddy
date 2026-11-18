@@ -35,12 +35,11 @@ class Caps:
     """How much a resume may hold, from the person's Resume length setting."""
 
     pages: int
-    bullets: int  # most bullets the writer writes per position
     skills: int  # most skills it lists
 
 
 ResumeLength = Literal["default", 1]  # "default": the writer picks the length from the general rules, up to two pages; 1: exactly one page
-ONE_PAGE, UP_TO_TWO_PAGES = Caps(1, 3, 10), Caps(2, 5, 15)
+ONE_PAGE, UP_TO_TWO_PAGES = Caps(1, 10), Caps(2, 15)
 
 
 def caps_for(length: object) -> Caps:

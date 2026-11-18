@@ -31,7 +31,7 @@ from career_buddy.adapters.storage.writing_rules_store import WritingRulesStore
 from career_buddy.application.documents import DocumentService
 from career_buddy.application.generation import DocumentGeneration
 from career_buddy.application.jobs import SourceJobs
-from career_buddy.application.ports import DocumentRenderer, ObjectStore
+from career_buddy.application.ports import DocumentRenderer, ObjectStore, PageCounter
 from career_buddy.application.projector import Projector
 from career_buddy.application.saved_documents import HtmlCodec, SavedDocuments
 from career_buddy.application.services import CareerQueries, EditService, ImportService
@@ -70,6 +70,7 @@ async def build_app(
     jobs: SourceJobs,
     llm_transport: httpx.AsyncBaseTransport | None = None,
     extra_renderers: Sequence[DocumentRenderer] = (),
+    page_counter: PageCounter | None = None,
 ) -> App:
     log = JsonlEventLog(data_dir / "events.jsonl")
     projector = Projector(RedstringFactGraph())
@@ -103,6 +104,6 @@ async def build_app(
     }
     documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
     rules = WritingRulesStore(data_dir)
-    generation = DocumentGeneration(documents, current("writer"), rules.rules)
+    generation = DocumentGeneration(documents, current("writer"), rules.rules, page_counter)
     return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer")), documents,
                SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules)
