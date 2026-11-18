@@ -59,9 +59,26 @@ def test_saving_returns_a_record_and_keeps_the_document_as_html_and_css(client: 
     assert content["slots"]["name"] == "Jane Doe" and "Cut build times by 60%" in content["slots"].values()
 
 
-def test_an_empty_label_falls_back_to_the_file_name_without_extension(client: TestClient) -> None:
-    assert save(client).json()["label"] == "Jane-Doe-Resume"
-    assert save(client, label="   ").json()["label"] == "Jane-Doe-Resume"
+def test_a_document_is_named_for_the_job_title_then_the_company_and_its_file_for_the_title(client: TestClient) -> None:
+    record = save(client, job_title="Data Platform Engineer", company="Contoso Data").json()
+    assert record["label"] == "Data Platform Engineer · Contoso Data" and record["filename"] == "Data-Platform-Engineer"
+    assert file(client, record, "txt").headers["content-disposition"] == 'attachment; filename="Data-Platform-Engineer.txt"'
+    assert save(client, job_title=" Staff / SRE (EMEA) ").json()["label"] == "Staff / SRE (EMEA)"
+    assert save(client, job_title="Staff / SRE (EMEA)").json()["filename"] == "Staff-SRE-EMEA"
+
+
+def test_with_no_title_the_label_is_the_templates_and_the_file_keeps_its_name(client: TestClient) -> None:
+    label = next(t["label"] for t in client.get("/api/templates").json() if t["id"] == "resume-classic")
+    for extra in ({}, {"label": "   "}, {"company": "Contoso Data"}):
+        record = save(client, **extra).json()
+        assert record["label"] == label and record["filename"] == "Jane-Doe-Resume"
+
+
+def test_the_job_link_is_kept_with_the_source_only_when_it_is_an_http_link(client: TestClient) -> None:
+    def link(url: str) -> str:
+        return client.get(f"/api/saved-documents/{save(client, job_url=url).json()['id']}/content").json()["source"]["job_url"]
+    assert link("https://jobs.example.com/p/1?x=2") == "https://jobs.example.com/p/1?x=2"
+    assert link("javascript:alert(1)") == "" and link("") == "" and link("ftp://x.example.com/a") == ""
 
 
 def test_a_stale_client_that_still_sends_a_format_is_not_an_error(client: TestClient) -> None:

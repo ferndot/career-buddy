@@ -39,7 +39,7 @@ def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:
     @router.post("", status_code=201)
     async def save(body: SaveRequest) -> dict[str, object]:
         try:
-            return listed(await saved().save(body.template, body.style, body.options, body.label, body.written, body.instructions, body.resume_pages, body.template_instructions))
+            return listed(await saved().save(body.template, body.style, body.options, body.label, body.written, body.instructions, body.resume_pages, body.template_instructions, body.job_title, body.company, body.job_url))
         except KeyError as error:
             raise HTTPException(404, f"Unknown template: {error.args[0]}") from error
 

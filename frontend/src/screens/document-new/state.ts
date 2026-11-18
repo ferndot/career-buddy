@@ -108,6 +108,7 @@ export function buildBody(w: Wizard, kind: DocKind): TailorBody {
 /** The save request: the writer's sections (the layout) and the user's own words, kept apart. */
 export function buildSave(w: Wizard, kind: DocKind, t: Template): SaveBody {
   const b = buildBody(w, kind)
+  const fit = w.review && w.review.result !== 'unavailable' ? w.review.result : undefined
   const { role, company } = w.docs[kind].inputs
   return {
     ...b,
@@ -118,6 +119,8 @@ export function buildSave(w: Wizard, kind: DocKind, t: Template): SaveBody {
     template_instructions: writerInstructions(w.docs[kind], t),
     font: 'sans',
     paper: 'letter',
-    label: [role, company].filter(Boolean).join(' · ') || t.label,
+    job_title: (fit?.title || role || '').trim(), // the server names the document from these, and falls back to the template's label
+    company: (fit?.company || company || '').trim(),
+    job_url: w.noJob ? '' : w.jobUrl.trim(),
   }
 }

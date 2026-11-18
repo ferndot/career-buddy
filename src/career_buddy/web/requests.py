@@ -55,7 +55,10 @@ class SaveRequest(TailorRequest):
 
     font: Literal["sans", "serif"] = "sans"
     paper: Literal["letter", "a4"] = "letter"
-    label: str = ""  # a name for the saved document; empty means the file name
+    label: str = ""  # a name for the saved document; empty means the job title with the company, else the template's label
+    job_title: str = Field("", max_length=200)  # the posting's title: names the document and its file
+    company: str = Field("", max_length=200)
+    job_url: str = Field("", max_length=2000)  # where the posting was found; kept only when it is an http(s) link
     sections: list[Section] = Field([], max_length=12)  # what the writer wrote (a draft's `sections`): the structure of the document, kept apart from `overrides`, which is the user's own wording
     instructions: str = Field("", max_length=2000)  # the user's directions for the writer, kept for regenerating
     resume_pages: ResumeLength = "default"  # this resume's length, kept for regenerating

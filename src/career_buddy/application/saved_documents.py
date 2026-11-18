@@ -69,10 +69,11 @@ class SavedSource:
     instructions: str = ""  # the user's directions for the writer
     resume_pages: ResumeLength = "default"  # how long a resume should be
     template_instructions: str = ""  # the template's and the chosen style's instructions for the writer
+    job_url: str = ""  # where the posting was found; empty when it was pasted
 
     @staticmethod
-    def of(template: str, options: TailorOptions, instructions: str, resume_pages: ResumeLength, template_instructions: str = "") -> SavedSource:
-        return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages, template_instructions)
+    def of(template: str, options: TailorOptions, instructions: str, resume_pages: ResumeLength, template_instructions: str = "", job_url: str = "") -> SavedSource:
+        return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages, template_instructions, job_url)
 
     def options(self, overrides: dict[str, str]) -> TailorOptions:
         return TailorOptions(self.job_text, overrides, self.inputs)
@@ -86,6 +87,13 @@ class SavedContent:
     overrides: dict[str, str]  # the user's own wording, by slot id
     generated: dict[str, Written]  # what a writer wrote, by slot id
     source: SavedSource | None  # None for a document saved before sources were kept
+
+
+def document_name(title: str, company: str, fallback: str) -> tuple[str, str | None]:
+    """The label (the job title, then ` · company` when known; `fallback` with no title) and the file name stem (the title made safe for file names, None with no title)."""
+    title, company = " ".join(title.split()), " ".join(company.split())
+    stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-")
+    return (f"{title} · {company}" if company else title) if title else fallback, stem or None
 
 
 def _prefix(doc_id: str) -> str:
@@ -123,23 +131,25 @@ class SavedDocuments:
 
     async def save(self, template: str, style: Style, options: TailorOptions, label: str = "",
                    written: WrittenDocument | None = None, instructions: str = "", resume_pages: ResumeLength = "default",
-                   template_instructions: str = "") -> SavedMeta:
+                   template_instructions: str = "", job_title: str = "", company: str = "", job_url: str = "") -> SavedMeta:
         """Keep the layout, what the user wrote (`options.overrides`, by slot id or fact id), what a writer wrote (`written`: its sections are
         the layout, its texts `generated.json`) and what the document was built from. The facts' own text is not kept: it is found when
         the document is read."""
         html, stem = await self._layout(template, options, written)
+        named, title_stem = document_name(job_title, company, get_template(template).label)
+        stem = title_stem or stem
         slots = self._html.slots(html)
         overrides = layout_overrides(options.overrides, (slot.id for slot in slots))
         made = written_for(slots, texts(written) if written else {}, await self._documents.lookup())
         issues = (await self._documents.export(await self._document(template, html, overrides, made), DEFAULT_FORMAT, style, stem)).issues
         doc_id = uuid.uuid4().hex
-        meta = SavedMeta(doc_id, label.strip() or stem, template, stem, datetime.now(UTC).isoformat(),
+        meta = SavedMeta(doc_id, label.strip() or named, template, stem, datetime.now(UTC).isoformat(),
                          [issue.code for issue in issues], style.font, style.paper)
         self._put(doc_id, "document.html", html.encode(), "text/html")
         self._put(doc_id, "document.css", self._html.css(style, get_template(template).layout).encode(), "text/css")
         self._put(doc_id, "overrides.json", overrides)
         self._put(doc_id, "generated.json", {k: asdict(w) for k, w in made.items()})
-        self._put(doc_id, "source.json", asdict(SavedSource.of(template, options, instructions.strip(), resume_pages, template_instructions.strip())))
+        self._put(doc_id, "source.json", asdict(SavedSource.of(template, options, instructions.strip(), resume_pages, template_instructions.strip(), job_url.strip() if re.fullmatch(r"https?://\S+", job_url.strip(), re.I) else "")))
         self._put(doc_id, "meta.json", asdict(meta))  # last: a record means a complete save
         return meta
 

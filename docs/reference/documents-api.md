@@ -145,7 +145,7 @@ line then shows the fact's own words (`not_rewritten`), any other text is empty 
 - `503` with `{"detail", "code": "llm_unavailable"}`: no model is set up, it did not answer, or its answer is not a document of the shape above.
   `502` with `{"detail", "code": "ungrounded", "rejected": [{"slot", "reasons"}]}`: more than 30% of the written texts (not counting pinned
   ones or skills lines) were still rejected after the revision, or none was kept. The client keeps its last draft.
-- To keep a draft, send its `sections` when saving (see [Saved documents API](saved-documents-api.md)).
+- To keep a draft, send its `sections` when saving (see [Saved documents API](saved-documents-api.md)). When saving, send the posting review's `job_title` and `company` (and `job_url` when the posting came from a link) so the document is named for the job.
 
 ## Reviewing a job posting
 

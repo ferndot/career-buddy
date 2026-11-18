@@ -1,6 +1,8 @@
-import { Box, Button, Menu, Portal, Table, Text } from '@chakra-ui/react'
+import { Box, Button, Link, Table, Text } from '@chakra-ui/react'
 import { useState } from 'react'
-import { DOWNLOAD_FORMATS, downloadSaved, type SavedDocument } from './api'
+import { Link as RouterLink } from 'react-router-dom'
+import { type SavedDocument } from './api'
+import { DownloadMenu } from './DownloadMenu'
 
 export const KIND_LABEL = { resume: 'Resume', letter: 'Cover letter' } as const
 export type Kind = keyof typeof KIND_LABEL
@@ -30,11 +32,6 @@ type Props = { rows: Row[]; onDelete: (doc: SavedDocument) => void }
 
 export function DocumentsTable({ rows, onDelete }: Props) {
   const [error, setError] = useState('')
-  const get = (doc: SavedDocument, format: string) =>
-    downloadSaved(doc, format).then(
-      () => setError(''),
-      (e: Error) => setError(`${doc.label}: ${e.message}`),
-    )
   return (
     <Box bg="app.surface" borderWidth="1px" borderColor="app.border" borderRadius="lg" overflowX="auto">
       <Table.Root size="md" variant="line" color="app.text">
@@ -53,7 +50,9 @@ export function DocumentsTable({ rows, onDelete }: Props) {
         <Table.Body>
           {rows.map(({ doc: d, kind, templateLabel }) => (
             <Table.Row key={d.id} bg="transparent">
-              <Table.Cell fontWeight="semibold" {...cell}>{d.label}</Table.Cell>
+              <Table.Cell fontWeight="semibold" {...cell}>
+                <Link asChild color="app.text"><RouterLink to={`/documents/${d.id}`}>{d.label}</RouterLink></Link>
+              </Table.Cell>
               <Table.Cell {...cell}>{kind ? KIND_LABEL[kind] : '—'}</Table.Cell>
               <Table.Cell {...cell}>{templateLabel}</Table.Cell>
               <Table.Cell whiteSpace="nowrap" {...cell}>
@@ -61,22 +60,7 @@ export function DocumentsTable({ rows, onDelete }: Props) {
               </Table.Cell>
               <Table.Cell {...cell}><AtsTag issues={d.ats_issues.length} /></Table.Cell>
               <Table.Cell {...cell}>
-                <Menu.Root>
-                  <Menu.Trigger asChild>
-                    <Button size="sm" variant="outline" borderColor="app.borderStrong" color="app.text" aria-label={`Download ${d.label}`}>
-                      Download
-                    </Button>
-                  </Menu.Trigger>
-                  <Portal>
-                    <Menu.Positioner>
-                      <Menu.Content bg="app.surface" color="app.text" borderColor="app.border">
-                        {DOWNLOAD_FORMATS.map((f) => (
-                          <Menu.Item key={f.format} value={f.format} onClick={() => void get(d, f.format)}>{f.label}</Menu.Item>
-                        ))}
-                      </Menu.Content>
-                    </Menu.Positioner>
-                  </Portal>
-                </Menu.Root>
+                <DownloadMenu doc={d} onResult={setError} />
               </Table.Cell>
               <Table.Cell {...cell}>
                 <Button size="sm" variant="ghost" color="app.link" aria-label={`Delete ${d.label}`} onClick={() => onDelete(d)}>

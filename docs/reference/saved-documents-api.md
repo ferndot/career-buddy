@@ -12,7 +12,7 @@ A saved document is **live**. It is kept as a layout plus what the user and the 
 | `document.css` | the look, from the saved `font` and `paper` |
 | `overrides.json` | `{slot id: the user's own wording}`; `{}` when nothing was written by hand |
 | `generated.json` | `{slot id: {text, source}}`: what the writer wrote. `source` is what the slot's facts said then, for a bullet, an education line and the skills lines |
-| `source.json` | what the document was built from: `template`, `job_text`, `inputs`, the `instructions` given to the writer and `resume_pages` (`"default"` or `1`: this resume's length; a document saved with `2` or `3` reads as `"default"`). No text |
+| `source.json` | what the document was built from: `template`, `job_text`, `inputs`, the `instructions` given to the writer and `resume_pages` (`"default"` or `1`: this resume's length; a document saved with `2` or `3` reads as `"default"`) and `job_url` (where the posting was found: an http(s) link, else `""`, also for a document saved before it was kept). No text |
 
 Every text line in `document.html` is a **slot**: `data-slot` (the slot id), `data-fact-id` (the fact or facts it shows, separated
 by spaces), `data-field` (which value of the fact) and `data-origin` (`fact`, `user`, `suggestion`, `boilerplate`). Section titles
@@ -77,9 +77,18 @@ when there are any.
 
 `POST` takes the body of `POST /api/documents/render` without `format`
 (`template`, `job_text`, `inputs`, `overrides`, `font`, `paper`; `overrides` as above)
-plus `label` (default empty: the record's label is the file name without its extension), `sections` (default `[]`),
+plus `job_title` and `company` (default empty), `job_url` (default empty), `label` (default empty), `sections` (default `[]`),
 `instructions` (default empty, at most 2000 characters, kept for regenerating) and `resume_pages` (`"default"` or `1`, default `"default"`: the
 length of this resume, kept for regenerating; a letter ignores it). An unknown template answers `404`.
 Missing required inputs answer `422`. A `format` field is ignored.
+
+**Naming.** With no `label`, the record's `label` is `job_title`, then ` · company` when there is one (`Data Platform Engineer · Contoso Data`),
+and `filename` is `job_title` with every run of other characters than letters and digits made a hyphen (`Data-Platform-Engineer`).
+With no `job_title` the label is the template's label and `filename` is the profile name and the template (`Jane-Doe-Resume`). A `company` alone names nothing.
+A `label` that is sent wins for the label. Documents saved before this keep their labels.
+
+**The listing link.** `job_url` is kept in `source.json` only when it is a single `http://` or `https://` address; anything else is stored as empty.
+`GET /api/saved-documents/{id}/content` returns it as `source.job_url`, with the document's `html`, `css` and `slots`, which is all the app's
+detail page (`/documents/{id}`) needs: the title (the record's `label`), the link (or "No link saved") and the document as it reads now.
 
 docx and txt are made from the stored HTML and ignore its CSS. PDF is made the same way for now, so it also ignores the CSS.

@@ -92,13 +92,18 @@ export type SaveBody = TailorBody & {
   template_instructions: string // the template's and the chosen style's instructions, kept for regenerating
   font: 'sans' | 'serif'
   paper: 'letter' | 'a4'
-  label: string
+  job_title: string // the posting's title, then its company, name the saved document
+  company: string
+  job_url: string // where the posting was fetched from; empty when its text was pasted
 }
 
 export const SAVED_KEY = ['saved-documents']
 export const getSavedDocuments = () => apiFetch<SavedDocument[]>(endpoints.savedDocuments.list())
 export const saveDocument = (body: SaveBody) =>
   apiFetch<SavedDocument>(endpoints.savedDocuments.create(), { method: 'POST', body })
+/** What the detail page shows: the saved layout, the text of each slot as it reads now, and the source (its `job_url` is the listing link). */
+export type SavedContent = { html: string; css: string; slots: Record<string, string>; source: { job_url?: string } | null }
+export const getSavedContent = (id: string) => apiFetch<SavedContent>(endpoints.savedDocuments.content(id))
 export const deleteSavedDocument = (id: string) =>
   apiFetch<void>(endpoints.savedDocuments.remove(id), { method: 'DELETE' })
 

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CareerScreen } from '../screens/career'
-import { DocumentsScreen } from '../screens/documents'
+import { DocumentDetailScreen, DocumentsScreen } from '../screens/documents'
 import { NewDocumentScreen } from '../screens/document-new'
 import { SettingsScreen } from '../screens/settings'
 import { SourcesScreen } from '../screens/sources'
@@ -15,6 +15,7 @@ export function AppRoutes() {
         <Route path="/career" element={<CareerScreen />} />
         <Route path="/documents" element={<DocumentsScreen />} />
         <Route path="/documents/new" element={<NewDocumentScreen />} />
+        <Route path="/documents/:id" element={<DocumentDetailScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/sources" replace />} />
       </Route>
