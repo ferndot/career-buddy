@@ -16,6 +16,8 @@ Back up the `data` folder if you cannot lose it. Do not share it: it holds your 
 
 You do not need to know how to code. You need Docker Desktop and a terminal (PowerShell on Windows, Terminal on macOS).
 
+**Quick start:** install Docker Desktop, download and unzip the code, open a terminal in that folder, then run `make run` (or `docker compose up --build -d`). Open http://localhost:8080. The steps below explain each part.
+
 1. Install [Docker Desktop](https://docs.docker.com/get-docker/), start it, and wait until it says Docker is running.
 
 2. Get the code. Either:
