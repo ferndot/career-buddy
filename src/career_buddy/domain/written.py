@@ -20,7 +20,7 @@ the same fact. A person's pinned slot is never lost: the writer's text for it is
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import replace
 
 from pydantic import BaseModel, ConfigDict
@@ -179,6 +179,12 @@ def validated(brief: Brief, doc: WrittenDocument) -> WrittenDocument:
     first = {s.key: s for s in reversed(doc.sections)}
     kept = {key: (_experience if key == "experience" else _items)(brief, first[key], facts) for key in brief.sections if key in first}
     return pinned(brief, numbered(WrittenDocument(sections=tuple(Section(key=k, items=tuple(i)) for k in brief.sections if (i := kept.get(k))))))
+
+
+def merged(previous: WrittenDocument, submitted: WrittenDocument, revise: Collection[str]) -> WrittenDocument:
+    """`previous` with the text of each slot in `revise` taken from `submitted`, if it has one. Every other text stays as it was, whatever `submitted` holds."""
+    new = {slot: (text, ids) for slot, text, ids in nodes(submitted)}
+    return mapped(previous, lambda slot, text, ids: new.get(slot, (text, ids)) if slot in revise else (text, ids))
 
 
 def pinned(brief: Brief, doc: WrittenDocument) -> WrittenDocument:

@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given, strategies as st
 from pydantic import ValidationError
 
-from career_buddy.adapters.inference.document_writer import payload, system_prompt
+from career_buddy.adapters.inference.writer_graph import payload, system_prompt
 from career_buddy.adapters.outputs.render_html import stored_html
 from career_buddy.adapters.readers.html_document import read_slots
 from career_buddy.adapters.outputs.render_markdown import MarkdownRenderer
@@ -60,11 +60,9 @@ def test_the_context_has_facts_sections_posting_directions_and_the_system_messag
     assert set(sent["facts"]) == {"positions", "skills", "education"} and "caps" not in sent and "template_instructions" not in sent
     system = system_prompt(brief)
     assert "summary, experience, education, skills" in system and "Template instructions: Compact modern resume." in system
-    assert "at most 2 pages, and do not state a page count. At most 5 bullets for each position and 15 skills" in system and "Answer with one JSON object" in system
+    assert "at most 2 pages, and do not state a page count. At most 5 bullets for each position and 15 skills" in system and "submit_document" in system
     letter = system_prompt(Brief("letter", FACTS, sections=(LETTER,), template_instructions="Three short paragraphs."))
     assert "Template: write these sections, in this order: body." in letter and "Length:" not in letter and "cover letter" in letter and "Three short paragraphs." in letter
-    repair = system_prompt(brief, repair=True)
-    assert "were rejected" in repair and "Answer with one JSON object" not in repair
 
 
 def test_the_writer_reads_each_position_with_its_achievements_together_and_is_not_told_one_item_per_fact() -> None:
@@ -85,7 +83,6 @@ def test_the_general_rules_for_the_kind_are_in_the_system_message_and_come_from_
     own = system_prompt(Brief("resume", FACTS, sections=MODERN, rules=("Keep every bullet under ten words.",)))
     assert "Keep every bullet under ten words." in own and "3 to 6 bullets" not in own  # a person's own set replaces the default
     assert "General rules" not in system_prompt(Brief("resume", FACTS, sections=MODERN))
-    assert "General rules" not in system_prompt(Brief("resume", FACTS, rules=DEFAULT_RULES["resume"]), repair=True)
     assert "CONDENSE" in resume and "SEPARATE" in resume and "HYBRID" in resume and "CONDENSE" not in letter
 
 

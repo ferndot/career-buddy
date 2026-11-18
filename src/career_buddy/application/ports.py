@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from career_buddy.domain.ats import Extracted
+from career_buddy.domain.coverage import Checked
 from career_buddy.domain.document import Document, Style
 from career_buddy.domain.events import Event
-from career_buddy.domain.generation import Brief, Claim, Rejection
+from career_buddy.domain.generation import Brief
 from career_buddy.domain.written import WrittenDocument
 from career_buddy.domain.model import Fact, FactBatch
 from career_buddy.domain.review import Review
@@ -93,15 +94,17 @@ class Rewriter(Protocol):
     async def rewrite(self, text: str, terms: Sequence[str], job_text: str = "") -> str: ...
 
 
+Accept = Callable[[Checked | None, WrittenDocument], Awaitable[Checked]]
+"""The checks, run by the application on each document a writer submits: (the document accepted so far, the submitted one) -> the new
+accepted document. They hold the rules (`domain.written.validated`, `domain.grounding`), so a writer holds none."""
+
+
 class DocumentWriter(Protocol):
-    """LLM that writes a whole document, as sections of items in the template's order, from the facts a document prints. Its
-    output is never trusted: it goes through `domain.written.validated` and every claim through `domain.grounding`. LLMUnavailable
-    when the model cannot answer."""
+    """LLM that writes a whole document, as sections of items in the template's order, from the facts a document prints. It
+    submits its document to `accept` and may revise what `accept` rejects, within its own call budget; it returns the last result.
+    Its output is never trusted. LLMUnavailable when the model cannot answer."""
 
-    async def write(self, brief: Brief) -> WrittenDocument: ...
-
-    async def repair(self, brief: Brief, failed: Sequence[Rejection]) -> dict[str, Claim]:
-        """One more try at the claims that failed, by slot id. Only those slots come back."""
+    async def write(self, brief: Brief, accept: Accept) -> Checked: ...
 
 
 class JobReviewer(Protocol):

@@ -13,7 +13,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from career_buddy.adapters.inference.document_writer import ProviderDocumentWriter
+from career_buddy.adapters.inference.chat_models import chat_model
+from career_buddy.adapters.inference.writer_graph import GraphDocumentWriter
 from career_buddy.adapters.inference.job_reviewer import ProviderJobReviewer
 from career_buddy.adapters.inference.openai_compatible import openai_client
 from career_buddy.adapters.inference.presets import BY_ID, PRESETS, Preset
@@ -234,7 +235,7 @@ class LLMConnections:
         client = self._client(conn, key)
         provider = (StructuredAnthropicProvider(client, conn.model) if conn.preset == "anthropic"
                     else StructuredOpenAIProvider(client, conn.model))
-        return Inference(RedstringExtractor(provider), ProviderRewriter(provider), ProviderDocumentWriter(provider), ProviderJobReviewer(provider))
+        return Inference(RedstringExtractor(provider), ProviderRewriter(provider), GraphDocumentWriter(chat_model(conn.preset, conn.base_url, conn.model, key, self._transport)), ProviderJobReviewer(provider))
 
     async def test(self, conn_id: str | None, draft: dict[str, Any]) -> dict[str, Any]:
         """Ask the server for its model list. No resume text is sent and nothing is billed."""

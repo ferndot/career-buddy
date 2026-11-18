@@ -1,8 +1,7 @@
 # Example writer input: Modern resume
 
 The exact messages the document writer sends to the model for the `resume-modern` template (one call writes the whole document).
-Regenerate this file from the code, not by hand: it is built by `adapters/inference/document_writer.py` (`system_prompt`, `payload`) and
-`adapters/inference/structured.py` (`instructions`, which appends the JSON Schema) from a fictional fixture: Northwind Labs, Tailspin
+Regenerate this file from the code, not by hand: it is built by `adapters/inference/writer_graph.py` (`system_prompt`, `payload`) from a fictional fixture: Northwind Labs, Tailspin
 Analytics and the University of Aldermoor are made up, and no name or contact detail is ever sent. The facts are the person's visible
 career facts, each position with its achievements together; the system message holds the prompt (the grounding rules and the document
 kind's section shapes, including the layout rule for several positions at one company), the general resume rules
@@ -43,10 +42,7 @@ General rules for a resume (defaults: the template's instructions and the length
 Template: write these sections, in this order: summary, experience, education, skills.
 Template instructions: Compact modern resume. A one or two sentence summary that leads with the strongest proof. Tight bullets that open with the outcome and then say how; no filler.
 Length: this resume is 1 page long. At most 3 bullets for each position and 10 skills in all.
-Answer with one JSON object, {"sections": [...]}. Each section is {"key", "items"} with a key from "sections", in that order, each once. Write nothing but the JSON.
-
-Reply with one JSON object that matches this JSON Schema, and nothing else:
-{"$defs": {"Bullet": {"properties": {"text": {"title": "Text", "type": "string"}, "fact_ids": {"default": [], "items": {"type": "string"}, "title": "Fact Ids", "type": "array"}}, "required": ["text"], "title": "Bullet", "type": "object"}, "Item": {"properties": {"text": {"default": "", "title": "Text", "type": "string"}, "fact_ids": {"default": [], "items": {"type": "string"}, "title": "Fact Ids", "type": "array"}, "position_id": {"default": "", "title": "Position Id", "type": "string"}, "also": {"default": [], "items": {"type": "string"}, "title": "Also", "type": "array"}, "bullets": {"default": [], "items": {"$ref": "#/$defs/Bullet"}, "title": "Bullets", "type": "array"}}, "title": "Item", "type": "object"}, "Section": {"properties": {"key": {"title": "Key", "type": "string"}, "items": {"default": [], "items": {"$ref": "#/$defs/Item"}, "title": "Items", "type": "array"}}, "required": ["key"], "title": "Section", "type": "object"}}, "properties": {"sections": {"items": {"$ref": "#/$defs/Section"}, "title": "Sections", "type": "array"}}, "required": ["sections"], "title": "WrittenDocument", "type": "object"}
+Submit the document by calling the tool submit_document once, with {"sections": [...]}. Each section is {"key", "items"} with a key from "sections", in that order, each once. Do not answer in text. The reply to your call lists the texts that were rejected, if any; then you submit once more.
 ````
 
 ## User message

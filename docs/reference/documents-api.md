@@ -76,7 +76,7 @@ message (JSON): every fact the document prints as `{id, kind, text, position_id,
 their dates, achievements with their result, skills, education; a hidden fact is not sent), the `sections` to write, the
 company and role, the `directions`, the posting (cut to 6000 characters), the job terms the facts cover (`job_terms`) and lack
 (`missing_terms`) and the `pinned` slot ids. No name or contact details are sent. The prompt is the versioned text file
-`adapters/inference/prompts/document_writer_v7.txt`.
+`adapters/inference/prompts/document_writer_v8.txt`.
 
 **What it writes.** The template's sections in the template's order (a resume's `sections`: for example summary, experience,
 skills, education), each a list of items:
@@ -114,7 +114,7 @@ space for the last 10 to 15 years, older roles condensed into an "Earlier" line 
 more; no claim beyond the facts. The letter rules: 250 to 400 words in three or four short paragraphs, not repeating the resume, the exact
 company and role from the posting, no cliches, no "To Whom It May Concern", no greeting or sign-off unless the template asks. They shape
 style and selection only: the grounding rules are the prompt's, are unchanged, and the template's instructions and length win where they
-differ. They are not sent for a repair call.
+differ. They are not repeated in the revision.
 
 **Slot ids and the user's edits.** Every text has a slot id, the key of the user's own words (`overrides`) and of the saved layout:
 `summary`, `skills`, `edu:<first cited education id>`, `para:<n>` and, for a bullet, `bullet:<first cited achievement id>`
@@ -126,12 +126,12 @@ words take its place); if the model left it out, it is added to its section, a b
 text left with none is rejected. A number, a capitalised name, a skill, a company or role, or a job term the facts lack is
 rejected; a bullet and an education line are held to the achievements or education entries they cite, with protected titles,
 employers, degrees and schools unchanged; a skills line may name only skills it cites. All rejected texts go back to the model in
-**one** repair call, with the reasons; nothing more is asked after it. A text still rejected is flagged: a bullet or education
+**one** revision (the model calls the same tool once more, told the reasons); only the rejected texts change and accepted text is kept as it is; nothing more is asked after it. A text still rejected is flagged: a bullet or education
 line then shows the fact's own words (`not_rewritten`), any other text is empty (`rejected`). `reasons` says why.
 
 - `503` with `{"detail", "code": "llm_unavailable"}`: no model is set up, it did not answer, or its answer is not a document of the shape above.
   `502` with `{"detail", "code": "ungrounded", "rejected": [{"slot", "reasons"}]}`: more than 30% of the written texts (not counting pinned
-  ones or skills lines) were still rejected after the repair, or none was kept. The client keeps its last draft.
+  ones or skills lines) were still rejected after the revision, or none was kept. The client keeps its last draft.
 - To keep a draft, send its `sections` when saving (see [Saved documents API](saved-documents-api.md)).
 
 ## Reviewing a job posting

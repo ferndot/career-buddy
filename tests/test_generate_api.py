@@ -1,5 +1,5 @@
-"""Generating a resume or letter over HTTP, with the LLM mocked at the transport: what the writer is sent, what it may write,
-grounding, the one repair call, and the flags and thresholds that follow."""
+"""Generating a resume or letter over HTTP, with the LLM mocked at the transport as a tool-calling chat model: what the writer is sent, what it
+may write, grounding, the one revision, and the flags and thresholds that follow."""
 
 import json
 from pathlib import Path
@@ -20,26 +20,34 @@ ETL = "Built ETL jobs"
 
 
 class Model:
-    """A mocked model. `write` and `repair` get the payload the writer sent and return the JSON object it answers with.
-    `repair=None` makes the repair call fail with a server error."""
+    """A mocked tool-calling model. `write` and `repair` get the payload the writer sent (a revision adds "failed": what the tool replied) and return
+    the document it submits. `repair=None` makes the revision call fail with a server error. `plain` answers in text, with no tool call."""
 
-    def __init__(self, write=lambda p: {}, repair=None, status: int = 200) -> None:
-        self.write, self.repair, self.status = write, repair, status
+    def __init__(self, write=lambda p: {}, repair=None, status: int = 200, plain: bool = False) -> None:
+        self.write, self.repair, self.status, self.plain = write, repair, status, plain
         self.payloads: list[dict] = []
         self.systems: list[str] = []  # the system prompt of each call
+        self.replies: list[str] = []  # what the tool replied to the model, before each revision
 
     def respond(self, request: httpx.Request) -> httpx.Response:
         if self.status != 200:
             return httpx.Response(self.status, text="no")
         messages = json.loads(request.content)["messages"]
-        payload = json.loads(messages[-1]["content"])
+        payload = json.loads(messages[1]["content"])
         payload["facts"] = flat(payload["facts"])
+        revising = messages[-1]["role"] == "tool"
+        if revising and "rejected" in messages[-1]["content"]:
+            self.replies.append(messages[-1]["content"])
+            payload["failed"] = json.loads(messages[-1]["content"].split("\n\n", 1)[1])["rejected"]
         self.payloads.append(payload)
         self.systems.append(messages[0]["content"])
-        answer = self.repair if "failed" in payload else self.write
+        answer = self.repair if revising else self.write
         if answer is None:
             return httpx.Response(500, text="no")
-        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(answer(payload))}}]})
+        if self.plain:
+            return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "Here is your resume."}}]})
+        call = {"id": f"call{len(self.payloads)}", "type": "function", "function": {"name": "submit_document", "arguments": json.dumps(answer(payload))}}
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [call]}}]})
 
 
 def flat(facts: dict) -> list[dict]:
@@ -128,6 +136,19 @@ def good(p: dict) -> dict:
         section("summary", {"text": "Platform engineer who cut build times by 60%.", "fact_ids": [find(p, "Senior Engineer", "position"), cut]}),
         experience(p, (cut, "Reduced build times by 60%"), (kube, "Moved 40 services to Kubernetes"), (etl, "Built ETL jobs")),
         section("skills", {"text": "Kubernetes, Python", "fact_ids": [find(p, "Kubernetes", "skill"), find(p, "Python", "skill")]})]}
+
+
+def redo(p: dict, text) -> dict:
+    """A revision as the model would submit it: each rejected text written again by `text(rejection)`; None leaves it out."""
+    out = []
+    for f in p["failed"]:
+        if (new := text(f)) is None:
+            continue
+        if f["slot"].startswith("bullet:"):
+            out.append(experience(p, (f["fact_ids"][0], new))["items"][0])
+        else:
+            out.append(section(f["slot"].split(":")[0], {"text": new, "fact_ids": f["fact_ids"]}))
+    return {"sections": [section("experience", *(i for i in out if "bullets" in i))] + [s for s in out if "bullets" not in s]}
 
 
 def letter_answer(*paragraphs: tuple[str, list[str]]) -> dict:
@@ -282,43 +303,42 @@ def test_a_letter_is_one_body_block_of_the_models_paragraphs_with_the_company_an
     assert draft["slots"]["para:2"].startswith("As Senior Engineer I cut build times by 60%") and len(nodes(draft, "body")[1]["fact_ids"]) == 2
 
 
-# --- grounding, the repair and the thresholds ---
+# --- grounding, the revision and the thresholds ---
 
-def test_an_invented_number_is_rejected_and_the_one_repair_call_covers_only_that_slot_and_its_reasons(tmp_path: Path) -> None:
+def test_an_invented_number_is_rejected_and_the_one_revision_is_told_only_that_slot_and_its_reasons(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
         bullets(out)[0]["text"] = "Reduced build times by 90%"
         return out
 
     def repair(p):
-        return {"slots": [{"slot": s["slot"], "text": "Reduced build times by 60%", "fact_ids": s["fact_ids"]} for s in p["failed"]]}
+        return redo(p, lambda f: "Reduced build times by 60%")
 
     model = Model(write, repair)
     with open_client(tmp_path, model) as client:
         known = ids(client)
         draft = generate(client, RESUME)
-    assert len(model.payloads) == 2  # one writing call and one repair call
+    assert len(model.payloads) == 2  # one writing call and one revision
     failed = model.payloads[1]["failed"]
     assert [f["slot"] for f in failed] == [f"bullet:{known[CUT]}"] and failed[0]["text"] == "Reduced build times by 90%"
     assert "number not in the source: 90" in failed[0]["reasons"][0]
-    assert [f["id"] for f in model.payloads[1]["facts"]] == [known[CUT]]  # only the facts the failed slot cites
     assert draft["slots"][f"bullet:{known[CUT]}"] == "Reduced build times by 60%" and draft["flags"] == {}
 
 
-def test_the_prompt_is_the_versioned_file_for_the_kind_and_the_repair_call_adds_the_repair_rules(tmp_path: Path) -> None:
+def test_the_prompt_is_the_versioned_file_for_the_kind_and_the_tool_reply_carries_the_revise_rules(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
         bullets(out)[0]["text"] = "Reduced build times by 90%"
         return out
 
-    model = Model(write, lambda p: {"slots": []})
+    model = Model(write, lambda p: {"sections": []})
     letter = Model(lambda p: {"sections": []})
     with open_client(tmp_path, model) as client:
         generate(client, RESUME)
-    write, repair = model.systems
+    write, revise = model.systems
     assert write.startswith("You write a person's job application document") and "Write the whole resume at once" in write and "Template instructions:" not in write
-    assert "Write the body of a cover letter" not in write and "were rejected for the reasons given" not in write
-    assert "were rejected for the reasons given" in repair and "Write the whole resume at once" not in repair
+    assert "Write the body of a cover letter" not in write and "were rejected for the reasons given" not in write and "submit_document" in write
+    assert revise == write and "were rejected for the reasons given" in model.replies[0]  # the revise rules come with the tool's reply, in the same conversation
     with open_client(tmp_path / "letter", letter) as client:
         client.post("/api/documents/generate", json=LETTER)
     assert "Write the body of a cover letter" in letter.systems[0] and "Write the whole resume at once" not in letter.systems[0]
@@ -330,11 +350,11 @@ def test_a_second_failure_is_final_a_bullet_shows_the_facts_own_title_flagged_an
         bullets(out)[0]["text"] = "Reduced build times by 90%"
         return out
 
-    model = Model(write, lambda p: {"slots": [{"slot": s["slot"], "text": "Reduced build times by 80%", "fact_ids": s["fact_ids"]} for s in p["failed"]]})
+    model = Model(write, lambda p: redo(p, lambda f: "Reduced build times by 80%"))
     with open_client(tmp_path, model) as client:
         known = ids(client)
         draft = generate(client, RESUME)
-    assert len(model.payloads) == 2  # the repair runs exactly once
+    assert len(model.payloads) == 2  # the revision runs exactly once
     slot = f"bullet:{known[CUT]}"
     assert draft["slots"][slot] == CUT and draft["flags"][slot]["code"] == "not_rewritten" and "80" in draft["flags"][slot]["reasons"][0]
     assert draft["slots"][f"bullet:{known[ETL]}"] == "Built ETL jobs" and set(draft["flags"]) == {slot} and "summary" in draft["slots"]
@@ -346,7 +366,7 @@ def test_a_summary_that_fails_twice_is_left_empty_and_flagged_with_the_reason(tm
         items(out, "summary")[0]["text"] = "Platform engineer with 12 years at Initech."
         return out
 
-    model = Model(write, lambda p: {"slots": []})  # the repair answers nothing
+    model = Model(write, lambda p: {"sections": []})  # the revision answers nothing
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
     assert len(model.payloads) == 2
@@ -355,7 +375,7 @@ def test_a_summary_that_fails_twice_is_left_empty_and_flagged_with_the_reason(tm
     assert any("Initech" in r for r in draft["flags"]["summary"]["reasons"])  # an employer the facts lack
 
 
-def test_a_repair_call_that_fails_leaves_the_slot_flagged_not_a_503(tmp_path: Path) -> None:
+def test_a_revision_call_that_fails_leaves_the_slot_flagged_not_a_503(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
         bullets(out)[1]["text"] = "Moved 40 services to Terraform"
@@ -367,28 +387,28 @@ def test_a_repair_call_that_fails_leaves_the_slot_flagged_not_a_503(tmp_path: Pa
     assert draft["flags"][f"bullet:{known[MIGRATED]}"]["code"] == "not_rewritten" and draft["slots"][f"bullet:{known[MIGRATED]}"] == MIGRATED
 
 
-def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_repaired_with_all_the_facts(tmp_path: Path) -> None:
+def test_an_unknown_id_is_dropped_and_a_slot_citing_no_printed_fact_is_revised(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
         next(s for s in out["sections"] if s["key"] == "experience")["items"][0]["bullets"].append({"text": "Led a team of twelve", "fact_ids": ["not-a-fact"]})  # dropped: there is nothing to repair
         items(out, "summary")[0].update({"text": "Platform engineer.", "fact_ids": ["ghost"]})  # no cited fact is left
         return out
 
-    model = Model(write, lambda p: {"slots": [{"slot": "summary", "text": "Platform engineer.", "fact_ids": [find(p, CUT)]}]})
+    model = Model(write, lambda p: {"sections": [section("summary", {"text": "Platform engineer.", "fact_ids": [find(p, CUT)]})]})
     with open_client(tmp_path, model) as client:
         draft = generate(client, RESUME)
-    assert model.payloads[1]["failed"][0]["reasons"] == ["cites no fact"] and len(model.payloads[1]["facts"]) == 9  # none cited: all
+    assert model.payloads[1]["failed"][0]["reasons"] == ["cites no fact"]
     assert draft["slots"]["summary"] == "Platform engineer." and draft["flags"] == {} and "not-a-fact" not in json.dumps(draft)
 
 
-def test_more_than_30_percent_of_the_slots_rejected_after_the_repair_is_a_502(tmp_path: Path) -> None:
+def test_more_than_30_percent_of_the_slots_rejected_after_the_revision_is_a_502(tmp_path: Path) -> None:
     def write(p):
         out = good(p)
         bullets(out)[0]["text"] = "Reduced build times by 90%"
         bullets(out)[1]["text"] = "Moved 70 services to Kubernetes"  # two of four written slots
         return out
 
-    model = Model(write, lambda p: {"slots": []})
+    model = Model(write, lambda p: {"sections": []})
     with open_client(tmp_path, model) as client:
         res = client.post("/api/documents/generate", json=RESUME)
     assert res.status_code == 502 and res.json()["code"] == "ungrounded" and len(model.payloads) == 2
@@ -405,6 +425,32 @@ def test_an_answer_that_is_not_a_document_is_503_like_any_unreadable_answer(tmp_
         with open_client(tmp_path / str(len(str(answer))), Model(lambda p, a=answer: a)) as client:
             res = client.post("/api/documents/generate", json=RESUME)
         assert res.status_code == 503 and res.json()["code"] == "llm_unavailable"
+
+
+def test_a_model_that_answers_in_text_instead_of_calling_the_tool_is_503(tmp_path: Path) -> None:
+    with open_client(tmp_path, Model(good, plain=True)) as client:
+        res = client.post("/api/documents/generate", json=RESUME)
+    assert res.status_code == 503 and res.json()["code"] == "llm_unavailable" and "tools" in res.json()["detail"]
+
+
+def test_the_model_is_called_at_most_twice_and_accepted_text_is_never_rewritten_by_the_revision(tmp_path: Path) -> None:
+    def write(p):
+        out = good(p)
+        bullets(out)[0]["text"] = "Reduced build times by 90%"
+        return out
+
+    def repair(p):  # the revision resends the whole document with other wording for an accepted bullet, and still breaks the rejected one
+        out = good(p)
+        bullets(out)[0]["text"] = "Reduced build times by 91%"
+        bullets(out)[1]["text"] = "Moved 40 services somewhere else"
+        return out
+
+    model = Model(write, repair)
+    with open_client(tmp_path, model) as client:
+        known = ids(client)
+        draft = generate(client, RESUME)
+    assert len(model.payloads) == 2
+    assert draft["slots"][f"bullet:{known[MIGRATED]}"] == "Moved 40 services to Kubernetes" and draft["flags"][f"bullet:{known[CUT]}"]["code"] == "not_rewritten"
 
 
 def test_a_cover_letter_needs_no_inputs_when_a_posting_is_given_and_the_review_supplies_the_company_and_role(tmp_path: Path) -> None:

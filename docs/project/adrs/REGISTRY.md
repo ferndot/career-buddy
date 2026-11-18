@@ -10,3 +10,4 @@
 | ADR-0007 | Domain-Driven Design (DDD) Layering and Explicit Bounded Contexts | Accepted | 2026-09-29 |
 | ADR-0006 | Behavior-Driven Development (BDD) with Gherkin User Stories and Playwright | Accepted | 2026-09-29 |
 | ADR-0008 | Reintroduce redstring as the extraction and graph-store engine (supersedes D7) | Accepted | 2026-11-15 |
+| ADR-0009 | The document writer is a tool-calling model on LangGraph | Accepted | 2026-11-17 |

@@ -30,7 +30,7 @@ Write the body of a cover letter that is uploaded to a job board next to the res
 - Example of the shape: {"sections": [{"key": "body", "items": [{"text": "...", "fact_ids": ["a1", "a2", "s1"]}, {"text": "...", "fact_ids": ["a3"]}, {"text": "...", "fact_ids": ["p1"]}]}]}
 
 ### output
-Answer with one JSON object, {"sections": [...]}. Each section is {"key", "items"} with a key from "sections", in that order, each once. Write nothing but the JSON.
+Submit the document by calling the tool submit_document once, with {"sections": [...]}. Each section is {"key", "items"} with a key from "sections", in that order, each once. Do not answer in text. The reply to your call lists the texts that were rejected, if any; then you submit once more.
 
-### repair
-Some texts you wrote were rejected for the reasons given. "failed" lists each one: its slot id, your text, the ids you cited and the reasons. Write each again so that it passes: fix exactly what the reasons say and keep the rest. Answer with "slots": one {slot, text, fact_ids} for each failed slot, with the same slot id. Leave a slot out if you cannot write it without breaking a rule.
+### revise
+Some texts you wrote were rejected for the reasons given. Call submit_document once more. Write each rejected text again so that it passes: fix exactly what the reasons say and keep the rest. Send only the rejected texts, each in its section and item with its own fact_ids. The accepted texts are kept exactly as they are, whatever you send. Leave a rejected text out if you cannot write it without breaking a rule.

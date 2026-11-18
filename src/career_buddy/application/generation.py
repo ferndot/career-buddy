@@ -1,4 +1,4 @@
-"""Generating the text of a document: ask the writer once for the whole document, check every claim against the facts, repair what failed once.
+"""Generating the text of a document: the writer submits the whole document, every claim is checked against the facts, and the writer revises what failed once.
 
 The result is a draft: the written sections (domain/written.py), each text with the slot id of the saved layout (domain/slots.py).
 It is not stored. To keep a draft the caller saves the document with its sections.
@@ -6,17 +6,18 @@ It is not stored. To keep a draft the caller saves the document with its section
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
 from career_buddy.application.documents import DocumentService, TailorOptions, Tailored
 from career_buddy.application.ports import DocumentWriter, LLMUnavailable, MissingInputs
-from career_buddy.domain.generation import MAX_POSTING, Brief, ResumeLength, Claim, Rejection, brief_facts, caps_for
+from career_buddy.domain.coverage import Checked
+from career_buddy.domain.generation import MAX_POSTING, Brief, ResumeLength, Rejection, brief_facts, caps_for
 from career_buddy.domain.grounding import claims_of, ground
 from career_buddy.domain.templates import position_heading
 from career_buddy.domain.writing_rules import DEFAULT_RULES
-from career_buddy.domain.written import LETTER, Item, WrittenDocument, mapped, numbered, texts, validated
+from career_buddy.domain.written import LETTER, Item, WrittenDocument, mapped, merged, numbered, texts, validated
 
 NO_MODEL = "No model is set up. Connect one in Settings to generate text."
 MAX_REJECTED = 0.3  # more than this share of the written slots rejected after the repair: no draft
@@ -93,10 +94,17 @@ class DocumentGeneration:
         skills = t.profile.skills
         protected = [*(x for p in t.profile.positions for x in (p.title, p.organization)),
                      *(x for e in t.profile.education for x in (e.degree, e.school))]
-        written = validated(brief, await writer.write(brief))
-        kept, rejected = ground(brief, claims_of(brief, written), skills, protected)
-        if rejected:
-            kept, rejected = await self._repaired(writer, brief, kept, rejected, skills, protected)
+
+        async def accept(previous: Checked | None, submitted: WrittenDocument) -> Checked:
+            """What the writer submitted, checked. A revision changes only the slots rejected before: accepted text stays."""
+            doc = validated(brief, submitted)
+            if previous:
+                doc = merged(previous.doc, doc, {r.slot for r in previous.rejected})
+            kept, rejected = ground(brief, claims_of(brief, doc), skills, protected)
+            return Checked(doc, kept, rejected)
+
+        checked = await writer.write(brief, accept)
+        written, kept, rejected = checked.doc, checked.kept, checked.rejected
         counted = [slot for slot in kept if not slot.startswith("skills")]
         weighed = [r for r in rejected if not r.slot.startswith("skills")]  # a skills line is a list, not a claim about the work: it never sinks a draft
         if not counted or len(weighed) > MAX_REJECTED * (len(counted) + len(weighed)):
@@ -113,14 +121,3 @@ class DocumentGeneration:
 
         flags = {r.slot: Flag("not_rewritten" if r.slot.startswith(("bullet:", "edu:")) else "rejected", r.reasons) for r in rejected}
         return Draft(mapped(written, final), flags, dict(t.spec.sections), {p.id: position_heading(p) for p in t.profile.positions})
-
-    async def _repaired(self, writer: DocumentWriter, brief: Brief, kept: dict[str, Claim], rejected: list[Rejection], skills: Sequence[str],
-                        protected: Sequence[str]) -> tuple[dict[str, Claim], list[Rejection]]:
-        """One repair call for the failed slots only. What it does not fix, or does not answer, stays rejected."""
-        failed = {r.slot: r for r in rejected}
-        try:
-            retry = {slot: claim for slot, claim in (await writer.repair(brief, rejected)).items() if slot in failed}
-        except LLMUnavailable:
-            retry = {}
-        fixed, still = ground(brief, retry, skills, protected)
-        return {**kept, **fixed}, [r for r in (failed | {r.slot: r for r in still}).values() if r.slot not in fixed]
