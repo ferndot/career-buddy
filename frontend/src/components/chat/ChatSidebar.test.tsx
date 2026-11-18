@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderApp } from '../../test/render'
 import read from '../../test/fixtures/chat-read.sse?raw'
 import noModel from '../../test/fixtures/chat-no-model.sse?raw'
+import { KEY_STEP } from '../useResizableWidth'
 import { ChatSidebar } from './ChatSidebar'
 
 // The fixtures are what POST /api/chat answered in tests/test_chat_api.py's scenarios: the contract between the two sides.
@@ -16,6 +17,15 @@ function ask(text: string) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('ChatSidebar', () => {
+  it('is resized by its handle, like the log', () => {
+    renderApp(<ChatSidebar open onClose={() => {}} />)
+    const handle = screen.getByLabelText('Resize chat')
+    const before = Number(handle.getAttribute('aria-valuenow'))
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' })
+    expect(handle).toHaveAttribute('aria-valuenow', String(before + KEY_STEP))
+    expect(screen.getByRole('complementary', { name: 'Chat' }).style.getPropertyValue('--chat-width')).toBe(`${before + KEY_STEP}px`)
+  })
+
   it('shows the answer, and a card for the tool the answer used', async () => {
     vi.stubGlobal('fetch', vi.fn(stream(read)))
     renderApp(<ChatSidebar open onClose={() => {}} />)

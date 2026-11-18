@@ -3,11 +3,13 @@ import { AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPr
 import { useAgUiInterrupts, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import { HttpAgent } from '@ag-ui/client'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { LuMessageSquare, LuX } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiUrl } from '../../api/client'
 import { endpoints } from '../../api/endpoints'
+import { ResizeHandle } from '../ResizeHandle'
+import { useResizableWidth } from '../useResizableWidth'
 import { ToolCard } from './ToolCard'
 
 /** The header button that shows or hides the chat. */
@@ -111,6 +113,7 @@ function Chat({ error, clear }: { error: string | null; clear: () => void }) {
  */
 export function ChatSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
+  const size = useResizableWidth('career-buddy.chatWidth')
   const agent = useMemo(() => new HttpAgent({ url: apiUrl(endpoints.chat()) }), [])
   const runtime = useAgUiRuntime({ agent, onError: (e) => setError(e.message) })
   const clear = useMemo(() => () => setError(null), [])
@@ -126,11 +129,14 @@ export function ChatSidebar({ open, onClose }: { open: boolean; onClose: () => v
       borderColor="app.border"
       borderWidth="0 0 0 1px"
       flexShrink={0}
-      w="360px"
+      minW="0"
+      w="var(--chat-width)"
       position="sticky"
       top="0"
       h="100vh"
+      style={{ '--chat-width': `${size.width}px` } as CSSProperties}
     >
+      <ResizeHandle label="Resize chat" size={size} />
       <Flex align="center" mb="3">
         <Text flex="1" fontWeight="semibold" color="app.text">
           Chat

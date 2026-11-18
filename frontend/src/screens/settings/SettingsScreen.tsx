@@ -13,7 +13,6 @@ export function SettingsScreen() {
   const [editing, setEditing] = useState<Connection | undefined>()
   const connections = useConnections()
   const providers = useProviders()
-  const labels = Object.fromEntries((providers.data ?? []).map((p) => [p.id, p.label]))
   const items = connections.data?.connections ?? []
 
   const addButton = (
@@ -43,7 +42,7 @@ export function SettingsScreen() {
             </EmptyState>
           )}
           {items.map((c) => (
-            <ConnectionCard key={c.id} conn={c} active={c.id === connections.data?.active} providerLabel={labels[c.preset] ?? c.preset}
+            <ConnectionCard key={c.id} conn={c} active={c.id === connections.data?.active}
               onEdit={setEditing} />
           ))}
           {items.length > 0 && addButton}

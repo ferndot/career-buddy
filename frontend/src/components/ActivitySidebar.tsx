@@ -3,7 +3,8 @@ import type { CSSProperties } from 'react'
 import { LuArrowLeft, LuScrollText, LuX } from 'react-icons/lu'
 import { ActivityLog, clock, StatusBadge } from './ActivityLog'
 import { useActivityActions, useActivityPanel, type Activity } from './activityStore'
-import { MIN_WIDTH, useResizableWidth } from './useResizableWidth'
+import { ResizeHandle } from './ResizeHandle'
+import { useResizableWidth } from './useResizableWidth'
 
 /** The header button that shows or hides the sidebar. */
 export function LogsButton() {
@@ -61,7 +62,8 @@ function Stream({ activity }: { activity: Activity }) {
 function Panel() {
   const { activities, selected } = useActivityPanel()
   const { close, select } = useActivityActions()
-  const { width, handle, max } = useResizableWidth()
+  const size = useResizableWidth()
+  const { width } = size
   const current = activities.find((a) => a.id === selected)
   return (
     <Box
@@ -82,27 +84,7 @@ function Panel() {
       h="100vh"
       style={{ '--log-width': `${width}px` } as CSSProperties}
     >
-      <Box
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize log"
-        aria-valuenow={width}
-        aria-valuemin={MIN_WIDTH}
-        aria-valuemax={max}
-        tabIndex={0}
-        {...handle}
-        display="block"
-        position="absolute"
-        left="-3px"
-        top="0"
-        bottom="0"
-        w="6px"
-        cursor="col-resize"
-        touchAction="none"
-        borderRadius="full"
-        _hover={{ bg: 'app.borderStrong' }}
-        _focusVisible={{ bg: 'app.primary', outline: 'none' }}
-      />
+      <ResizeHandle label="Resize log" size={size} />
       <Box display="flex" alignItems="center" gap="2" mb="3">
         {current && (
           <Button size="xs" variant="ghost" color="app.link" onClick={() => select(null)} aria-label="Back to all activities">

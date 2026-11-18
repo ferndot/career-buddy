@@ -18,6 +18,8 @@ describe('SettingsScreen', () => {
     renderApp(<SettingsScreen />)
     expect(await screen.findByText('My Ollama')).toBeInTheDocument()
     expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('llama3')).toBeInTheDocument() // the card shows the model only
+    expect(screen.queryByText(/localhost:11434|Ollama ·/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Add a connection/ })).toBeInTheDocument()
   })
 

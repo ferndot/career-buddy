@@ -3,15 +3,15 @@ import { useCallback, useEffect, useState, type KeyboardEvent, type PointerEvent
 export const MIN_WIDTH = 240
 export const DEFAULT_WIDTH = 384
 export const KEY_STEP = 24
-const STORAGE_KEY = 'career-buddy.sourceLogWidth'
+const LOG_KEY = 'career-buddy.sourceLogWidth'
 
 /** Between 240px and 60% of the viewport (never below the minimum, however narrow the viewport). */
 export const clampWidth = (width: number, viewport: number) =>
   Math.min(Math.max(width, MIN_WIDTH), Math.max(MIN_WIDTH, Math.round(viewport * 0.6)))
 
-function stored(): number {
+function stored(key: string): number {
   try {
-    const n = Number(localStorage.getItem(STORAGE_KEY))
+    const n = Number(localStorage.getItem(key))
     return Number.isFinite(n) && n > 0 ? n : DEFAULT_WIDTH
   } catch {
     return DEFAULT_WIDTH
@@ -19,17 +19,17 @@ function stored(): number {
 }
 
 /** Width of a panel whose drag handle is on its left edge: dragging left widens it. Remembered in localStorage when it can be. */
-export function useResizableWidth() {
-  const [width, setWidth] = useState(() => clampWidth(stored(), window.innerWidth))
+export function useResizableWidth(storageKey = LOG_KEY) {
+  const [width, setWidth] = useState(() => clampWidth(stored(storageKey), window.innerWidth))
   const [drag, setDrag] = useState<{ x: number; width: number } | null>(null)
   const set = useCallback((w: number) => setWidth(clampWidth(w, window.innerWidth)), [])
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, String(width))
+      localStorage.setItem(storageKey, String(width))
     } catch {
       /* storage blocked: the width just is not remembered */
     }
-  }, [width])
+  }, [width, storageKey])
   const handle = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       e.currentTarget.setPointerCapture?.(e.pointerId)
