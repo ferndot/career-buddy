@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../../api'
 import first from '../../test/fixtures/chat-interrupt.sse?raw'
+import merge from '../../test/fixtures/chat-merge-interrupt.sse?raw'
 import resumed from '../../test/fixtures/chat-interrupt-resumed.sse?raw'
 import { renderApp } from '../../test/render'
 import { ChatSidebar } from './ChatSidebar'
@@ -9,8 +10,8 @@ import { ChatSidebar } from './ChatSidebar'
 // The fixtures were encoded by the Python ag-ui SDK: a run that ends in a tool_call interrupt, and the run that resumes it.
 const sse = (text: string) => new Response(text, { headers: { 'content-type': 'text/event-stream' } })
 
-function propose() {
-  const fetchMock = vi.fn((_url: string, _init: { body: string }) => Promise.resolve(sse(fetchMock.mock.calls.length === 1 ? first : resumed)))
+function propose(proposal = first) {
+  const fetchMock = vi.fn((_url: string, _init: { body: string }) => Promise.resolve(sse(fetchMock.mock.calls.length === 1 ? proposal : resumed)))
   vi.stubGlobal('fetch', fetchMock)
   renderApp(<ChatSidebar open onClose={() => {}} />)
   fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Make me Staff Engineer' } })
@@ -39,6 +40,16 @@ describe('approval card', () => {
     expect(body.resume).toEqual([{ interruptId: 'call1', status: 'resolved', payload: { approved: true } }])
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['facts'] }))
     for (const key of ['graph', 'duplicates', 'sources']) expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] })
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
+  })
+
+  it('shows a merge with its fact list, and a decline resumes the run as not approved', async () => {
+    const fetchMock = propose(merge)
+    const shown = await screen.findByRole('group', { name: 'Proposed change' })
+    for (const line of ["Merge into Skill 'Python' (kept):", "- 'Py'", "- 'Pyton'"]) expect(shown.textContent).toContain(line)
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).resume).toEqual([{ interruptId: 'call1', status: 'resolved', payload: { approved: false } }])
     expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
   })
 

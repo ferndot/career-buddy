@@ -1,6 +1,6 @@
 # Chat API
 
-The career chat answers questions about the career facts and, with the person's approval, adds, edits and deletes facts. It needs a connected model
+The career chat answers questions about the career facts and, with the person's approval, adds, edits and deletes facts, merges and unmerges them, links and unlinks them, and removes sources. It needs a connected model
 (see [Connect a model](../how-to/connect-a-model.md)).
 
 `POST /api/chat` takes an [AG-UI](https://docs.ag-ui.com) `RunAgentInput` (JSON, camelCase: `threadId`, `runId`, `state`, `messages`, `tools`, `context`,
@@ -24,6 +24,8 @@ The tools run in the server and answer in JSON text. A bad argument or an unknow
 | `list_sources` | none | `{source, facts, status}` for each source |
 | `get_relationships` | `fact_id` | The fact and each link: `{kind, direction, other_id, other_title, other_kind}` |
 
+| `list_merges` | none | `[{canonical: {id, title}, alias: {id, title}}]`: each merge that can be undone, automatic merges included |
+
 Hidden facts are not shown. The model also starts from a short context: the person's name and summary, the number of facts of each kind, and each position
 with its id (at most 30).
 
@@ -34,10 +36,25 @@ with its id (at most 30).
 | `add_fact` | `kind` (`Position`, `Achievement`, `Skill` or `Education`), `title`, `parent_id` (the position's id for an achievement; the others go under the person), `attributes` | Adds the fact. A position's `description` is dropped, so nothing is read into achievements that nobody approved |
 | `edit_fact` | `fact_id`, `title` (optional), `changes` (attributes to set; an empty value removes one; the others stay) | Revises the fact. The summary is `edit_fact` on the person with `changes: {"summary": "..."}` |
 | `delete_fact` | `fact_id` | Deletes the fact for good |
+| `merge_facts` | `canonical_id`, `alias_ids` (one or more) | Merges facts of one kind into the kept fact; the others are shown as it. The card lists the kept fact and each fact merged into it. A merge of several is checked whole first, so it is never half done |
+| `unmerge_fact` | `alias_id`, `canonical_id` (as `list_merges` shows them) | Undoes that merge |
+| `add_relationship` | `source_id`, `target_id`, `kind` (`AT`, `ATTENDED`, `USES_SKILL` or `ACHIEVED`) | Links two facts, for example a position `ACHIEVED` an achievement or a position `USES_SKILL` a skill. Only the kinds the career screen lets you edit, between the kinds it allows |
+| `remove_relationship` | `source_id`, `target_id`, `kind` | Removes that link |
+| `remove_source` | `source` (as `list_sources` shows it) | Removes the source; the card says how many facts it gave. Facts that only it stated are hidden |
 
-All three go through `EditService`, so each change is an event in the log, the same as an edit on the career screen. The tool descriptions tell the model to write
-only what the person said or confirmed. A call that cannot be made (unknown id, missing parent, no person yet, nothing to change) answers `Failed: ...` at once
-and shows no approval card.
+All of them go through `EditService`, so each change is an event in the log, the same as an edit on the career screen. The tool descriptions tell the model to write
+only what the person said or confirmed. A call that cannot be made (unknown id, kinds that do not match, nothing to change, a link already there or not there,
+a merge that was not made, an unknown source) answers `Failed: <the reason>` at once and shows no approval card. Reading relationships stays with
+`get_relationships`.
+
+A card with several lines (a merge) keeps its line breaks:
+
+```
+Merge into Skill 'Python' (kept):
+- 'Py'
+- 'Pyton'
+They are shown as 'Python' from now on. This can be undone.
+```
 
 ## Approved changes
 

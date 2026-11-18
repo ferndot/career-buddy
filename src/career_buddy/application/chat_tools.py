@@ -6,12 +6,13 @@ never an exception, so the model can explain it."""
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any, Literal
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
-from career_buddy.application.ports import FactNotFound
-from career_buddy.application.services import CareerQueries, EditService
+from career_buddy.application.ports import FactNotFound, SourceBusy
+from career_buddy.application.services import EDITABLE_LINKS, CareerQueries, EditService
 from career_buddy.domain.model import FactKind, InvalidFact, normalize
 
 MAX_FACTS = 25
@@ -44,6 +45,26 @@ class EditFact(BaseModel):
     changes: dict[str, str] = {}  # attributes to set; an empty value removes the attribute; the others stay
 
 
+class MergeFacts(BaseModel):
+    canonical_id: str  # the fact that stays
+    alias_ids: list[str] = Field(min_length=1)  # the facts that are shown as it from now on
+
+
+class MergedPair(BaseModel):
+    alias_id: str
+    canonical_id: str  # as list_merges shows it
+
+
+class Relationship(BaseModel):
+    source_id: str  # AT: position -> organization; ATTENDED: education -> organization; USES_SKILL: position or achievement -> skill; ACHIEVED: position -> achievement
+    target_id: str
+    kind: Literal["AT", "ATTENDED", "USES_SKILL", "ACHIEVED"]
+
+
+class SourceName(BaseModel):
+    source: str  # as list_sources shows it
+
+
 APPROVAL = " Needs the person's approval; nothing changes until they approve. Only write what the person said or confirmed in this conversation."
 
 
@@ -53,11 +74,17 @@ TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
     "list_skills": ("List every skill.", NoArguments),
     "list_sources": ("List the sources the facts came from, with how many facts each gave.", NoArguments),
     "get_relationships": ("Show every link of one fact: what it is linked to, and how.", FactRef),
+    "list_merges": ("List the merges that can be undone: the fact kept and the fact now shown as it, automatic merges included.", NoArguments),
     "add_fact": ("Add a position, achievement, skill or education." + APPROVAL, AddFact),
     "edit_fact": ("Change a fact's title or attributes, or the person's summary (attribute summary)." + APPROVAL, EditFact),
     "delete_fact": ("Delete one fact for good; it cannot be undone." + APPROVAL, FactRef),
+    "merge_facts": ("Merge facts of one kind into one kept fact; the others are shown as it. Can be undone with unmerge_fact." + APPROVAL, MergeFacts),
+    "unmerge_fact": ("Undo one merge, as list_merges shows it." + APPROVAL, MergedPair),
+    "add_relationship": ("Link two facts: a position AT an organization, education ATTENDED an organization, a position or achievement USES_SKILL a skill, a position ACHIEVED an achievement." + APPROVAL, Relationship),
+    "remove_relationship": ("Remove one such link between two facts." + APPROVAL, Relationship),
+    "remove_source": ("Remove a source the person registered; the facts only it stated are hidden." + APPROVAL, SourceName),
 }
-WRITES = {"add_fact", "edit_fact", "delete_fact"}
+WRITES = {"add_fact", "edit_fact", "delete_fact", "merge_facts", "unmerge_fact", "add_relationship", "remove_relationship", "remove_source"}
 
 
 def specs() -> list[dict[str, Any]]:
@@ -70,9 +97,10 @@ def _dump(value: object) -> str:
 
 
 class ChatTools:
-    def __init__(self, queries: CareerQueries, edits: EditService) -> None:
+    def __init__(self, queries: CareerQueries, edits: EditService, on_source_removed: Callable[[str], None] = lambda _: None) -> None:
         self._queries = queries
         self._edits = edits
+        self._on_source_removed = on_source_removed  # the web layer drops the source's import log, as DELETE /api/sources does
 
     async def _facts(self, kind: FactKind | None = None) -> list[dict[str, Any]]:
         return [f for f in await self._queries.facts(kind) if f["attributes"].get("hidden") != "true"]  # type: ignore[attr-defined]
@@ -92,7 +120,7 @@ class ChatTools:
             return await getattr(self, f"{prefix}{name}")(args)
         except ValidationError as error:
             return f"Failed: {'; '.join(e['msg'] for e in error.errors())}"
-        except (FactNotFound, InvalidFact) as error:
+        except (FactNotFound, InvalidFact, SourceBusy) as error:
             return f"Failed: {error}"
 
     async def describe(self, name: str, arguments: dict[str, Any]) -> str:
@@ -166,6 +194,83 @@ class ChatTools:
 
     async def _delete_fact(self, args: FactRef) -> str:
         await self._edits.delete(args.fact_id)
+        return "Done"
+
+    async def _merge_plan(self, args: MergeFacts) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """The kept fact and the facts merged into it, checked together first so a merge of several is approved whole and never half done (the service's rules)."""
+        kept = await self._fact(args.canonical_id)
+        aliases = [await self._fact(i) for i in dict.fromkeys(args.alias_ids)]
+        if any(a["id"] == kept["id"] for a in aliases):
+            raise InvalidFact("A fact cannot be merged into itself")
+        if any(a["kind"] != kept["kind"] for a in aliases):
+            raise InvalidFact("Only facts of the same kind can be merged")
+        return kept, aliases
+
+    async def _describe_merge_facts(self, args: MergeFacts) -> str:
+        kept, aliases = await self._merge_plan(args)
+        return (f"Merge into {kept['kind']} '{kept['title']}' (kept):\n" + "\n".join(f"- '{a['title']}'" for a in aliases)
+                + f"\nThey are shown as '{kept['title']}' from now on. This can be undone.")
+
+    async def _merge_facts(self, args: MergeFacts) -> str:
+        kept, aliases = await self._merge_plan(args)
+        for a in aliases:
+            await self._edits.merge(a["id"], kept["id"], False)
+        return "Done"
+
+    async def _merged(self, args: MergedPair) -> dict[str, Any]:
+        found = next((m for m in await self._queries.merges() if (m["alias"]["id"], m["canonical"]["id"]) == (args.alias_id, args.canonical_id)), None)  # type: ignore[index]
+        if found is None:
+            raise FactNotFound("those two are not merged; list_merges shows what can be undone")
+        return found
+
+    async def _describe_unmerge_fact(self, args: MergedPair) -> str:
+        found = await self._merged(args)
+        return f"Show '{found['alias']['title']}' separately from '{found['canonical']['title']}' again"
+
+    async def _unmerge_fact(self, args: MergedPair) -> str:
+        await self._merged(args)
+        await self._edits.merge(args.alias_id, args.canonical_id, True)
+        return "Done"
+
+    async def _list_merges(self, _: NoArguments) -> str:
+        return _dump(await self._queries.merges())
+
+    async def _relationship(self, args: Relationship, adding: bool) -> str:
+        """The link in words. The kinds that fit are EditService's (EDITABLE_LINKS); an add that is there already, or a remove of one that is not, changes nothing."""
+        source, target = await self._fact(args.source_id), await self._fact(args.target_id)
+        if (FactKind(source["kind"]), FactKind(target["kind"])) not in EDITABLE_LINKS[args.kind]:
+            raise InvalidFact(f"{args.kind} links " + " or ".join(f"a {a} to a {b}" for a, b in EDITABLE_LINKS[args.kind]))
+        _, links = await self._links(args.source_id)
+        present = any(link["kind"] == args.kind and link["direction"] == "out" and link["other_id"] == args.target_id for link in links)
+        if present == adding:
+            raise InvalidFact("those are linked that way already" if adding else "those are not linked that way")
+        return f"{source['kind']} '{source['title']}' and {target['kind']} '{target['title']}' ({args.kind})"
+
+    async def _describe_add_relationship(self, args: Relationship) -> str:
+        return "Link " + await self._relationship(args, True)
+
+    async def _add_relationship(self, args: Relationship) -> str:
+        await self._relationship(args, True)
+        await self._edits.add_link(args.source_id, args.target_id, args.kind)
+        return "Done"
+
+    async def _describe_remove_relationship(self, args: Relationship) -> str:
+        return "Unlink " + await self._relationship(args, False)
+
+    async def _remove_relationship(self, args: Relationship) -> str:
+        await self._relationship(args, False)
+        await self._edits.remove_link(args.source_id, args.target_id, args.kind)
+        return "Done"
+
+    async def _describe_remove_source(self, args: SourceName) -> str:
+        found = next((s for s in await self._queries.sources() if s["source"] == args.source), None)
+        if found is None:
+            raise FactNotFound(f"there is no source called {args.source}; list_sources shows them")
+        return f"Remove source '{args.source}'. Its {found['facts']} facts are hidden unless another source states them."
+
+    async def _remove_source(self, args: SourceName) -> str:
+        await self._edits.remove_source(args.source)
+        self._on_source_removed(args.source)
         return "Done"
 
     async def _find_facts(self, args: FindFacts) -> str:

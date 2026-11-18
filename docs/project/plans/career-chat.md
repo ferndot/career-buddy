@@ -1,6 +1,6 @@
 ---
 title: Career chat in a sidebar that edits career data through approved tools
-status: Phase 0, 1 and 2 done (see career-chat-phase0.md)
+status: Phase 0, 1, 2 and 3 done (see career-chat-phase0.md)
 date: 2026-11-17
 target_bc: career editing (application/services.py, new application/chat_tools.py), inference adapter (new adapters/inference/chat_graph.py), web (new web/chat_routes.py), frontend shell (new frontend/src/components/chat/)
 depends_on: none
@@ -351,6 +351,19 @@ Built (phase 2):
 
 - `merge_facts`, `undo_merge`, `add_link`, `remove_link`, `remove_source`, and `CareerQueries.merges()`.
 - The remaining parametrized tests; the manual check list.
+
+Built (phase 3), with different names from the table above:
+
+- Write tools `merge_facts` (`canonical_id` and one or more `alias_ids`, so several facts merge in one approval), `unmerge_fact`, `add_relationship`,
+  `remove_relationship` (kinds `AT`, `ATTENDED`, `USES_SKILL`, `ACHIEVED`) and `remove_source`; read tool `list_merges` over the new `CareerQueries.merges()`.
+  `get_relationships` already covers reading a fact's links.
+- Each write checks, in `describe`, what `EditService` would refuse (unknown ids, kinds, self-merge, a link already there or not there, an unknown source) and
+  answers `Failed: <reason>` with no card. A merge of several is checked whole before any of it runs. The kind rules are repeated from the service (kinds via
+  `EDITABLE_LINKS`, same-kind merge) so the check happens before the card, not at Apply.
+- A merge card is several lines (the kept fact, then one line per merged fact); `ToolCard` keeps the line breaks.
+- `remove_source` calls the web layer's `source_log.drop` through `ChatTools(on_source_removed)`, as `DELETE /api/sources` does. The card says how many facts the
+  source gave, not which are hidden. A source that is being processed answers `Failed:` from the service (`SourceBusy`).
+- Tests: `tests/test_chat_merges.py` and the merge case in `ChatApproval.test.tsx`. The manual check list was not run against a live model.
 
 ### Phase 4: optional token streaming
 

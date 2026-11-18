@@ -30,7 +30,7 @@ export function ToolCard({ toolName, argsText, result, approval, respondToApprov
       </Text>
       {waiting ? (
         <>
-          <Text role="group" aria-label="Proposed change" color="app.text" mt="1" fontSize="sm" overflowWrap="anywhere">
+          <Text role="group" aria-label="Proposed change" color="app.text" mt="1" fontSize="sm" overflowWrap="anywhere" whiteSpace="pre-line">
             {approval.prompt ?? 'Make this change?'}
           </Text>
           <Flex gap="2" mt="2">

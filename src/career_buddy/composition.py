@@ -73,6 +73,7 @@ async def build_app(
     llm_transport: httpx.AsyncBaseTransport | None = None,
     extra_renderers: Sequence[DocumentRenderer] = (),
     page_counter: PageCounter | None = None,
+    source_removed: Callable[[str], None] = lambda _: None,  # told when the chat removes a source, so its import log goes too
 ) -> App:
     log = JsonlEventLog(data_dir / "events.jsonl")
     projector = Projector(RedstringFactGraph())
@@ -110,4 +111,4 @@ async def build_app(
     edits = EditService(log, projector, jobs, extractor)
     queries = CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer"))
     return App(imports, edits, queries, documents,
-               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules, ChatTools(queries, edits))
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules, ChatTools(queries, edits, source_removed))

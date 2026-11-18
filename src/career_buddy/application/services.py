@@ -334,6 +334,13 @@ class CareerQueries:
         batch = await self._graph.snapshot()
         return [fact_json(f) for f in batch.facts if kind is None or f.kind == kind]
 
+    async def merges(self) -> list[dict[str, object]]:
+        """Each merge that can be undone, automatic ones included: the fact kept and the fact now shown as it."""
+        absorbed = await self._graph.absorbed()
+        titles = {f.id: f.title for f in (await self._graph.snapshot()).facts} | {a.id: a.title for aliases in absorbed.values() for a in aliases}
+        return [{"canonical": {"id": c, "title": titles[c]}, "alias": {"id": a.id, "title": a.title}}
+                for aliases in absorbed.values() for a in aliases if (c := self._graph.merges.get(a.id)) in titles]
+
     async def duplicates(self) -> list[dict[str, object]]:
         batch = await self._graph.snapshot()
         by_id = {f.id: f for f in batch.facts}

@@ -124,7 +124,7 @@ def create_app(
     jobs = new_jobs(source_log.start)
 
     async def rebuild() -> None:
-        state["app"] = await build_app(data_dir, jobs, llm_transport, renderers, page_counter)
+        state["app"] = await build_app(data_dir, jobs, llm_transport, renderers, page_counter, source_log.drop)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
