@@ -1,10 +1,10 @@
 import { Flex, Icon, Link } from '@chakra-ui/react'
 import { NavLink } from 'react-router-dom'
-import { LogsButton } from '../components'
+import { ChatButton, LogsButton } from '../components'
 import { navItems } from './nav'
 
 // Column on desktop; wraps into a row in the top bar on narrow screens.
-export function SidebarNav() {
+export function SidebarNav({ chatOpen, onChat }: { chatOpen: boolean; onChat: () => void }) {
   return (
     <Flex as="nav" aria-label="Main" flex={{ md: '1' }} direction={{ base: 'row', md: 'column' }} wrap="wrap" gap="1">
       {navItems.map(({ to, label, icon, pinned }) => (
@@ -31,6 +31,7 @@ export function SidebarNav() {
               {label}
             </NavLink>
           </Link>
+          {pinned && <ChatButton open={chatOpen} onToggle={onChat} />}
           {pinned && <LogsButton />}
         </Flex>
       ))}

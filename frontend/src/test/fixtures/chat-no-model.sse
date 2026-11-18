@@ -1,0 +1,4 @@
+data: {"type":"RUN_STARTED","threadId":"t","runId":"r1"}
+
+data: {"type":"RUN_ERROR","message":"Connect a model in Settings to chat about your career.","code":"no_model"}
+

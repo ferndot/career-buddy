@@ -28,6 +28,7 @@ from career_buddy.adapters.storage.jsonl_event_log import JsonlEventLog
 from career_buddy.adapters.storage.local_object_store import LocalObjectStore
 from career_buddy.adapters.storage.s3_object_store import S3ObjectStore
 from career_buddy.adapters.storage.writing_rules_store import WritingRulesStore
+from career_buddy.application.chat_tools import ChatTools
 from career_buddy.application.documents import DocumentService
 from career_buddy.application.generation import DocumentGeneration
 from career_buddy.application.jobs import SourceJobs
@@ -47,6 +48,7 @@ class App:
     generation: DocumentGeneration
     llm: LLMConnections
     rules: WritingRulesStore
+    chat_tools: ChatTools
 
 
 def object_store(data_dir: Path) -> ObjectStore:
@@ -81,7 +83,7 @@ async def build_app(
     extractor = model.extractor if model else HeuristicExtractor()
 
     def current(part: str) -> Callable[[], Any]:
-        """The active connection's rewriter, writer or reviewer, read at each request and never kept: Settings can change it."""
+        """The active connection's rewriter, writer, reviewer or chat, read at each request and never kept: Settings can change it."""
         return lambda: getattr(m, part) if (m := llm.inference()) else None
 
     readers = {
@@ -105,5 +107,6 @@ async def build_app(
     documents = DocumentService(projector, renderers, readers, current("rewriter"), merged=projector)
     rules = WritingRulesStore(data_dir)
     generation = DocumentGeneration(documents, current("writer"), rules.rules, page_counter, rules.strictness)
-    return App(imports, EditService(log, projector, jobs, extractor), CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer")), documents,
-               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules)
+    queries = CareerQueries(projector, jobs, skill_matcher=skill_candidates, reviewer=current("reviewer"))
+    return App(imports, EditService(log, projector, jobs, extractor), queries, documents,
+               SavedDocuments(store, documents, HtmlCodec(stored_html, document_css, read_slots, read_document), generation), generation, llm, rules, ChatTools(queries))

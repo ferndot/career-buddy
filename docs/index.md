@@ -26,6 +26,7 @@ The documentation follows the four Diataxis quadrants.
 - [Sources API](reference/sources-api.md)
 - [Documents API](reference/documents-api.md)
 - [Saved documents API](reference/saved-documents-api.md)
+- [Chat API](reference/chat-api.md)
 - [SpecOps CLI](reference/cli.md)
 
 ## Explanation

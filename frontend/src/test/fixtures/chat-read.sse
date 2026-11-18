@@ -1,0 +1,18 @@
+data: {"type":"RUN_STARTED","threadId":"t","runId":"r1"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call1","toolCallName":"find_facts"}
+
+data: {"type":"TOOL_CALL_ARGS","toolCallId":"call1","delta":"{\"query\": \"kubernetes\"}"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call1"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"356b7d53-1c0e-4d84-bd90-23a6290ef010","toolCallId":"call1","content":"{\"total\": 2, \"facts\": [{\"id\": \"927077b5-50a2-5ae1-8402-49a795fc1650\", \"kind\": \"Skill\", \"title\": \"Kubernetes\", \"attributes\": {}, \"source\": \"resume-text\"}, {\"id\": \"42e9d578-5764-59a9-91ea-382775790e76\", \"kind\": \"Achievement\", \"title\": \"Migrated 40 services to Kubernetes\", \"attributes\": {}, \"source\": \"resume-text\"}]}","role":"tool"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"ba9b8b1a-9286-4447-b1e0-522fdc7e6c17","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"ba9b8b1a-9286-4447-b1e0-522fdc7e6c17","delta":"You migrated 40 services to Kubernetes at Acme Corp."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"ba9b8b1a-9286-4447-b1e0-522fdc7e6c17"}
+
+data: {"type":"RUN_FINISHED","threadId":"t","runId":"r1"}
+

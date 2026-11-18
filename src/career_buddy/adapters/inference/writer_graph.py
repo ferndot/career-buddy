@@ -15,13 +15,13 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
-import openai
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import ValidationError
 
+from career_buddy.adapters.inference.errors import model_unavailable
 from career_buddy.application.ports import Accept, LLMUnavailable
 from career_buddy.domain.coverage import Checked, next_step
 from career_buddy.domain.generation import Brief, BriefFact
@@ -78,15 +78,6 @@ def report(checked: Checked) -> str:
     return f"{_SECTIONS['revise'].strip()}\n\n{json.dumps({'rejected': failed, 'issues': issues}, indent=1)}"
 
 
-def _unavailable(error: Exception) -> LLMUnavailable:
-    """The message carries the status code only: never a body, URL or key."""
-    if isinstance(error, openai.APIStatusError):
-        return LLMUnavailable(f"The model server answered with status {error.status_code}")
-    if isinstance(error, openai.APIConnectionError):
-        return LLMUnavailable("The model server could not be reached")
-    return LLMUnavailable("The model server sent an answer this app could not read")
-
-
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     checked: Checked | None  # the document accepted so far
@@ -106,7 +97,7 @@ class GraphDocumentWriter:
                 reply = await self._chat.ainvoke(state["messages"])
             except Exception as error:  # a client's own errors are many; all of them are "the model did not answer"
                 if state["checked"] is None:
-                    raise _unavailable(error) from error
+                    raise model_unavailable(error) from error
                 return {"failed": True}
             if not isinstance(reply, AIMessage) or not reply.tool_calls:
                 if state["checked"] is None:

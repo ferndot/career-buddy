@@ -1,0 +1,16 @@
+data: {"type":"RUN_STARTED","threadId":"t","runId":"r1"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"a1","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"a1","delta":"I can change that."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"a1"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call1","toolCallName":"edit_fact","parentMessageId":"a1"}
+
+data: {"type":"TOOL_CALL_ARGS","toolCallId":"call1","delta":"{\"fact_id\": \"f1\", \"title\": \"Staff Engineer\"}"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call1"}
+
+data: {"type":"RUN_FINISHED","threadId":"t","runId":"r1","outcome":{"type":"interrupt","interrupts":[{"id":"call1","reason":"tool_call","message":"Position 'Senior Engineer': title -> 'Staff Engineer'","toolCallId":"call1"}]}}
+

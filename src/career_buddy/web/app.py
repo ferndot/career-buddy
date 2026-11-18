@@ -40,6 +40,7 @@ from career_buddy.application.services import fact_json
 from career_buddy.composition import App, build_app, new_jobs
 from career_buddy.domain.model import FactKind, InvalidFact
 from career_buddy.domain.templates import TEMPLATES
+from career_buddy.web.chat_routes import chat_router
 from career_buddy.web.document_routes import document_router
 from career_buddy.web.llm_routes import llm_router
 from career_buddy.web.writing_routes import writing_router
@@ -178,6 +179,7 @@ def create_app(
 
     api.include_router(llm_router(lambda: app().llm, rebuild))
     api.include_router(writing_router(lambda: app().rules))
+    api.include_router(chat_router(lambda: (m := app().llm.inference()) and m.chat, lambda: app().chat_tools))
     api.include_router(saved_document_router(lambda: app().saved))
     api.include_router(document_router(lambda: app().generation))
     api.include_router(source_log_router(source_log, lambda: app().queries.sources()))

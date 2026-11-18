@@ -1,11 +1,13 @@
 import { Box, Flex } from '@chakra-ui/react'
 import { Outlet } from 'react-router-dom'
 import { CareerBuddyLogo } from '../brand'
-import { ActivitySidebar } from '../components'
+import { useState } from 'react'
+import { ActivitySidebar, ChatSidebar } from '../components'
 import { SourceActivities } from '../screens/sources'
 import { SidebarNav } from './SidebarNav'
 
 export function AppShell() {
+  const [chatOpen, setChatOpen] = useState(false)
   return (
     <Flex direction={{ base: 'column', md: 'row' }} minH="100vh" bg="app.bg" color="app.text">
       <Flex
@@ -27,13 +29,14 @@ export function AppShell() {
         <Flex align="center" px="2">
           <CareerBuddyLogo />
         </Flex>
-        <SidebarNav />
+        <SidebarNav chatOpen={chatOpen} onChat={() => setChatOpen((o) => !o)} />
       </Flex>
       {/* The activity sidebar always sits beside the page and takes its width out of it. */}
       <Flex flex="1" minW="0">
         <Box as="main" flex="1" minW="0" px={{ base: '4', md: '10' }} py={{ base: '5', md: '8' }}>
           <Outlet />
         </Box>
+        <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)} />
         <ActivitySidebar />
       </Flex>
       <SourceActivities />

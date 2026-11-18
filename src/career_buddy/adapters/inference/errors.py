@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+import openai
 
 from career_buddy.application.ports import LLMUnavailable
 
@@ -21,4 +22,13 @@ def unavailable(error: Exception) -> LLMUnavailable:
         log.warning("the model server could not be reached: %s", type(error).__name__)
         return LLMUnavailable("The model server could not be reached")
     log.warning("the model server's answer could not be read: %s: %s", type(error).__name__, error)
+    return LLMUnavailable("The model server sent an answer this app could not read")
+
+
+def model_unavailable(error: Exception) -> LLMUnavailable:
+    """The same, for a failed call of the OpenAI client behind a chat model: the status code only."""
+    if isinstance(error, openai.APIStatusError):
+        return LLMUnavailable(f"The model server answered with status {error.status_code}")
+    if isinstance(error, openai.APIConnectionError):
+        return LLMUnavailable("The model server could not be reached")
     return LLMUnavailable("The model server sent an answer this app could not read")

@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from career_buddy.adapters.inference.chat_graph import GraphCareerChat
 from career_buddy.adapters.inference.chat_models import chat_model
 from career_buddy.adapters.inference.writer_graph import GraphDocumentWriter
 from career_buddy.adapters.inference.job_reviewer import ProviderJobReviewer
@@ -43,6 +44,7 @@ class Inference:
     rewriter: Any
     writer: Any
     reviewer: Any
+    chat: Any
 
 
 class UnknownConnection(KeyError):
@@ -226,7 +228,7 @@ class LLMConnections:
         return openai_client(conn.base_url, key or "", self._transport)
 
     def inference(self) -> Inference | None:
-        """The extractor, rewriter, document writer and job reviewer for the active connection, or None so the caller uses the offline
+        """The extractor, rewriter, document writer, job reviewer and career chat for the active connection, or None so the caller uses the offline
         heuristics. All go through one LlmProvider, whichever API the connection speaks."""
         conn = next((c for c in self._all() if c.id == self.active_id()), None)
         if not conn:
@@ -235,7 +237,8 @@ class LLMConnections:
         client = self._client(conn, key)
         provider = (StructuredAnthropicProvider(client, conn.model) if conn.preset == "anthropic"
                     else StructuredOpenAIProvider(client, conn.model))
-        return Inference(RedstringExtractor(provider), ProviderRewriter(provider), GraphDocumentWriter(chat_model(conn.preset, conn.base_url, conn.model, key, self._transport)), ProviderJobReviewer(provider))
+        chat = chat_model(conn.preset, conn.base_url, conn.model, key, self._transport)
+        return Inference(RedstringExtractor(provider), ProviderRewriter(provider), GraphDocumentWriter(chat), ProviderJobReviewer(provider), GraphCareerChat(chat))
 
     async def test(self, conn_id: str | None, draft: dict[str, Any]) -> dict[str, Any]:
         """Ask the server for its model list. No resume text is sent and nothing is billed."""

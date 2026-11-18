@@ -65,6 +65,7 @@ export const endpoints = {
     active: () => '/api/llm/active', // PUT
     test: () => '/api/llm/test', // POST
   },
+  chat: () => '/api/chat', // POST AG-UI RunAgentInput, answers an event stream
   writing: {
     rules: () => '/api/writing/rules', // GET
     kind: (kind: 'resume' | 'letter') => `/api/writing/rules/${kind}`, // PUT, DELETE (204)

@@ -1,0 +1,12 @@
+data: {"type":"RUN_STARTED","threadId":"t","runId":"r2"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"t1","toolCallId":"call1","content":"Changed: Position 'Staff Engineer'","role":"tool"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"a2","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"a2","delta":"Done."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"a2"}
+
+data: {"type":"RUN_FINISHED","threadId":"t","runId":"r2"}
+
