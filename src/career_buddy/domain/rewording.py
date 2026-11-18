@@ -11,18 +11,31 @@ from career_buddy.domain.strictness import GROWTH
 from career_buddy.domain.tailoring import grams, stem, is_tech, tokens
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# "two" and "2" are the same number; "one" is left out because it is usually an article.
+_WORD_NUMBERS = {w: str(n) for n, w in enumerate(
+    ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"))}
+
+
+def numbers(text: str) -> set[str]:
+    """The numbers a text states, as digits: "2", "2.5" and the words two to twelve."""
+    words = {_WORD_NUMBERS[w] for w in re.findall(r"[a-z]+", text.lower()) if w in _WORD_NUMBERS and w != "one"}
+    return set(_NUMBER.findall(text)) | words
+
+
+def is_number(token: str) -> bool:
+    return bool(_NUMBER.fullmatch(token))
 
 
 def specifics(source: str, candidate: str, skills: Iterable[str], protected: Iterable[str] = (), missing: Iterable[str] = ()) -> list[str]:
     """Reasons a candidate states a specific the source does not: a number, a new name or tool, a job term the profile lacks, a lost
     title, employer or degree. The same at every strictness level."""
     reasons: list[str] = []
-    if extra := set(_NUMBER.findall(candidate)) - set(_NUMBER.findall(source)):
+    if extra := numbers(candidate) - numbers(source):
         reasons.append(f"number not in the source: {', '.join(sorted(extra))}")
 
     known = {stem(t) for text in (source, *skills) for t in tokens(text)}
-    # The first word is capitalized anyway, so only later capitalized or tech-shaped words count as names.
-    names = [t for i, t in enumerate(tokens(candidate)) if i and (t[0].isupper() or is_tech(t))]
+    # The first word is capitalized anyway, so only later capitalized or tech-shaped words count as names. Numbers are checked above.
+    names = [t for i, t in enumerate(tokens(candidate)) if i and not is_number(t) and (t[0].isupper() or is_tech(t))]
     if new := [t for t in names if stem(t) not in known]:
         reasons.append(f"new term not in the source or profile skills: {', '.join(new)}")
 

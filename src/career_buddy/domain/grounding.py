@@ -15,12 +15,10 @@ from collections.abc import Iterable, Mapping
 from career_buddy.domain.document import Origin
 from career_buddy.domain.generation import Brief, Claim, Rejection
 from career_buddy.domain.markers import clean
-from career_buddy.domain.rewording import verify_rewording
+from career_buddy.domain.rewording import is_number, numbers, verify_rewording
 from career_buddy.domain.strictness import GROWTH
 from career_buddy.domain.tailoring import TOKEN_PATTERN, grams, is_tech, stem, tokens
 from career_buddy.domain.written import WrittenDocument, nodes
-
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 
 
 def _starts_sentence(text: str, at: int) -> bool:
@@ -36,11 +34,11 @@ def verify_prose(source: str, candidate: str, known: Iterable[str] = (), missing
     With `sentences` False every capitalised word counts as a name, as in a list of skills, where each entry starts a "sentence".
     Numbers, names and job terms are checked the same at every `strictness`; the level changes only how long the prose may run."""
     reasons: list[str] = []
-    if extra := set(_NUMBER.findall(candidate)) - set(_NUMBER.findall(source)):
+    if extra := numbers(candidate) - numbers(source):
         reasons.append(f"number not in the source: {', '.join(sorted(extra))}")
     seen = {stem(t) for text in (source, *known) for t in tokens(text)} | {"i"}
     names = [m[0] for m in TOKEN_PATTERN.finditer(candidate)
-             if (is_tech(m[0]) or (m[0][0].isupper() and not (sentences and _starts_sentence(candidate, m.start())))) and stem(m[0]) not in seen]
+             if not is_number(m[0]) and (is_tech(m[0]) or (m[0][0].isupper() and not (sentences and _starts_sentence(candidate, m.start())))) and stem(m[0]) not in seen]
     if names:
         reasons.append(f"new term not in the source: {', '.join(names)}")
     have = grams(candidate) - grams(source)
