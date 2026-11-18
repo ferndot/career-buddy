@@ -2,16 +2,6 @@
 
 career-buddy keeps your career history as a graph of facts: positions, achievements, skills and education. You import a resume (a PDF, DOCX, TXT or MD file, or pasted text), review and edit the facts, then build a resume or cover letter for a job posting. A language model writes the text, and every sentence must cite your facts.
 
-## Where your data goes
-
-Your data is not guaranteed to stay on your computer. It depends on the settings you choose:
-
-- **Default: on your computer.** Facts, settings, saved keys, original files and generated documents are kept in the `data` folder next to the code. The app runs on your computer only, at http://localhost:8080.
-- **Cloud model: sent to the company.** If you connect Anthropic, Google AI Studio or a custom address that is not on your computer to write documents, the facts and job text each request needs are sent there, and what that company does with them is its own policy. Ollama and LM Studio run on your computer and keep it there. See [Connect a model](docs/how-to/connect-a-model.md).
-- **Optional S3 storage: sent to the S3 server you set.** Originals and generated documents go there instead of `data`. See [Store originals in S3](docs/how-to/store-originals-in-s3.md).
-
-Back up the `data` folder if you cannot lose it. Do not share it: it holds your career history and any saved keys.
-
 ## Install and run
 
 You do not need to know how to code. You need Docker Desktop and a terminal (PowerShell on Windows, Terminal on macOS).
