@@ -1,46 +1,46 @@
 # career-buddy
 
-career-buddy keeps your career history as a graph of facts: positions, achievements, skills and education. You import a resume (a PDF, DOCX, TXT or MD file, or pasted text), review and edit the facts, then build a resume or cover letter for a job posting. A language model writes the text, and every sentence must cite your facts. Your data stays on your computer.
+career-buddy keeps your career history as a graph of facts: positions, achievements, skills and education. You import a resume (a PDF, DOCX, TXT or MD file, or pasted text), review and edit the facts, then build a resume or cover letter for a job posting. A language model writes the text, and every sentence must cite your facts.
+
+## Where your data goes
+
+Your data is not guaranteed to stay on your computer. It depends on the settings you choose:
+
+- **Default: on your computer.** Facts, settings, saved keys, original files and generated documents are kept in the `data` folder next to the code. The app runs on your computer only, at http://localhost:8080.
+- **Cloud model: sent to the company.** If you connect Anthropic, Google AI Studio or a custom address that is not on your computer to write documents, the facts and job text each request needs are sent there, and what that company does with them is its own policy. Ollama and LM Studio run on your computer and keep it there. See [Connect a model](docs/how-to/connect-a-model.md).
+- **Optional S3 storage: sent to the S3 server you set.** Originals and generated documents go there instead of `data`. See [Store originals in S3](docs/how-to/store-originals-in-s3.md).
+
+Back up the `data` folder if you cannot lose it. Do not share it: it holds your career history and any saved keys.
 
 ## Install and run
 
 You do not need to know how to code. You need Docker Desktop and a terminal (PowerShell on Windows, Terminal on macOS).
 
-1. Install [Docker Desktop](https://docs.docker.com/get-docker/) and start it. Wait until it says Docker is running.
+1. Install [Docker Desktop](https://docs.docker.com/get-docker/), start it, and wait until it says Docker is running.
 
-2. Download the code. Open https://github.com/ferndot/career-buddy, choose **Code**, then **Download ZIP**, and unzip it. Open a terminal in the unzipped folder. On Windows, open the folder in File Explorer, right-click an empty space and choose **Open in Terminal**. If you have Git, you can run these two commands instead:
+2. Get the code. Either:
+   - **Download:** open https://github.com/ferndot/career-buddy, choose **Code**, then **Download ZIP**, and unzip it.
+   - **Git:** run `git clone https://github.com/ferndot/career-buddy.git`, then `cd career-buddy`.
 
-   ```bash
-   git clone https://github.com/ferndot/career-buddy.git
-   ```
+   Open a terminal in that folder. On Windows, open the folder in File Explorer, right-click an empty space and choose **Open in Terminal**.
 
-   ```bash
-   cd career-buddy
-   ```
-
-3. Start the app. The first run builds it and takes a few minutes.
+3. Start the app. The first run builds it and takes a few minutes. When it is ready, it opens http://localhost:8080 in your browser.
 
    ```bash
    make run
    ```
 
-   If `make` is not installed, use Docker instead:
+   `make` is often not installed on Windows. If `make run` says it is not found, use Docker directly, then open http://localhost:8080:
 
    ```bash
    docker compose up --build -d
    ```
 
-4. Open http://localhost:8080 in your browser.
+4. Stop the app with `make stop`, or `docker compose down` without `make`. To see the logs, run `make logs`.
 
-To stop it:
+**To update:** stop the app, get the new code (`git pull`, or download the ZIP again), and run step 3 again. Your `data` folder is kept, because it is not part of the code. If you downloaded a ZIP, copy your old `data` folder into the new one before you start.
 
-```bash
-make stop
-```
-
-Without `make`, use `docker compose down`. To see the logs, use `make logs`.
-
-Your data is kept in the `data` folder next to the code, so it survives restarts and rebuilds. To write resumes and letters you also need to connect a language model: see [Connect a model](docs/how-to/connect-a-model.md). For a walkthrough from import to a downloaded resume, see [Getting started](docs/tutorials/01-getting-started.md). More on Docker: [Run with Docker](docs/how-to/run-with-docker.md).
+Your facts and settings are in the `data` folder, so they survive restarts and rebuilds. To write resumes and letters you also need to connect a language model: see [Connect a model](docs/how-to/connect-a-model.md). For a walkthrough from import to a downloaded resume, see [Getting started](docs/tutorials/01-getting-started.md). More on Docker: [Run with Docker](docs/how-to/run-with-docker.md).
 
 ## For developers
 
