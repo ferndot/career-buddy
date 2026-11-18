@@ -23,8 +23,9 @@ export function TemplateStep({ w, kind, templates, setDoc }: Props) {
             {choices.map((t) => {
               const on = t.id === doc.templateId
               return (
-                <Box key={t.id} as="button" role="radio" aria-checked={on} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, styleId: '', inputs: {}, sections: [], flags: {}, genError: undefined })}>
+                <Box key={t.id} as="button" role="radio" aria-checked={on} aria-label={t.label} textAlign="left" p="3" borderRadius="md" borderWidth="2px" borderColor={on ? 'app.primary' : 'app.border'} bg={on ? 'app.activeBg' : 'app.surface2'} color={on ? 'app.activeText' : 'app.text'} cursor="pointer" onClick={() => setDoc({ templateId: t.id, styleId: '', inputs: {}, sections: [], flags: {}, genError: undefined })}>
                   <Text fontWeight="semibold" fontSize="sm">{t.label}</Text>
+                  {t.ats_safe && <Text as="span" fontSize="xs" color="app.text2">ATS-safe</Text>}
                 </Box>
               )
             })}

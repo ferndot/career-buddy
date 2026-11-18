@@ -78,3 +78,10 @@ test('a letter is written in the chosen style: the template instructions then th
   await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))).toBe(true))
   expect(calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/saved-documents'))?.body?.template_instructions).toBe('Letter style. Tell a story.')
 })
+
+test('a template whose PDF was measured ATS-safe shows a badge; the others do not', async () => {
+  stubApi()
+  await openAt(4)
+  expect(within(screen.getByRole('radio', { name: 'Classic resume' })).getByText('ATS-safe')).toBeInTheDocument()
+  expect(within(screen.getByRole('radio', { name: 'Sidebar resume' })).queryByText('ATS-safe')).not.toBeInTheDocument()
+})

@@ -30,6 +30,7 @@ class TemplateSpec:
     layout: Layout = Layout()
     instructions: str = ""  # what the writer is told about this template's style
     styles: tuple[WritingStyle, ...] = ()  # a letter's suggested styles, each with its own instructions
+    ats_safe: bool = False  # measured, not claimed: its PDF reads back in order with no ATS issue (tests/test_template_readback.py)
 
 
 _SUMMARY, _EXPERIENCE, _EDUCATION, _SKILLS = (
@@ -41,6 +42,7 @@ RESUME_CLASSIC = TemplateSpec(
     "resume-classic", "Classic resume", _ALL,
     layout=Layout("centered", css="header{text-align:center;margin-bottom:.5rem}"
                   "h2{border-bottom:1px solid #222;text-transform:uppercase;font-size:11pt;letter-spacing:.06em}"),
+    ats_safe=True,
     instructions="Traditional single-column resume. Formal, conventional wording; a two or three sentence summary; every bullet starts with a past-tense action verb and fits one line.",
 )
 RESUME_SIDEBAR = TemplateSpec(
@@ -48,11 +50,13 @@ RESUME_SIDEBAR = TemplateSpec(
     layout=Layout("plain", ("Education", "Skills"),
                   ".cols{display:flex;gap:1.5rem}.main{flex:1 1 68%}.side{flex:0 0 28%;background:" + PANEL + ";padding:.4rem .8rem}"
                   "header{border-bottom:3px solid " + STEEL + ";margin-bottom:.6rem}h2{color:" + STEEL + ";font-size:12pt}", accent=STEEL, panel=PANEL),
+    ats_safe=True,
     instructions="Two-column resume: the narrow side column holds skills and education, so keep the summary to two sentences and every bullet under about 15 words, with at most three bullets for each position.",
 )
 RESUME_MODERN = TemplateSpec(
     "resume-modern", "Modern resume", _ALL,
     layout=Layout("band", css=_BAND + "header{margin-bottom:.6rem}h2{color:" + NAVY + ";font-size:11pt;text-transform:uppercase}body{font-size:10.5pt}", accent=NAVY),
+    ats_safe=True,
     instructions="Compact modern resume. A one or two sentence summary that leads with the strongest proof. Tight bullets that open with the outcome and then say how; no filler.",
 )
 
@@ -68,7 +72,7 @@ LETTER_STYLES = (
 
 def _letter(id: str, label: str, layout: Layout, instructions: str) -> TemplateSpec:
     """A job-board letter: the company and role are read from the posting, not asked for."""
-    return TemplateSpec(id, label, kind="letter", optional=("recipient",), layout=layout, instructions=instructions, styles=LETTER_STYLES)
+    return TemplateSpec(id, label, kind="letter", optional=("recipient",), layout=layout, instructions=instructions, styles=LETTER_STYLES, ats_safe=True)
 
 
 TEMPLATES = (

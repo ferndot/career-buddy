@@ -37,7 +37,13 @@ A template is data (`domain/templates.py`). Besides `id`, `kind`, `label` and th
   black on white. The css is written from the same values, so the previews, the html and the PDF agree (the PDF prints backgrounds).
   The docx keeps the accent (band fill, heading colour) but not the panel, which would need a table. Plain text carries no colour.
 - `instructions`: what the writer is told about the template's style.
+- `ats_safe`: true when the template's sample PDF, read back with pdfminer, has the text in document order (the main column before the side
+  column, every line once) and passes every ATS check. It is measured by `tests/test_template_readback.py`, which fails if a template marked
+  true stops passing; the template picker shows an "ATS-safe" badge for it.
 - `styles`: a letter's suggested styles, `[{id, label, instructions}]` (`direct`, `narrative`, `formal`); empty for a resume.
+
+The PDF is tagged (it has a structure tree, so headings and lists are marked up for screen readers and parsers) and its content is stored in
+reading order: the header, the main column, then the side column.
 
 ## ATS check is a warning
 

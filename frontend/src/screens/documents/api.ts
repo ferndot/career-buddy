@@ -16,6 +16,7 @@ export type Template = {
   layout: TemplateLayout
   instructions: string // what the writer is told about this template's style
   styles: WritingStyle[] // a letter's suggested styles
+  ats_safe: boolean // measured: its PDF reads back in order with no ATS check failing
 }
 /** The model's review of a job posting. `missing_*` are the terms none of the career facts cover. */
 export type Fit = {

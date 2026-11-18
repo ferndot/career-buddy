@@ -12,7 +12,7 @@ const STYLES = [
 ]
 const base = { formats: ['docx', 'pdf'], required: [], optional: [] }
 export const templates = [
-  { ...base, id: 'resume-classic', kind: 'resume', label: 'Classic resume', sections: SECTIONS, layout: { header: 'centered', side: [], css: '', accent: '', panel: '' }, instructions: 'Classic style.', styles: [] },
+  { ...base, id: 'resume-classic', kind: 'resume', label: 'Classic resume', sections: SECTIONS, layout: { header: 'centered', side: [], css: '', accent: '', panel: '' }, instructions: 'Classic style.', styles: [], ats_safe: true },
   { ...base, id: 'resume-sidebar', kind: 'resume', label: 'Sidebar resume', sections: SECTIONS, layout: { header: 'plain', side: ['Education', 'Skills'], css: '', accent: '#2b5c8a', panel: '#f2f4f7' }, instructions: 'Sidebar style.', styles: [] },
   { ...base, id: 'cover-letter', kind: 'letter', label: 'Cover letter', sections: [], layout: { header: 'plain', side: [], css: '', accent: '', panel: '' }, instructions: 'Letter style.', styles: STYLES },
 ]

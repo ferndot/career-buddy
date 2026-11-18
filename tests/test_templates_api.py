@@ -93,3 +93,8 @@ def test_filenames_say_what_the_document_is(client: TestClient) -> None:
 def test_other_templates_ignore_unknown_inputs(client: TestClient) -> None:
     res = render(client, "resume-classic", "txt", inputs={"company": "Initech"})
     assert res.status_code == 200
+
+
+def test_templates_endpoint_says_which_are_ats_safe(client: TestClient) -> None:
+    listed = {t["id"]: t["ats_safe"] for t in client.get("/api/templates").json()}
+    assert listed == dict.fromkeys(INPUTS, True)
