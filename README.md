@@ -24,6 +24,8 @@ You do not need to know how to code. You need Docker Desktop and a terminal (Pow
    docker compose up --build -d
    ```
 
+   If you have `make` (macOS, Linux, or Windows with it installed), `make run` does the same thing.
+
 4. Open http://localhost:8080 in your browser.
 
 To stop it:
@@ -31,6 +33,8 @@ To stop it:
 ```bash
 docker compose down
 ```
+
+With `make`, use `make stop` to stop, and `make logs` to follow the logs.
 
 Your data is kept in the `data` folder next to the code, so it survives restarts and rebuilds. To write resumes and letters you also need to connect a language model: see [Connect a model](docs/how-to/connect-a-model.md). For a walkthrough from import to a downloaded resume, see [Getting started](docs/tutorials/01-getting-started.md). More on Docker: [Run with Docker](docs/how-to/run-with-docker.md).
 
