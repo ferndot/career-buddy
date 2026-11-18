@@ -18,31 +18,27 @@ You do not need to know how to code. You need Docker Desktop and a terminal (Pow
    cd career-buddy
    ```
 
-3. Start the app. The first run builds it and takes a few minutes. Use either command:
-
-   ```bash
-   docker compose up --build -d
-   ```
-
-   or, if you have `make` installed:
+3. Start the app. The first run builds it and takes a few minutes.
 
    ```bash
    make run
    ```
 
+   If `make` is not installed, use Docker instead:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
 4. Open http://localhost:8080 in your browser.
 
-To stop it, use either command:
-
-```bash
-docker compose down
-```
+To stop it:
 
 ```bash
 make stop
 ```
 
-To see the logs, use `make logs`.
+Without `make`, use `docker compose down`. To see the logs, use `make logs`.
 
 Your data is kept in the `data` folder next to the code, so it survives restarts and rebuilds. To write resumes and letters you also need to connect a language model: see [Connect a model](docs/how-to/connect-a-model.md). For a walkthrough from import to a downloaded resume, see [Getting started](docs/tutorials/01-getting-started.md). More on Docker: [Run with Docker](docs/how-to/run-with-docker.md).
 
