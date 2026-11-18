@@ -39,11 +39,13 @@ class Caps:
     skills: int  # most skills it lists
 
 
-CAPS = {1: Caps(1, 3, 10), 2: Caps(2, 5, 15), 3: Caps(3, 7, 20)}  # pages -> caps
+ResumeLength = Literal["default", 1]  # "default": the writer picks the length from the general rules, up to two pages; 1: exactly one page
+ONE_PAGE, UP_TO_TWO_PAGES = Caps(1, 3, 10), Caps(2, 5, 15)
 
 
-def caps_for(pages: int) -> Caps:
-    return CAPS.get(pages, CAPS[1])
+def caps_for(length: object) -> Caps:
+    """A document saved when 2 and 3 pages were offered keeps its stored value: anything but 1 reads as the default."""
+    return ONE_PAGE if length == 1 else UP_TO_TWO_PAGES
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,7 @@ class Brief:
     role: str = ""
     instructions: str = ""  # the user's free-text directions: tone, length, what to stress
     posting: str = ""  # the job posting, cut to MAX_POSTING
-    caps: Caps = CAPS[1]
+    caps: Caps = ONE_PAGE
     pinned: frozenset[str] = frozenset()  # slot ids the user wrote themselves: their text replaces the writer's
     template_instructions: str = ""  # how the chosen template and style want the text written
     sections: tuple[str, ...] = ()  # the section keys to write, in order: a resume's summary, experience, ..., or a letter's `body`

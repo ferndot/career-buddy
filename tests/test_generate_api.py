@@ -244,14 +244,17 @@ def test_the_returned_slots_come_from_the_model_and_cite_their_facts(tmp_path: P
     assert senior["heading"].startswith("Senior Engineer, Acme Corp") and [b["fact_ids"] for b in senior["bullets"]][0] == [known[CUT]]  # the heading is the facts' own
 
 
-def test_the_resume_length_of_the_request_sets_the_caps_and_is_one_page_when_left_out(tmp_path: Path) -> None:
+def test_the_resume_length_of_the_request_is_default_or_one_page_and_sets_the_caps(tmp_path: Path) -> None:
     model = Model(good)
     with open_client(tmp_path, model) as client:
-        for pages in (2, 3):
+        for pages in ("default", 1):
             generate(client, {**RESUME, "resume_pages": pages})
-        assert client.post("/api/documents/generate", json={**RESUME, "resume_pages": 4}).status_code == 422
-    assert "2 pages long. At most 5 bullets for each position and 15 skills" in model.systems[0]
-    assert "3 pages long. At most 7 bullets for each position and 20 skills" in model.systems[1]
+        generate(client, RESUME)  # left out: the default
+        for pages in (2, 3, 4):
+            assert client.post("/api/documents/generate", json={**RESUME, "resume_pages": pages}).status_code == 422
+    assert "follow the general length rule, at most 2 pages, and do not state a page count. At most 5 bullets for each position and 15 skills" in model.systems[0]
+    assert "this resume is 1 page long. At most 3 bullets for each position and 10 skills" in model.systems[1]
+    assert model.systems[2] == model.systems[0]
     assert all("caps" not in m for m in model.payloads)
     assert all("General rules for a resume" in m and "3 to 6 bullets" in m for m in model.systems)  # the default rules for the kind go with every resume
 

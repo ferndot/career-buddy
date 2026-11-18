@@ -44,7 +44,7 @@ Every render and preview reads the file back and runs `domain/ats.check`. A fail
 
 ## Generating the text
 
-`POST /api/documents/generate` takes the same body as the other endpoints plus `resume_pages` (`1`, `2` or `3`, default `1`:
+`POST /api/documents/generate` takes the same body as the other endpoints plus `resume_pages` (`"default"` or `1`, default `"default"`:
 how long this resume should be; a letter ignores it; `422` for any other value), `instructions` (free text, at most 2000
 characters, `422` over that, empty allowed: the user's direction for tone, length and emphasis), `pinned` (slot ids the user
 wrote themselves; their text replaces the writer's) and `template_instructions` (free text, at most 4000 characters, empty by
@@ -71,7 +71,7 @@ The model does not fill fixed slots. It is given the context and writes **the be
 
 **What the model is sent (the context).** The system message: the rules, the document kind's section shapes, the **general rules**
 for the kind (below), the template's section list, the template's and the chosen letter style's instructions, and the resume length (`resume_pages`: how many bullets a position
-and skills a resume may hold: 1 page is 3 bullets per position and 10 skills, 2 pages 5 and 15, 3 pages 7 and 20). The user
+and skills a resume may hold: `1` is exactly one page, 3 bullets per position and 10 skills; `"default"` lets the writer follow the general length rule, one page under about 10 years of experience and two for more, with at most 5 bullets and 15 skills). The user
 message (JSON): every fact the document prints as `{id, kind, text, position_id, started, finished}` (summary, positions with
 their dates, achievements with their result, skills, education; a hidden fact is not sent), the `sections` to write, the
 company and role, the `directions`, the posting (cut to 6000 characters), the job terms the facts cover (`job_terms`) and lack

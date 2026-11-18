@@ -37,7 +37,7 @@ test('writing sends the directions and shows the returned text as the default, n
   expect(await screen.findByLabelText('Edit text: Generated summary')).toHaveValue('Generated summary')
   expect(screen.getByLabelText('Edit text: Generated bullet')).toHaveValue('Generated bullet')
   expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({
-    template: 'resume-classic', instructions: 'Stress reliability', pinned: [], resume_pages: 1,
+    template: 'resume-classic', instructions: 'Stress reliability', pinned: [], resume_pages: 'default',
   })
   for (const picked of ['selection', 'skill_ids', 'education_ids']) expect(post(calls, '/api/documents/generate')[0].body).not.toHaveProperty(picked) // every visible fact is used
   expect(screen.queryByText('Edited')).not.toBeInTheDocument() // generated text is a default: no override, nothing to reset
@@ -48,16 +48,17 @@ test('writing sends the directions and shows the returned text as the default, n
   expect(body.instructions).toBe('Stress reliability')
 })
 
-test('a resume has its own length, one page until chosen, sent to the writer and kept with the saved document; a letter has none', async () => {
+test('a resume has its own length, Default until chosen, sent to the writer and kept with the saved document; a letter has none', async () => {
   const calls = stubApi()
   await openAt(4)
   const length = screen.getByLabelText('Resume length')
-  expect(length).toHaveValue('1')
-  fireEvent.change(length, { target: { value: '2' } })
+  expect(length).toHaveValue('default')
+  expect([...(length as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(['Default', '1-page'])
+  fireEvent.change(length, { target: { value: '1' } })
   generate()
   await screen.findByLabelText('Edit text: Generated summary')
-  expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({ resume_pages: 2 })
-  expect((await saved(calls)).resume_pages).toBe(2)
+  expect(post(calls, '/api/documents/generate')[0].body).toMatchObject({ resume_pages: 1 })
+  expect((await saved(calls)).resume_pages).toBe(1)
 })
 
 test('the cover letter tab has no length control and saves the default', async () => {
@@ -66,7 +67,7 @@ test('the cover letter tab has no length control and saves the default', async (
   expect(screen.queryByLabelText('Resume length')).not.toBeInTheDocument()
   generate()
   await screen.findByLabelText('Edit text: Generated two')
-  expect((await saved(calls)).resume_pages).toBe(1)
+  expect((await saved(calls)).resume_pages).toBe('default')
 })
 
 test('an edit is an override keyed by slot id, reset removes it, and generated text is saved apart from it', async () => {

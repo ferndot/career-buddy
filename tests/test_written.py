@@ -60,7 +60,7 @@ def test_the_context_has_facts_sections_posting_directions_and_the_system_messag
     assert set(sent["facts"]) == {"positions", "skills", "education"} and "caps" not in sent and "template_instructions" not in sent
     system = system_prompt(brief)
     assert "summary, experience, education, skills" in system and "Template instructions: Compact modern resume." in system
-    assert "2 pages long. At most 5 bullets for each position and 15 skills" in system and "Answer with one JSON object" in system
+    assert "at most 2 pages, and do not state a page count. At most 5 bullets for each position and 15 skills" in system and "Answer with one JSON object" in system
     letter = system_prompt(Brief("letter", FACTS, sections=(LETTER,), template_instructions="Three short paragraphs."))
     assert "Template: write these sections, in this order: body." in letter and "Length:" not in letter and "cover letter" in letter and "Three short paragraphs." in letter
     repair = system_prompt(brief, repair=True)

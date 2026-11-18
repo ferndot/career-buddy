@@ -70,7 +70,7 @@ export type Generated = {
   notice?: string
 }
 export const MAX_INSTRUCTIONS = 2000
-export type ResumePages = 1 | 2 | 3
+export type ResumePages = 'default' | 1 // 'default': the writer picks up to two pages; 1: exactly one page
 /** `pinned` are the slots the user wrote themselves: the writer leaves them alone. `resume_pages` is how long a resume should be. */
 export const generateText = (body: TailorBody & { instructions: string; pinned: string[]; resume_pages: ResumePages; template_instructions: string }) =>
   apiFetch<Generated>(endpoints.documents.generate(), { method: 'POST', body })

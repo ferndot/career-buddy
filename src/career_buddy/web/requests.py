@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from career_buddy.application.documents import TailorOptions
 from career_buddy.domain.document import Style
+from career_buddy.domain.generation import ResumeLength
 from career_buddy.domain.written import Section, WrittenDocument
 
 
@@ -29,7 +30,7 @@ class SuggestRequest(TailorRequest):
 class GenerateRequest(TailorRequest):
     instructions: str = Field("", max_length=2000)  # the user's free-text directions for the writer; empty is fine
     pinned: list[str] = Field([], max_length=500)  # slot ids the user wrote themselves: the writer leaves them alone
-    resume_pages: Literal[1, 2, 3] = 1  # how long a resume should be; a letter ignores it
+    resume_pages: ResumeLength = "default"  # how long a resume should be; a letter ignores it
     template_instructions: str = Field("", max_length=4000)  # how the chosen template and letter style want the text written; empty adds none
 
 
@@ -55,7 +56,7 @@ class SaveRequest(TailorRequest):
     label: str = ""  # a name for the saved document; empty means the file name
     sections: list[Section] = Field([], max_length=12)  # what the writer wrote (a draft's `sections`): the structure of the document, kept apart from `overrides`, which is the user's own wording
     instructions: str = Field("", max_length=2000)  # the user's directions for the writer, kept for regenerating
-    resume_pages: Literal[1, 2, 3] = 1  # this resume's length, kept for regenerating
+    resume_pages: ResumeLength = "default"  # this resume's length, kept for regenerating
     template_instructions: str = Field("", max_length=4000)  # the template's instructions, kept for regenerating
 
     @property

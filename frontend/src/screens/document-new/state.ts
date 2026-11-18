@@ -42,7 +42,7 @@ export const emptyDoc: DocDraft = {
   inputs: {},
   overrides: {},
   instructions: '',
-  resumePages: 1,
+  resumePages: 'default',
   sections: [],
   flags: {},
 }

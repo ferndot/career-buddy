@@ -12,7 +12,7 @@ from typing import Literal
 
 from career_buddy.application.documents import DocumentService, TailorOptions, Tailored
 from career_buddy.application.ports import DocumentWriter, LLMUnavailable, MissingInputs
-from career_buddy.domain.generation import MAX_POSTING, Brief, Claim, Rejection, brief_facts, caps_for
+from career_buddy.domain.generation import MAX_POSTING, Brief, ResumeLength, Claim, Rejection, brief_facts, caps_for
 from career_buddy.domain.grounding import claims_of, ground
 from career_buddy.domain.templates import position_heading
 from career_buddy.domain.writing_rules import DEFAULT_RULES
@@ -62,7 +62,7 @@ class Draft:
         return {"sections": sections, "slots": texts(self.doc), "flags": {k: asdict(f) for k, f in self.flags.items()}}
 
 
-def _brief(t: Tailored, rules: tuple[str, ...], options: TailorOptions, instructions: str, pinned: Collection[str], pages: int, template_instructions: str) -> Brief:
+def _brief(t: Tailored, rules: tuple[str, ...], options: TailorOptions, instructions: str, pinned: Collection[str], pages: ResumeLength, template_instructions: str) -> Brief:
     """What the document prints, as the writer reads it. No name or contact details leave the machine."""
     keys = tuple(k for k, _ in t.spec.sections) if t.spec.kind == "resume" else (LETTER,)
     return Brief(t.spec.kind, brief_facts(t.profile, t.facts, t.absorbed), t.report.matched, t.report.missing,
@@ -78,7 +78,7 @@ class DocumentGeneration:
         self._rules = rules  # read at each request: Settings can change them
 
     async def generate(self, template: str, options: TailorOptions, instructions: str = "",
-                       pinned: Collection[str] = (), pages: int = 1, template_instructions: str = "") -> Draft:
+                       pinned: Collection[str] = (), pages: ResumeLength = "default", template_instructions: str = "") -> Draft:
         """`pinned` are slot ids the person wrote: the writer's text for one is replaced by theirs, and one the writer left out is added. `template_instructions` tell the writer how the template's style reads.
 
         KeyError: unknown template. MissingInputs: a letter with neither a posting nor a company and role. LLMUnavailable: no model, or it did not

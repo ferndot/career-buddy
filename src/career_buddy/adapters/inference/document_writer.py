@@ -46,7 +46,8 @@ def system_prompt(brief: Brief, repair: bool = False) -> str:
     if brief.template_instructions:
         template.append(f"Template instructions: {brief.template_instructions}")
     if brief.kind == "resume":
-        template.append(f"Length: this resume is {brief.caps.pages} page{'s' * (brief.caps.pages != 1)} long. At most {brief.caps.bullets} bullets for each position and {brief.caps.skills} skills in all.")
+        length = "this resume is 1 page long" if brief.caps.pages == 1 else "follow the general length rule, at most 2 pages, and do not state a page count"
+        template.append(f"Length: {length}. At most {brief.caps.bullets} bullets for each position and {brief.caps.skills} skills in all.")
     parts = [_SECTIONS["rules"], *([] if repair else [_SECTIONS[brief.kind], rules_text(brief.rules, brief.kind)]), "\n".join(template), _SECTIONS["repair" if repair else "output"]]
     return "\n".join(p.strip() for p in parts if p.strip())
 

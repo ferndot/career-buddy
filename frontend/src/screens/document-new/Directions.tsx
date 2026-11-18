@@ -1,6 +1,6 @@
 import { Box, Field, NativeSelect, Text, Textarea } from '@chakra-ui/react'
 import { Link } from 'react-router-dom'
-import { MAX_INSTRUCTIONS, type ResumePages } from '../documents/api'
+import { MAX_INSTRUCTIONS } from '../documents/api'
 import { useConnections } from '../settings/llmApi'
 import type { DocDraft, DocKind } from './state'
 
@@ -25,14 +25,13 @@ export function Directions({ kind, doc, setDoc }: Props) {
         <Field.Root>
           <Field.Label color="app.text2">Resume length</Field.Label>
           <NativeSelect.Root size="sm" maxW="40">
-            <NativeSelect.Field value={doc.resumePages} bg="app.surface" borderColor="app.borderStrong" onChange={(e) => setDoc({ resumePages: Number(e.target.value) as ResumePages })}>
-              <option value={1}>1 page</option>
-              <option value={2}>2 pages</option>
-              <option value={3}>3 pages</option>
+            <NativeSelect.Field value={doc.resumePages} bg="app.surface" borderColor="app.borderStrong" onChange={(e) => setDoc({ resumePages: e.target.value === '1' ? 1 : 'default' })}>
+              <option value="default">Default</option>
+              <option value={1}>1-page</option>
             </NativeSelect.Field>
             <NativeSelect.Indicator />
           </NativeSelect.Root>
-          <Field.HelperText>How much the writer may put in: bullets per position and skills.</Field.HelperText>
+          <Field.HelperText>Default lets the writer choose by experience: one page under about 10 years, two for more. 1-page keeps it to one.</Field.HelperText>
         </Field.Root>
       )}
       {noModel && (

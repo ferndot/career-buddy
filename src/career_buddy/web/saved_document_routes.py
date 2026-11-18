@@ -11,6 +11,8 @@ from fastapi.responses import Response
 
 from pydantic import BaseModel, Field
 
+from career_buddy.domain.generation import ResumeLength
+
 from career_buddy.application.ports import RendererUnavailable
 from career_buddy.application.saved_documents import SavedDocuments, SavedMeta
 from career_buddy.web.requests import SaveRequest
@@ -20,7 +22,7 @@ LISTED = ("id", "label", "template", "filename", "created_at", "ats_issues")
 
 class RegenerateRequest(BaseModel):
     instructions: str = Field("", max_length=2000)  # new directions; empty keeps the ones saved with the document
-    resume_pages: Literal[1, 2, 3] | None = None  # a new length for this resume; omitted keeps the saved one
+    resume_pages: ResumeLength | None = None  # a new length for this resume; omitted keeps the saved one
 
 
 def saved_document_router(saved: Callable[[], SavedDocuments]) -> APIRouter:

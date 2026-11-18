@@ -19,6 +19,7 @@ from career_buddy.application.documents import DocumentService, Rendered, Tailor
 from career_buddy.application.generation import Draft, DocumentGeneration
 from career_buddy.application.ports import ObjectNotFound, ObjectStore
 from career_buddy.domain.document import Document, Style
+from career_buddy.domain.generation import ResumeLength
 from career_buddy.domain.markers import clean_document
 from career_buddy.domain.slots import Slot, Written, layout_overrides, resolve, written_for
 from career_buddy.domain.templates import Layout, get_template
@@ -66,11 +67,11 @@ class SavedSource:
     job_text: str = ""
     inputs: dict[str, str] = field(default_factory=dict)
     instructions: str = ""  # the user's directions for the writer
-    resume_pages: int = 1  # how long a resume should be: 1, 2 or 3 pages
+    resume_pages: ResumeLength = "default"  # how long a resume should be
     template_instructions: str = ""  # the template's and the chosen style's instructions for the writer
 
     @staticmethod
-    def of(template: str, options: TailorOptions, instructions: str, resume_pages: int, template_instructions: str = "") -> SavedSource:
+    def of(template: str, options: TailorOptions, instructions: str, resume_pages: ResumeLength, template_instructions: str = "") -> SavedSource:
         return SavedSource(template, options.job_text, options.inputs, instructions, resume_pages, template_instructions)
 
     def options(self, overrides: dict[str, str]) -> TailorOptions:
@@ -121,7 +122,7 @@ class SavedDocuments:
         self._store.put(f"{_prefix(doc_id)}{name}", data if isinstance(data, bytes) else json.dumps(data).encode(), content_type)
 
     async def save(self, template: str, style: Style, options: TailorOptions, label: str = "",
-                   written: WrittenDocument | None = None, instructions: str = "", resume_pages: int = 1,
+                   written: WrittenDocument | None = None, instructions: str = "", resume_pages: ResumeLength = "default",
                    template_instructions: str = "") -> SavedMeta:
         """Keep the layout, what the user wrote (`options.overrides`, by slot id or fact id), what a writer wrote (`written`: its sections are
         the layout, its texts `generated.json`) and what the document was built from. The facts' own text is not kept: it is found when
@@ -169,7 +170,7 @@ class SavedDocuments:
         source = self._json(doc_id, "source.json")
         return SavedContent(meta, self._read(doc_id, "document.html").decode(), self._read(doc_id, "document.css").decode(),
                             self._json(doc_id, "overrides.json"), {k: Written(**v) for k, v in self._json(doc_id, "generated.json").items()},
-                            SavedSource(**source) if source else None)
+                            SavedSource(**{**source, "resume_pages": 1 if source.get("resume_pages") == 1 else "default"}) if source else None)  # a stored 2 or 3 is the default
 
     async def slots(self, doc_id: str) -> dict[str, str]:
         """The text of every slot as it reads now: override, generated text, the facts, then the placeholder."""
@@ -182,7 +183,7 @@ class SavedDocuments:
         doc = await self._document(c.meta.template, c.html, c.overrides, c.generated)
         return await self._documents.export(doc, fmt or DEFAULT_FORMAT, Style(c.meta.font, c.meta.paper), c.meta.filename)  # type: ignore[arg-type]
 
-    async def regenerate(self, doc_id: str, instructions: str = "", resume_pages: int | None = None) -> Draft:
+    async def regenerate(self, doc_id: str, instructions: str = "", resume_pages: ResumeLength | None = None) -> Draft:
         """Write the text again from the facts as they are now. It replaces generated text only: a slot with an override is
         pinned, left to the writer untouched, and keeps the user's words. NoSource: saved before sources were kept.
         LLMUnavailable and UngroundedDraft as for DocumentGeneration."""

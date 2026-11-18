@@ -2,7 +2,6 @@
 (the settings). Everything else is found from the facts at every download."""
 
 import json
-import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -48,7 +47,7 @@ def test_a_save_keeps_the_settings_and_none_of_the_text(tmp_path: Path) -> None:
         record = save(client, job_text="Python platform",
                       inputs={"company": "Acme"}, instructions="  Warm  ", font="serif", paper="a4")
         assert content(client, record)["source"] == {"template": "resume-classic", "job_text": "Python platform", "inputs": {"company": "Acme"},
-                                                     "instructions": "Warm", "resume_pages": 1, "template_instructions": ""}
+                                                     "instructions": "Warm", "resume_pages": "default", "template_instructions": ""}
         raw = stored(tmp_path, record, "source.json").read_text()
         assert "Jane" not in raw and CUT not in raw
         assert json.loads(stored(tmp_path, record, "meta.json").read_text())["paper"] == "a4"
@@ -128,15 +127,15 @@ def test_regenerating_replaces_generated_text_only_where_there_is_no_override(tm
 def test_each_resume_keeps_its_own_length_and_regenerating_uses_it_unless_given_a_new_one(tmp_path: Path) -> None:
     model = Model(reword)
     with open_client(tmp_path, model) as client:
-        short, long = save(client), save(client, resume_pages=2)
-        assert content(client, short)["source"]["resume_pages"] == 1 and content(client, long)["source"]["resume_pages"] == 2
+        short, long = save(client, resume_pages=1), save(client)
+        assert content(client, short)["source"]["resume_pages"] == 1 and content(client, long)["source"]["resume_pages"] == "default"
         for record in (short, long):
             assert client.post(f"/api/saved-documents/{record['id']}/regenerate", json={}).status_code == 200
-        assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": 3}).status_code == 200
+        assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": "default"}).status_code == 200
         assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={}).status_code == 200  # the new length was kept
-        assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": 4}).status_code == 422
-        assert content(client, short)["source"]["resume_pages"] == 3 and content(client, long)["source"]["resume_pages"] == 2
-    assert [int(re.search(r"this resume is (\d) page", system).group(1)) for system in model.systems] == [1, 2, 3, 3]
+        assert client.post(f"/api/saved-documents/{short['id']}/regenerate", json={"resume_pages": 3}).status_code == 422
+        assert content(client, short)["source"]["resume_pages"] == "default" and content(client, long)["source"]["resume_pages"] == "default"
+    assert ["1 page long" in system for system in model.systems] == [True, False, False, False]
 
 
 def test_regenerating_a_letter_gives_it_the_models_paragraphs_under_the_header_and_nothing_else(tmp_path: Path) -> None:
